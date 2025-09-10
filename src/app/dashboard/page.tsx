@@ -145,17 +145,17 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-4 sm:py-6 lg:py-8">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Analytics Dashboard</h1>
-          <p className="text-gray-600 mt-2">
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Analytics Dashboard</h1>
+          <p className="text-gray-600 mt-2 text-sm sm:text-base">
             Comprehensive insights into your cleaning operations
           </p>
         </div>
 
         {/* Month/Year Selector */}
-        <div className="mb-8">
+        <div className="mb-6 sm:mb-8">
           <MonthSelector 
             selectedMonth={selectedMonth} 
             onMonthChange={handleMonthChange}
@@ -166,14 +166,14 @@ export default function Dashboard() {
 
         {/* Summary Cards */}
         {analyticsData && (
-          <div className="mb-8">
+          <div className="mb-6 sm:mb-8">
             <SummaryCards data={analyticsData.summary} />
           </div>
         )}
 
         {/* Charts Grid */}
         {analyticsData && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 mb-6 sm:mb-8">
             <CleaningsByApartmentChart data={analyticsData.cleanings_by_apartment} />
             <CleanerWorkloadChart data={analyticsData.cleaner_workload} />
           </div>
@@ -181,21 +181,21 @@ export default function Dashboard() {
 
         {/* Cleaner Earnings Chart */}
         {analyticsData && (
-          <div className="mb-8">
+          <div className="mb-6 sm:mb-8">
             <CleanerEarningsChart data={analyticsData.cleaner_earnings} />
           </div>
         )}
 
         {/* Monthly Trends */}
         {analyticsData && (
-          <div className="mb-8">
+          <div className="mb-6 sm:mb-8">
             <MonthlyTrendsChart data={analyticsData.monthly_trends} />
           </div>
         )}
 
         {/* Invoicing Table */}
         {analyticsData && (
-          <div className="mb-8">
+          <div className="mb-6 sm:mb-8">
             <InvoicingTable 
               data={analyticsData.invoicing_data} 
               month={selectedMonth}

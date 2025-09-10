@@ -74,7 +74,7 @@ export default function CleanerEarningsChart({ data }: CleanerEarningsChartProps
       </div>
 
       {/* Summary Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
         <div className="bg-green-50 rounded-lg p-4">
           <div className="flex items-center">
             <DollarSign className="w-5 h-5 text-green-600 mr-2" />
@@ -113,23 +113,24 @@ export default function CleanerEarningsChart({ data }: CleanerEarningsChartProps
             data={data}
             margin={{
               top: 20,
-              right: 30,
-              left: 20,
-              bottom: 60,
+              right: 10,
+              left: 10,
+              bottom: 80,
             }}
           >
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
             <XAxis 
               dataKey="cleaner_name" 
               stroke="#6b7280"
-              fontSize={12}
+              fontSize={10}
               angle={-45}
               textAnchor="end"
               height={80}
+              interval={0}
             />
             <YAxis 
               stroke="#6b7280"
-              fontSize={12}
+              fontSize={10}
               tickFormatter={(value) => `R${value}`}
             />
             <Tooltip content={<CustomTooltip />} />
@@ -152,7 +153,7 @@ export default function CleanerEarningsChart({ data }: CleanerEarningsChartProps
           <h4 className="text-md font-semibold text-gray-900 mb-3">Top Earners</h4>
           <div className="space-y-2">
             {data.slice(0, 3).map((cleaner, index) => (
-              <div key={cleaner.cleaner_id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div key={cleaner.cleaner_id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 bg-gray-50 rounded-lg space-y-2 sm:space-y-0">
                 <div className="flex items-center">
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold mr-3 ${
                     index === 0 ? 'bg-yellow-500' : index === 1 ? 'bg-gray-400' : 'bg-orange-500'
@@ -164,7 +165,7 @@ export default function CleanerEarningsChart({ data }: CleanerEarningsChartProps
                     <p className="text-sm text-gray-600">{cleaner.session_count} sessions</p>
                   </div>
                 </div>
-                <div className="text-right">
+                <div className="text-left sm:text-right">
                   <p className="font-bold text-green-600">R{cleaner.total_earnings.toFixed(2)}</p>
                   <p className="text-sm text-gray-600">R{cleaner.average_earnings_per_session.toFixed(2)}/session</p>
                 </div>
