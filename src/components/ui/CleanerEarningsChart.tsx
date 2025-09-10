@@ -28,7 +28,15 @@ export default function CleanerEarningsChart({ data }: CleanerEarningsChartProps
     '#06B6D4', '#84CC16', '#F97316', '#EC4899', '#6366F1'
   ];
 
-  const CustomTooltip = ({ active, payload, label }: any) => {
+  interface TooltipProps {
+    active?: boolean;
+    payload?: Array<{
+      payload: CleanerEarningsData;
+    }>;
+    label?: string;
+  }
+
+  const CustomTooltip = ({ active, payload, label }: TooltipProps) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
       return (
