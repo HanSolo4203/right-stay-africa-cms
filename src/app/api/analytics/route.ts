@@ -73,6 +73,27 @@ export async function GET(request: NextRequest) {
       };
     }).filter(cleaner => cleaner.session_count > 0);
 
+    // Cleaner earnings calculation
+    const cleanerEarnings = cleaners.map(cleaner => {
+      const cleanerSessions = filteredSessions.filter(session => 
+        session.cleaner_name === cleaner.name
+      );
+      
+      // Calculate total earnings from cleaning sessions
+      const totalEarnings = cleanerSessions.reduce((sum, session) => {
+        const price = session.price !== null && session.price !== undefined ? session.price : 150;
+        return sum + price; // Default to R150 if no price set
+      }, 0);
+      
+      return {
+        cleaner_name: cleaner.name,
+        cleaner_id: cleaner.id,
+        session_count: cleanerSessions.length,
+        total_earnings: totalEarnings,
+        average_earnings_per_session: cleanerSessions.length > 0 ? totalEarnings / cleanerSessions.length : 0
+      };
+    }).filter(cleaner => cleaner.session_count > 0).sort((a, b) => b.total_earnings - a.total_earnings);
+
     // Monthly trends (last 6 months)
     const monthlyTrends = [];
     const currentDate = new Date();
@@ -141,6 +162,7 @@ export async function GET(request: NextRequest) {
       },
       cleanings_by_apartment: cleaningsByApartment,
       cleaner_workload: cleanerWorkload,
+      cleaner_earnings: cleanerEarnings,
       monthly_trends: monthlyTrends,
       insights: {
         most_active_apartment: mostActiveApartment,

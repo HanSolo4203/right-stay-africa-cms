@@ -5,6 +5,7 @@ import MonthSelector from '@/components/ui/MonthSelector';
 import SummaryCards from '@/components/ui/SummaryCards';
 import CleaningsByApartmentChart from '@/components/ui/CleaningsByApartmentChart';
 import CleanerWorkloadChart from '@/components/ui/CleanerWorkloadChart';
+import CleanerEarningsChart from '@/components/ui/CleanerEarningsChart';
 import MonthlyTrendsChart from '@/components/ui/MonthlyTrendsChart';
 import InvoicingTable from '@/components/ui/InvoicingTable';
 import { Toaster } from 'react-hot-toast';
@@ -27,6 +28,13 @@ interface AnalyticsData {
     cleaner_name: string;
     session_count: number;
     cleaner_id: string;
+  }>;
+  cleaner_earnings: Array<{
+    cleaner_name: string;
+    cleaner_id: string;
+    session_count: number;
+    total_earnings: number;
+    average_earnings_per_session: number;
   }>;
   monthly_trends: Array<{
     month: string;
@@ -168,6 +176,13 @@ export default function Dashboard() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
             <CleaningsByApartmentChart data={analyticsData.cleanings_by_apartment} />
             <CleanerWorkloadChart data={analyticsData.cleaner_workload} />
+          </div>
+        )}
+
+        {/* Cleaner Earnings Chart */}
+        {analyticsData && (
+          <div className="mb-8">
+            <CleanerEarningsChart data={analyticsData.cleaner_earnings} />
           </div>
         )}
 

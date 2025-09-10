@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Download, Printer, FileText, Search, ChevronDown, ChevronRight, Calendar, User, DollarSign, FileText as NoteIcon } from 'lucide-react';
+import { Download, Printer, FileText, Search, ChevronDown, ChevronRight, Calendar, User, DollarSign, FileText as NoteIcon, Receipt } from 'lucide-react';
 import { CleaningSessionDetailed } from '@/lib/types';
+import InvoiceGenerator from './InvoiceGenerator';
 
 interface InvoicingTableProps {
   data: Array<{
@@ -23,6 +24,16 @@ export default function InvoicingTable({ data, month, year }: InvoicingTableProp
   const [expandedApartment, setExpandedApartment] = useState<string | null>(null);
   const [cleaningDetails, setCleaningDetails] = useState<Record<string, CleaningSessionDetailed[]>>({});
   const [loadingDetails, setLoadingDetails] = useState<string | null>(null);
+  const [invoiceApartment, setInvoiceApartment] = useState<{
+    apartment: {
+      apartment_number: string;
+      owner_name: string;
+      cleaning_count: number;
+      total_amount: number;
+      apartment_id: string;
+    };
+    sessions: CleaningSessionDetailed[];
+  } | null>(null);
 
   // Filter and sort data
   const filteredData = data
@@ -94,6 +105,55 @@ export default function InvoicingTable({ data, month, year }: InvoicingTableProp
     } else {
       setSortBy(column);
       setSortOrder('asc');
+    }
+  };
+
+  // Generate invoice for a specific apartment
+  const generateInvoice = async (apartment: {
+    apartment_number: string;
+    owner_name: string;
+    cleaning_count: number;
+    total_amount: number;
+    apartment_id: string;
+  }) => {
+    const cacheKey = `${apartment.apartment_number}-${month || year || 'all'}`;
+    
+    // If we already have the cleaning details, use them
+    if (cleaningDetails[cacheKey]) {
+      setInvoiceApartment({
+        apartment,
+        sessions: cleaningDetails[cacheKey]
+      });
+      return;
+    }
+
+    // Otherwise, fetch the details first
+    setLoadingDetails(apartment.apartment_number);
+    try {
+      let url = `/api/cleaning-sessions?apartment=${apartment.apartment_number}`;
+      if (month) {
+        url += `&month=${month}`;
+      } else if (year) {
+        url += `&year=${year}`;
+      }
+      
+      const response = await fetch(url);
+      const result = await response.json();
+      
+      if (result.success) {
+        setCleaningDetails(prev => ({
+          ...prev,
+          [cacheKey]: result.data
+        }));
+        setInvoiceApartment({
+          apartment,
+          sessions: result.data
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching cleaning details for invoice:', error);
+    } finally {
+      setLoadingDetails(null);
     }
   };
 
@@ -253,6 +313,9 @@ export default function InvoicingTable({ data, month, year }: InvoicingTableProp
               >
                 Amount {sortBy === 'total_amount' && (sortOrder === 'asc' ? '↑' : '↓')}
               </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Actions
+              </th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
@@ -281,12 +344,31 @@ export default function InvoicingTable({ data, month, year }: InvoicingTableProp
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                     R{apartment.total_amount.toLocaleString()}
                   </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <button
+                      onClick={() => generateInvoice(apartment)}
+                      disabled={loadingDetails === apartment.apartment_number}
+                      className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {loadingDetails === apartment.apartment_number ? (
+                        <>
+                          <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin mr-1"></div>
+                          Loading...
+                        </>
+                      ) : (
+                        <>
+                          <Receipt className="w-3 h-3 mr-1" />
+                          Invoice
+                        </>
+                      )}
+                    </button>
+                  </td>
                 </tr>
                 
                 {/* Expanded details row */}
                 {expandedApartment === apartment.apartment_number && (
                   <tr>
-                    <td colSpan={4} className="px-6 py-4 bg-gray-50">
+                    <td colSpan={5} className="px-6 py-4 bg-gray-50">
                       <div className="space-y-3">
                         <h4 className="text-sm font-medium text-gray-900 mb-3">
                           Cleaning Details for Apartment {apartment.apartment_number}
@@ -350,7 +432,7 @@ export default function InvoicingTable({ data, month, year }: InvoicingTableProp
           </tbody>
           <tfoot className="bg-gray-50">
             <tr>
-              <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900" colSpan={3}>
+              <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900" colSpan={4}>
                 Total
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
@@ -384,6 +466,17 @@ export default function InvoicingTable({ data, month, year }: InvoicingTableProp
           </p>
         </div>
       </div>
+
+      {/* Invoice Generator Modal */}
+      {invoiceApartment && (
+        <InvoiceGenerator
+          apartment={invoiceApartment.apartment}
+          cleaningSessions={invoiceApartment.sessions}
+          month={month}
+          year={year}
+          onClose={() => setInvoiceApartment(null)}
+        />
+      )}
     </div>
   );
 }
