@@ -132,6 +132,12 @@ export async function GET(request: NextRequest) {
         active_cleaners: activeCleaners,
         average_cleanings_per_apartment: averageCleaningsPerApartment,
         total_revenue: totalRevenue
+      } as {
+        total_cleanings: number;
+        active_apartments: number;
+        active_cleaners: number;
+        average_cleanings_per_apartment: string;
+        total_revenue: number;
       },
       cleanings_by_apartment: cleaningsByApartment,
       cleaner_workload: cleanerWorkload,

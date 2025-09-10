@@ -64,7 +64,7 @@ export default function ResponsiveTable<T extends Record<string, unknown>>({
                   >
                     {column.render 
                       ? column.render(item[column.key], item)
-                      : item[column.key]
+                      : (item[column.key] as React.ReactNode)
                     }
                   </td>
                 ))}
@@ -93,7 +93,7 @@ export default function ResponsiveTable<T extends Record<string, unknown>>({
                     <span className="text-sm text-gray-900 text-right flex-1 ml-2">
                       {column.render 
                         ? column.render(item[column.key], item)
-                        : item[column.key]
+                        : (item[column.key] as React.ReactNode)
                       }
                     </span>
                   </div>
@@ -112,6 +112,7 @@ interface InvoicingRow {
   owner_name: string;
   cleaning_count: number;
   total_amount: number;
+  [key: string]: unknown;
 }
 
 export function InvoicingTable({ data }: { data: InvoicingRow[] }) {
@@ -131,7 +132,7 @@ export function InvoicingTable({ data }: { data: InvoicingRow[] }) {
       label: 'Cleanings',
       render: (value) => (
         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-          {value}
+          {value as React.ReactNode}
         </span>
       )
     },
@@ -140,7 +141,7 @@ export function InvoicingTable({ data }: { data: InvoicingRow[] }) {
       label: 'Total',
       render: (value) => (
         <span className="font-semibold text-green-600">
-          R{value.toFixed(2)}
+          R{(value as number).toFixed(2)}
         </span>
       ),
       className: 'text-right'

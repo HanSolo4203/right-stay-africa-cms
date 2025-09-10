@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { ApiResponse, PaginatedResponse } from './validations';
+import { z } from 'zod';
 
 // Success response helpers
 export function successResponse<T>(data: T, message?: string, status: number = 200) {
@@ -39,7 +40,7 @@ export function errorResponse(
   const response: ApiResponse = {
     success: false,
     error,
-    ...(details && { details }),
+    ...(details ? { details } : {}),
   };
   return NextResponse.json(response, { status });
 }
@@ -78,7 +79,7 @@ export function handleApiError(error: unknown, context: string = 'API operation'
 
 // Request validation helper
 export function validateRequest<T>(
-  schema: unknown,
+  schema: z.ZodSchema<T>,
   data: unknown
 ): { success: true; data: T } | { success: false; error: NextResponse } {
   try {

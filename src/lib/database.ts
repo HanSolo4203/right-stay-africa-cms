@@ -150,6 +150,17 @@ export const cleaningSessionsApi = {
     return data || [];
   },
 
+  // Get all cleaning sessions (basic type for conflict checking)
+  async getAllBasic(): Promise<CleaningSession[]> {
+    const { data, error } = await supabase
+      .from(TABLES.CLEANING_SESSIONS)
+      .select('*')
+      .order('cleaning_date', { ascending: false });
+    
+    if (error) throw error;
+    return data || [];
+  },
+
   // Get cleaning session by ID
   async getById(id: string): Promise<CleaningSessionDetailed | null> {
     const { data, error } = await supabase

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Plus, ChevronLeft, ChevronRight } from 'lucide-react';
-import { Calendar as BigCalendar, momentLocalizer, Views } from 'react-big-calendar';
+import { Calendar as BigCalendar, momentLocalizer, Views, View } from 'react-big-calendar';
 import moment from 'moment';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { CleaningSessionDetailed } from '@/lib/types';
@@ -22,7 +22,7 @@ interface CalendarViewProps {
 
 export default function CalendarView({}: CalendarViewProps) {
   const [events, setEvents] = useState<CleaningSessionDetailed[]>([]);
-  const [currentView, setCurrentView] = useState(Views.MONTH);
+  const [currentView, setCurrentView] = useState<View>(Views.MONTH);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [isLoading, setIsLoading] = useState(true);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -84,7 +84,7 @@ export default function CalendarView({}: CalendarViewProps) {
   }, []);
 
   // Handle view change
-  const handleViewChange = (view: string) => {
+  const handleViewChange = (view: View) => {
     setCurrentView(view);
   };
 
@@ -187,6 +187,7 @@ export default function CalendarView({}: CalendarViewProps) {
 
         {/* Calendar */}
         <div className="bg-white rounded-lg shadow-md border border-gray-200 p-2 sm:p-4">
+          {/* @ts-expect-error - react-big-calendar types are complex and don't match our usage */}
           <BigCalendar
             localizer={localizer}
             events={calendarEvents}
