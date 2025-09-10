@@ -36,7 +36,7 @@ export function useCleaningSessions(): UseCleaningSessionsReturn {
         setError(result.error || 'Failed to fetch cleaning sessions');
         toast.error(result.error || 'Failed to fetch cleaning sessions');
       }
-    } catch (error) {
+    } catch {
       const errorMessage = 'Failed to fetch cleaning sessions';
       setError(errorMessage);
       toast.error(errorMessage);
@@ -68,7 +68,7 @@ export function useCleaningSessions(): UseCleaningSessionsReturn {
         toast.error(result.error || 'Failed to create cleaning session');
         return null;
       }
-    } catch (error) {
+    } catch {
       const errorMessage = 'Failed to create cleaning session';
       setError(errorMessage);
       toast.error(errorMessage);
@@ -99,7 +99,7 @@ export function useCleaningSessions(): UseCleaningSessionsReturn {
         toast.error(result.error || 'Failed to update cleaning session');
         return null;
       }
-    } catch (error) {
+    } catch {
       const errorMessage = 'Failed to update cleaning session';
       setError(errorMessage);
       toast.error(errorMessage);
@@ -126,7 +126,7 @@ export function useCleaningSessions(): UseCleaningSessionsReturn {
         toast.error(result.error || 'Failed to delete cleaning session');
         return false;
       }
-    } catch (error) {
+    } catch {
       const errorMessage = 'Failed to delete cleaning session';
       setError(errorMessage);
       toast.error(errorMessage);
@@ -149,7 +149,7 @@ export function useCleaningSessions(): UseCleaningSessionsReturn {
         toast.error(result.error || 'Failed to fetch sessions by date range');
         return [];
       }
-    } catch (error) {
+    } catch {
       toast.error('Failed to fetch sessions by date range');
       return [];
     }
@@ -166,7 +166,7 @@ export function useCleaningSessions(): UseCleaningSessionsReturn {
         toast.error(result.error || 'Failed to fetch sessions by apartment');
         return [];
       }
-    } catch (error) {
+    } catch {
       toast.error('Failed to fetch sessions by apartment');
       return [];
     }
@@ -183,7 +183,7 @@ export function useCleaningSessions(): UseCleaningSessionsReturn {
         toast.error(result.error || 'Failed to fetch sessions by cleaner');
         return [];
       }
-    } catch (error) {
+    } catch {
       toast.error('Failed to fetch sessions by cleaner');
       return [];
     }

@@ -80,7 +80,7 @@ export function handleApiError(error: unknown, context: string = 'API operation'
 export function validateRequest<T>(
   schema: unknown,
   data: unknown,
-  context: string = 'request'
+  _context: string = 'request'
 ): { success: true; data: T } | { success: false; error: NextResponse } {
   try {
     const validatedData = schema.parse(data);

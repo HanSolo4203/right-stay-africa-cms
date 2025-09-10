@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Search, Plus, Users } from 'lucide-react';
 import { Cleaner } from '@/lib/types';
 import CleanerCard from './CleanerCard';
@@ -35,7 +35,7 @@ export default function CleanersList({ onCleanerCountChange }: CleanersListProps
   const { error, isRetrying, handleError, retry, clearError } = useNetworkError();
 
   // Load cleaners from API
-  const loadCleaners = async () => {
+  const loadCleaners = useCallback(async () => {
     try {
       setIsLoading(true);
       clearError();
@@ -56,7 +56,7 @@ export default function CleanersList({ onCleanerCountChange }: CleanersListProps
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [clearError]);
 
   useEffect(() => {
     loadCleaners();

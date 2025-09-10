@@ -33,7 +33,7 @@ export function useCleaners(): UseCleanersReturn {
         setError(result.error || 'Failed to fetch cleaners');
         toast.error(result.error || 'Failed to fetch cleaners');
       }
-    } catch (error) {
+    } catch {
       const errorMessage = 'Failed to fetch cleaners';
       setError(errorMessage);
       toast.error(errorMessage);
@@ -65,7 +65,7 @@ export function useCleaners(): UseCleanersReturn {
         toast.error(result.error || 'Failed to create cleaner');
         return null;
       }
-    } catch (error) {
+    } catch {
       const errorMessage = 'Failed to create cleaner';
       setError(errorMessage);
       toast.error(errorMessage);
@@ -96,7 +96,7 @@ export function useCleaners(): UseCleanersReturn {
         toast.error(result.error || 'Failed to update cleaner');
         return null;
       }
-    } catch (error) {
+    } catch {
       const errorMessage = 'Failed to update cleaner';
       setError(errorMessage);
       toast.error(errorMessage);
@@ -123,7 +123,7 @@ export function useCleaners(): UseCleanersReturn {
         toast.error(result.error || 'Failed to delete cleaner');
         return false;
       }
-    } catch (error) {
+    } catch {
       const errorMessage = 'Failed to delete cleaner';
       setError(errorMessage);
       toast.error(errorMessage);

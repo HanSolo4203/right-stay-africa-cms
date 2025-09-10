@@ -85,7 +85,7 @@ export function useAnalytics(): UseAnalyticsReturn {
         toast.error(result.error || 'Failed to fetch analytics data');
         return null;
       }
-    } catch (error) {
+    } catch {
       const errorMessage = 'Failed to fetch analytics data';
       setError(errorMessage);
       toast.error(errorMessage);

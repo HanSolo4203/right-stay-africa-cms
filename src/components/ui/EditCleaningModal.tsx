@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { X, Building2, User, Calendar, FileText } from 'lucide-react';
 import { CleaningSessionDetailed, UpdateCleaningSessionData, Apartment, Cleaner } from '@/lib/types';
 import toast from 'react-hot-toast';
@@ -41,7 +41,7 @@ export default function EditCleaningModal({ isOpen, session, onClose, onSuccess 
     }
   }, [isOpen, session, loadData]);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setIsLoadingData(true);
       
@@ -89,7 +89,7 @@ export default function EditCleaningModal({ isOpen, session, onClose, onSuccess 
     } finally {
       setIsLoadingData(false);
     }
-  };
+  }, [session]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;

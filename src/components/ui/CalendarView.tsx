@@ -15,6 +15,7 @@ import toast from 'react-hot-toast';
 // Setup moment localizer
 const localizer = momentLocalizer(moment);
 
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 interface CalendarViewProps {
   // No props needed for this component
 }

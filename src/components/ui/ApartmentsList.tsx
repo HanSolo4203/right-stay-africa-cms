@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Search, Plus, Building2 } from 'lucide-react';
 import { Apartment } from '@/lib/types';
 import ApartmentCard from './ApartmentCard';
@@ -23,7 +23,7 @@ export default function ApartmentsList({ onApartmentCountChange }: ApartmentsLis
   const [selectedApartment, setSelectedApartment] = useState<Apartment | null>(null);
 
   // Load apartments from API
-  const loadApartments = async () => {
+  const loadApartments = useCallback(async () => {
     try {
       setIsLoading(true);
       const response = await fetch('/api/apartments');
@@ -71,7 +71,7 @@ export default function ApartmentsList({ onApartmentCountChange }: ApartmentsLis
     } catch (error) {
       console.error('Error loading session counts:', error);
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadApartments();
