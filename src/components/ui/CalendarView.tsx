@@ -9,6 +9,7 @@ import { CleaningSessionDetailed } from '@/lib/types';
 import CalendarEvent from './CalendarEvent';
 import AddCleaningModal from './AddCleaningModal';
 import EditCleaningModal from './EditCleaningModal';
+import EditMultipleCleaningsModal from './EditMultipleCleaningsModal';
 import { CalendarSkeleton } from './LoadingSkeleton';
 import toast from 'react-hot-toast';
 
@@ -27,8 +28,11 @@ export default function CalendarView({}: CalendarViewProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isMultipleEditModalOpen, setIsMultipleEditModalOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<CleaningSessionDetailed | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
+  const [selectedMultipleCleanings, setSelectedMultipleCleanings] = useState<CleaningSessionDetailed[]>([]);
+  const [selectedMultipleDate, setSelectedMultipleDate] = useState<string>('');
 
 
   // Load cleaning sessions
@@ -55,19 +59,38 @@ export default function CalendarView({}: CalendarViewProps) {
     loadEvents();
   }, []);
 
-  // Convert cleaning sessions to calendar events
-  const calendarEvents = events.map(event => {
+  // Group events by date and convert to calendar events
+  const groupedEvents = events.reduce((acc, event) => {
+    const dateKey = event.cleaning_date;
+    if (!acc[dateKey]) {
+      acc[dateKey] = [];
+    }
+    acc[dateKey].push(event);
+    return acc;
+  }, {} as Record<string, CleaningSessionDetailed[]>);
+
+  const calendarEvents = Object.entries(groupedEvents).map(([dateKey, dayEvents]) => {
     // Create date in local timezone to avoid timezone issues
-    const [year, month, day] = event.cleaning_date.split('-').map(Number);
+    const [year, month, day] = dateKey.split('-').map(Number);
     const startDate = new Date(year, month - 1, day);
     const endDate = new Date(year, month - 1, day);
     
+    // Create title based on number of events
+    const eventCount = dayEvents.length;
+    const title = eventCount === 1 
+      ? `Apt ${dayEvents[0].apartment_number} - ${dayEvents[0].cleaner_name}`
+      : `${eventCount} Cleanings`;
+    
     return {
-      id: event.id,
-      title: `Apt ${event.apartment_number} - ${event.cleaner_name}`,
+      id: `grouped-${dateKey}`,
+      title,
       start: startDate,
       end: endDate,
-      resource: event,
+      resource: {
+        date: dateKey,
+        events: dayEvents,
+        isGrouped: eventCount > 1
+      },
     };
   });
 
@@ -78,9 +101,19 @@ export default function CalendarView({}: CalendarViewProps) {
   }, []);
 
   // Handle event selection (for editing)
-  const handleSelectEvent = useCallback((event: { resource: CleaningSessionDetailed }) => {
-    setSelectedEvent(event.resource);
-    setIsEditModalOpen(true);
+  const handleSelectEvent = useCallback((event: { resource: { events: CleaningSessionDetailed[], isGrouped: boolean } }) => {
+    if (event.resource.events.length > 0) {
+      if (event.resource.isGrouped && event.resource.events.length > 1) {
+        // Multiple cleanings - open the multiple edit modal
+        setSelectedMultipleCleanings(event.resource.events);
+        setSelectedMultipleDate(event.resource.events[0].cleaning_date);
+        setIsMultipleEditModalOpen(true);
+      } else {
+        // Single cleaning - open the regular edit modal
+        setSelectedEvent(event.resource.events[0]);
+        setIsEditModalOpen(true);
+      }
+    }
   }, []);
 
   // Handle view change
@@ -94,8 +127,8 @@ export default function CalendarView({}: CalendarViewProps) {
   };
 
   // Custom event component
-  const EventComponent = ({ event }: { event: { resource: CleaningSessionDetailed } }) => (
-    <CalendarEvent event={event.resource} />
+  const EventComponent = ({ event }: { event: { resource: { events: CleaningSessionDetailed[], isGrouped: boolean } } }) => (
+    <CalendarEvent events={event.resource.events} isGrouped={event.resource.isGrouped} />
   );
 
   // Custom toolbar
@@ -209,7 +242,7 @@ export default function CalendarView({}: CalendarViewProps) {
             toolbar: CustomToolbar,
           }}
           eventPropGetter={(event) => {
-            // Generate consistent colors based on cleaner name
+            // Generate consistent colors based on first cleaner name or use special color for grouped events
             const colors = [
               { backgroundColor: '#dbeafe', borderColor: '#3b82f6', color: '#1e40af' },
               { backgroundColor: '#dcfce7', borderColor: '#22c55e', color: '#166534' },
@@ -221,7 +254,14 @@ export default function CalendarView({}: CalendarViewProps) {
               { backgroundColor: '#fee2e2', borderColor: '#ef4444', color: '#dc2626' },
             ];
             
-            const hash = event.resource.cleaner_name.split('').reduce((a: number, b: string) => {
+            // Special color for grouped events (multiple cleanings on same day)
+            if (event.resource.isGrouped) {
+              return { backgroundColor: '#f3f4f6', borderColor: '#6b7280', color: '#374151' };
+            }
+            
+            // Use first cleaner's color for single events
+            const firstEvent = event.resource.events[0];
+            const hash = firstEvent.cleaner_name.split('').reduce((a: number, b: string) => {
               a = ((a << 5) - a) + b.charCodeAt(0);
               return a & a;
             }, 0);
@@ -286,6 +326,18 @@ export default function CalendarView({}: CalendarViewProps) {
           }}
           onSuccess={loadEvents}
         />
+
+        <EditMultipleCleaningsModal
+          isOpen={isMultipleEditModalOpen}
+          sessions={selectedMultipleCleanings}
+          selectedDate={selectedMultipleDate}
+          onClose={() => {
+            setIsMultipleEditModalOpen(false);
+            setSelectedMultipleCleanings([]);
+            setSelectedMultipleDate('');
+          }}
+          onSuccess={loadEvents}
+        />
       </div>
-  );
-}
+    );
+  }
