@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     const queryParams = Object.fromEntries(searchParams.entries());
     
     // Validate query parameters
-    const validation = validateRequest(analyticsQuerySchema, queryParams, 'query parameters');
+    const validation = validateRequest(analyticsQuerySchema, queryParams);
     if (!validation.success) {
       return validation.error;
     }

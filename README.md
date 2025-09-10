@@ -1,3 +1,4 @@
+
 # Right Stay Africa - Cleaning Management System
 
 A modern, responsive cleaning management system built with Next.js 14, TypeScript, and Tailwind CSS.

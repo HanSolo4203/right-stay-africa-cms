@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
     const queryParams = Object.fromEntries(searchParams.entries());
     
     // Validate query parameters
-    const validation = validateRequest(cleanerQuerySchema, queryParams, 'query parameters');
+    const validation = validateRequest(cleanerQuerySchema, queryParams);
     if (!validation.success) {
       return validation.error;
     }
@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     
     // Validate request body
-    const validation = validateRequest(createCleanerSchema, body, 'cleaner data');
+    const validation = validateRequest(createCleanerSchema, body);
     if (!validation.success) {
       return validation.error;
     }
