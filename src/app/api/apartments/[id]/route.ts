@@ -22,7 +22,7 @@ export async function GET(
     
     // Validate UUID format
     const uuidSchema = z.string().uuid('Invalid apartment ID format');
-    const validation = validateRequest(uuidSchema, id, 'apartment ID');
+    const validation = validateRequest(uuidSchema, id);
     if (!validation.success) {
       return validation.error;
     }
@@ -50,13 +50,13 @@ export async function PUT(
     
     // Validate UUID format
     const uuidSchema = z.string().uuid('Invalid apartment ID format');
-    const idValidation = validateRequest(uuidSchema, id, 'apartment ID');
+    const idValidation = validateRequest(uuidSchema, id);
     if (!idValidation.success) {
       return idValidation.error;
     }
 
     // Validate request body
-    const validation = validateRequest(updateApartmentSchema, body, 'apartment update data');
+    const validation = validateRequest(updateApartmentSchema, body);
     if (!validation.success) {
       return validation.error;
     }
@@ -99,7 +99,7 @@ export async function DELETE(
     
     // Validate UUID format
     const uuidSchema = z.string().uuid('Invalid apartment ID format');
-    const validation = validateRequest(uuidSchema, id, 'apartment ID');
+    const validation = validateRequest(uuidSchema, id);
     if (!validation.success) {
       return validation.error;
     }

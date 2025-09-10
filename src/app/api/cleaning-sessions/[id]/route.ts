@@ -22,7 +22,7 @@ export async function GET(
     
     // Validate UUID format
     const uuidSchema = z.string().uuid('Invalid session ID format');
-    const validation = validateRequest(uuidSchema, id, 'session ID');
+    const validation = validateRequest(uuidSchema, id);
     if (!validation.success) {
       return validation.error;
     }
@@ -50,13 +50,13 @@ export async function PUT(
     
     // Validate UUID format
     const uuidSchema = z.string().uuid('Invalid session ID format');
-    const idValidation = validateRequest(uuidSchema, id, 'session ID');
+    const idValidation = validateRequest(uuidSchema, id);
     if (!idValidation.success) {
       return idValidation.error;
     }
 
     // Validate request body
-    const validation = validateRequest(updateCleaningSessionSchema, body, 'cleaning session update data');
+    const validation = validateRequest(updateCleaningSessionSchema, body);
     if (!validation.success) {
       return validation.error;
     }
@@ -117,7 +117,7 @@ export async function DELETE(
     
     // Validate UUID format
     const uuidSchema = z.string().uuid('Invalid session ID format');
-    const validation = validateRequest(uuidSchema, id, 'session ID');
+    const validation = validateRequest(uuidSchema, id);
     if (!validation.success) {
       return validation.error;
     }
