@@ -15,10 +15,10 @@ import { z } from 'zod';
 // GET /api/apartments/[id] - Get apartment by ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
     
     // Validate UUID format
     const uuidSchema = z.string().uuid('Invalid apartment ID format');
@@ -42,10 +42,10 @@ export async function GET(
 // PUT /api/apartments/[id] - Update apartment
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
     const body = await request.json();
     
     // Validate UUID format
@@ -92,10 +92,10 @@ export async function PUT(
 // DELETE /api/apartments/[id] - Delete apartment
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
     
     // Validate UUID format
     const uuidSchema = z.string().uuid('Invalid apartment ID format');
