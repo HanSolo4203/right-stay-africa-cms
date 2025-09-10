@@ -17,6 +17,7 @@ interface AnalyticsData {
     active_cleaners: number;
     average_cleanings_per_apartment: string;
     total_revenue: number;
+    net_revenue: number;
   };
   cleanings_by_apartment: Array<{
     apartment_number: string;

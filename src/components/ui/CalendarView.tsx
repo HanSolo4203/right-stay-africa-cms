@@ -246,7 +246,7 @@ export default function CalendarView({}: CalendarViewProps) {
             toolbar: CustomToolbar,
           }}
           eventPropGetter={(event) => {
-            // Generate consistent colors based on first cleaner name or use special color for grouped events
+            // Generate consistent colors based on first apartment number or use special color for grouped events
             const colors = [
               { backgroundColor: '#dbeafe', borderColor: '#3b82f6', color: '#1e40af' },
               { backgroundColor: '#dcfce7', borderColor: '#22c55e', color: '#166534' },
@@ -263,9 +263,10 @@ export default function CalendarView({}: CalendarViewProps) {
               return { backgroundColor: '#f3f4f6', borderColor: '#6b7280', color: '#374151' };
             }
             
-            // Use first cleaner's color for single events
+            // Use first apartment's color for single events
             const firstEvent = event.resource.events[0];
-            const hash = firstEvent.cleaner_name.split('').reduce((a: number, b: string) => {
+            const key = String(firstEvent.apartment_number);
+            const hash = key.split('').reduce((a: number, b: string) => {
               a = ((a << 5) - a) + b.charCodeAt(0);
               return a & a;
             }, 0);
@@ -279,9 +280,9 @@ export default function CalendarView({}: CalendarViewProps) {
 
       {/* Legend */}
       <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Cleaner Legend</h3>
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Apartment Legend</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {Array.from(new Set(events.map(e => e.cleaner_name))).map((cleanerName) => {
+          {Array.from(new Set(events.map(e => String(e.apartment_number)))).map((apartment) => {
             const colors = [
               { bg: 'bg-blue-100', border: 'border-blue-300', text: 'text-blue-800' },
               { bg: 'bg-green-100', border: 'border-green-300', text: 'text-green-800' },
@@ -293,7 +294,7 @@ export default function CalendarView({}: CalendarViewProps) {
               { bg: 'bg-red-100', border: 'border-red-300', text: 'text-red-800' },
             ];
             
-            const hash = cleanerName.split('').reduce((a, b) => {
+            const hash = apartment.split('').reduce((a, b) => {
               a = ((a << 5) - a) + b.charCodeAt(0);
               return a & a;
             }, 0);
@@ -301,9 +302,9 @@ export default function CalendarView({}: CalendarViewProps) {
             const colorClass = colors[Math.abs(hash) % colors.length];
             
             return (
-              <div key={cleanerName} className="flex items-center space-x-2">
+              <div key={apartment} className="flex items-center space-x-2">
                 <div className={`w-4 h-4 rounded border ${colorClass.bg} ${colorClass.border}`}></div>
-                <span className="text-sm text-gray-600">{cleanerName}</span>
+                <span className="text-sm text-gray-600">Apt {apartment}</span>
               </div>
             );
           })}

@@ -9,6 +9,7 @@ interface SummaryCardsProps {
     active_cleaners: number;
     average_cleanings_per_apartment: string;
     total_revenue: number;
+    net_revenue: number;
   };
 }
 
@@ -52,6 +53,14 @@ export default function SummaryCards({ data }: SummaryCardsProps) {
       icon: DollarSign,
       color: 'emerald',
       change: 'Monthly income',
+      format: 'currency'
+    },
+    {
+      title: 'Net Revenue',
+      value: data.net_revenue,
+      icon: DollarSign,
+      color: 'emerald',
+      change: 'Revenue minus cleaner payouts',
       format: 'currency'
     }
   ];

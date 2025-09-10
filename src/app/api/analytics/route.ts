@@ -152,6 +152,13 @@ export async function GET(request: NextRequest) {
     });
 
     const totalRevenue = invoicingData.reduce((sum, apt) => sum + apt.total_amount, 0);
+    // Total cleaner payouts based on apartment cleaner_payout per session
+    const totalCleanerPayouts = filteredSessions.reduce((sum, session) => {
+      const apt = apartments.find(a => a.apartment_number === session.apartment_number);
+      const payout = apt && (apt as any).cleaner_payout != null ? Number((apt as any).cleaner_payout) : 0;
+      return sum + payout;
+    }, 0);
+    const netRevenue = totalRevenue - totalCleanerPayouts;
 
     return successResponse({
       summary: {
@@ -159,13 +166,15 @@ export async function GET(request: NextRequest) {
         active_apartments: activeApartments,
         active_cleaners: activeCleaners,
         average_cleanings_per_apartment: averageCleaningsPerApartment,
-        total_revenue: totalRevenue
+        total_revenue: totalRevenue,
+        net_revenue: netRevenue
       } as {
         total_cleanings: number;
         active_apartments: number;
         active_cleaners: number;
         average_cleanings_per_apartment: string;
         total_revenue: number;
+        net_revenue: number;
       },
       cleanings_by_apartment: cleaningsByApartment,
       cleaner_workload: cleanerWorkload,

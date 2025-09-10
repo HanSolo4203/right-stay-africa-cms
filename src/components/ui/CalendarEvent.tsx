@@ -8,8 +8,8 @@ interface CalendarEventProps {
 }
 
 export default function CalendarEvent({ events, isGrouped }: CalendarEventProps) {
-  // Generate a consistent color based on cleaner name
-  const getCleanerColor = (cleanerName: string) => {
+  // Generate a consistent color based on apartment number
+  const getApartmentColor = (apartmentNumber: string) => {
     const colors = [
       'bg-blue-100 text-blue-800 border-blue-200',
       'bg-green-100 text-green-800 border-green-200',
@@ -21,7 +21,7 @@ export default function CalendarEvent({ events, isGrouped }: CalendarEventProps)
       'bg-red-100 text-red-800 border-red-200',
     ];
     
-    const hash = cleanerName.split('').reduce((a, b) => {
+    const hash = apartmentNumber.split('').reduce((a, b) => {
       a = ((a << 5) - a) + b.charCodeAt(0);
       return a & a;
     }, 0);
@@ -61,7 +61,7 @@ export default function CalendarEvent({ events, isGrouped }: CalendarEventProps)
 
   // Display single event
   const event = events[0];
-  const colorClass = getCleanerColor(event.cleaner_name);
+  const colorClass = getApartmentColor(String(event.apartment_number));
 
   return (
     <div className={`p-2 rounded border-l-4 ${colorClass} text-xs`}>
