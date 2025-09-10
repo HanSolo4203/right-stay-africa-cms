@@ -137,33 +137,37 @@ export default function CalendarView({}: CalendarViewProps) {
     onNavigate: (direction: 'PREV' | 'NEXT' | 'TODAY') => void; 
     onView: (view: string) => void; 
   }) => (
-    <div className="flex items-center justify-between mb-4 p-4 bg-white rounded-lg shadow-sm border border-gray-200">
-      <div className="flex items-center space-x-4">
-        <h2 className="text-xl font-semibold text-gray-900">{label}</h2>
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4 p-3 sm:p-4 bg-white rounded-lg shadow-sm border border-gray-200">
+      {/* Left: Month label and navigation */}
+      <div className="flex items-center justify-between sm:justify-start">
+        <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mr-3 sm:mr-4">{label}</h2>
         <div className="flex items-center space-x-2">
           <button
             onClick={() => onNavigate('PREV')}
             className="p-2 hover:bg-gray-100 rounded-md transition-colors"
+            aria-label="Previous"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
           <button
             onClick={() => onNavigate('TODAY')}
-            className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
+            className="px-3 py-1 text-xs sm:text-sm bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors whitespace-nowrap"
           >
             Today
           </button>
           <button
             onClick={() => onNavigate('NEXT')}
             className="p-2 hover:bg-gray-100 rounded-md transition-colors"
+            aria-label="Next"
           >
             <ChevronRight className="w-4 h-4" />
           </button>
         </div>
       </div>
-      
-      <div className="flex items-center space-x-2">
-        <div className="flex items-center space-x-1 bg-gray-100 rounded-md p-1">
+
+      {/* Right: View switcher + Add button */}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+        <div className="flex items-center bg-gray-100 rounded-md p-1 overflow-x-auto whitespace-nowrap gap-1">
           {[
             { view: Views.MONTH, label: 'Month' },
             { view: Views.WEEK, label: 'Week' },
@@ -172,7 +176,7 @@ export default function CalendarView({}: CalendarViewProps) {
             <button
               key={view}
               onClick={() => onView(view)}
-              className={`px-3 py-1 text-sm rounded transition-colors ${
+              className={`px-3 py-1 text-xs sm:text-sm rounded transition-colors ${
                 currentView === view
                   ? 'bg-white text-blue-600 shadow-sm'
                   : 'text-gray-600 hover:text-gray-900'
@@ -182,10 +186,10 @@ export default function CalendarView({}: CalendarViewProps) {
             </button>
           ))}
         </div>
-        
+
         <button
           onClick={() => setIsAddModalOpen(true)}
-          className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+          className="inline-flex justify-center items-center w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
         >
           <Plus className="w-4 h-4 mr-2" />
           Add Session
