@@ -45,7 +45,7 @@ export default function ApartmentsList({ onApartmentCountChange }: ApartmentsLis
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   // Load session counts for apartments
   const loadSessionCounts = async (apartmentsData: Apartment[]) => {
