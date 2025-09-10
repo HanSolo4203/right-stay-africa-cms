@@ -123,7 +123,7 @@ export default function MonthSelector({ selectedMonth, onMonthChange, selectedYe
 
   return (
     <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
         <div className="flex items-center space-x-4">
           <Calendar className="w-5 h-5 text-gray-500" />
           <div>
@@ -136,7 +136,7 @@ export default function MonthSelector({ selectedMonth, onMonthChange, selectedYe
           </div>
         </div>
         
-        <div className="flex items-center space-x-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-3 sm:space-y-0 sm:space-x-3">
           {/* View Mode Toggle */}
           <div className="flex bg-gray-100 rounded-md p-1">
             <button
@@ -162,88 +162,92 @@ export default function MonthSelector({ selectedMonth, onMonthChange, selectedYe
           </div>
 
           {viewMode === 'month' ? (
-            <>
-              <button
-                onClick={handlePreviousMonth}
-                disabled={monthOptions.findIndex(option => option.value === selectedMonth) >= monthOptions.length - 1}
-                className="p-2 hover:bg-gray-100 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Previous month"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              
-              <select
-                value={selectedMonth}
-                onChange={(e) => onMonthChange(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-              >
-                {monthOptions.map((option, index) => {
-                  const isFuture = new Date(option.value + '-01') > new Date();
-                  return (
-                    <option key={`${option.value}-${index}`} value={option.value}>
-                      {option.label}{isFuture ? ' (Future)' : ''}
-                    </option>
-                  );
-                })}
-              </select>
-              
-              <button
-                onClick={handleNextMonth}
-                disabled={monthOptions.findIndex(option => option.value === selectedMonth) <= 0}
-                className="p-2 hover:bg-gray-100 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Next month"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-2">
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={handlePreviousMonth}
+                  disabled={monthOptions.findIndex(option => option.value === selectedMonth) >= monthOptions.length - 1}
+                  className="p-2 hover:bg-gray-100 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Previous month"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                
+                <select
+                  value={selectedMonth}
+                  onChange={(e) => onMonthChange(e.target.value)}
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white min-w-0"
+                >
+                  {monthOptions.map((option, index) => {
+                    const isFuture = new Date(option.value + '-01') > new Date();
+                    return (
+                      <option key={`${option.value}-${index}`} value={option.value}>
+                        {option.label}{isFuture ? ' (Future)' : ''}
+                      </option>
+                    );
+                  })}
+                </select>
+                
+                <button
+                  onClick={handleNextMonth}
+                  disabled={monthOptions.findIndex(option => option.value === selectedMonth) <= 0}
+                  className="p-2 hover:bg-gray-100 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Next month"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
               
               <button
                 onClick={handleCurrentMonth}
-                className="px-3 py-2 text-sm bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
+                className="px-3 py-2 text-sm bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors whitespace-nowrap"
                 title="Jump to current month"
               >
                 Current Month
               </button>
-            </>
+            </div>
           ) : (
-            <>
-              <button
-                onClick={handlePreviousYear}
-                disabled={selectedYear ? yearOptions.findIndex(option => option.value === selectedYear) >= yearOptions.length - 1 : true}
-                className="p-2 hover:bg-gray-100 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Previous year"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              
-              <select
-                value={selectedYear || ''}
-                onChange={(e) => onYearChange?.(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-              >
-                {yearOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}{option.isCurrent ? ' (Current)' : ''}
-                  </option>
-                ))}
-              </select>
-              
-              <button
-                onClick={handleNextYear}
-                disabled={selectedYear ? yearOptions.findIndex(option => option.value === selectedYear) <= 0 : true}
-                className="p-2 hover:bg-gray-100 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Next year"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-2">
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={handlePreviousYear}
+                  disabled={selectedYear ? yearOptions.findIndex(option => option.value === selectedYear) >= yearOptions.length - 1 : true}
+                  className="p-2 hover:bg-gray-100 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Previous year"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                
+                <select
+                  value={selectedYear || ''}
+                  onChange={(e) => onYearChange?.(e.target.value)}
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white min-w-0"
+                >
+                  {yearOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}{option.isCurrent ? ' (Current)' : ''}
+                    </option>
+                  ))}
+                </select>
+                
+                <button
+                  onClick={handleNextYear}
+                  disabled={selectedYear ? yearOptions.findIndex(option => option.value === selectedYear) <= 0 : true}
+                  className="p-2 hover:bg-gray-100 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Next year"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
               
               <button
                 onClick={handleCurrentYear}
-                className="px-3 py-2 text-sm bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
+                className="px-3 py-2 text-sm bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors whitespace-nowrap"
                 title="Jump to current year"
               >
                 Current Year
               </button>
-            </>
+            </div>
           )}
         </div>
       </div>
