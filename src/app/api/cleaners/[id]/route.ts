@@ -15,10 +15,10 @@ import { z } from 'zod';
 // GET /api/cleaners/[id] - Get cleaner by ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
     
     // Validate UUID format
     const uuidSchema = z.string().uuid('Invalid cleaner ID format');
@@ -42,10 +42,10 @@ export async function GET(
 // PUT /api/cleaners/[id] - Update cleaner
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
     const body = await request.json();
     
     // Validate UUID format
@@ -80,10 +80,10 @@ export async function PUT(
 // DELETE /api/cleaners/[id] - Delete cleaner
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
     
     // Validate UUID format
     const uuidSchema = z.string().uuid('Invalid cleaner ID format');

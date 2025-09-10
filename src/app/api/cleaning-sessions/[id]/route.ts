@@ -15,10 +15,10 @@ import { z } from 'zod';
 // GET /api/cleaning-sessions/[id] - Get cleaning session by ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
     
     // Validate UUID format
     const uuidSchema = z.string().uuid('Invalid session ID format');
@@ -42,10 +42,10 @@ export async function GET(
 // PUT /api/cleaning-sessions/[id] - Update cleaning session
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
     const body = await request.json();
     
     // Validate UUID format
@@ -110,10 +110,10 @@ export async function PUT(
 // DELETE /api/cleaning-sessions/[id] - Delete cleaning session
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
     
     // Validate UUID format
     const uuidSchema = z.string().uuid('Invalid session ID format');
