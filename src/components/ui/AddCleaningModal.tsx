@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Building2, User, Calendar, FileText } from 'lucide-react';
+import { X } from 'lucide-react';
 import { CreateCleaningSessionData, Apartment, Cleaner } from '@/lib/types';
 import toast from 'react-hot-toast';
 
@@ -178,26 +178,23 @@ export default function AddCleaningModal({ isOpen, selectedDate, onClose, onSucc
               <label htmlFor="apartment_id" className="block text-sm font-medium text-gray-700 mb-2">
                 Apartment *
               </label>
-              <div className="relative">
-                <Building2 className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <select
-                  id="apartment_id"
-                  name="apartment_id"
-                  value={formData.apartment_id}
-                  onChange={handleInputChange}
-                  className={`w-full pl-10 pr-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    errors.apartment_id ? 'border-red-300' : 'border-gray-300'
-                  }`}
-                  disabled={isLoading}
-                >
-                  <option value="">Select an apartment</option>
-                  {apartments.map((apartment) => (
-                    <option key={apartment.id} value={apartment.id}>
-                      Apartment {apartment.apartment_number} - {apartment.owner_name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <select
+                id="apartment_id"
+                name="apartment_id"
+                value={formData.apartment_id}
+                onChange={handleInputChange}
+                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  errors.apartment_id ? 'border-red-300' : 'border-gray-300'
+                }`}
+                disabled={isLoading}
+              >
+                <option value="">Select an apartment</option>
+                {apartments.map((apartment) => (
+                  <option key={apartment.id} value={apartment.id}>
+                    Apartment {apartment.apartment_number} - {apartment.owner_name}
+                  </option>
+                ))}
+              </select>
               {errors.apartment_id && (
                 <p className="mt-1 text-sm text-red-600">{errors.apartment_id}</p>
               )}
@@ -207,26 +204,23 @@ export default function AddCleaningModal({ isOpen, selectedDate, onClose, onSucc
               <label htmlFor="cleaner_id" className="block text-sm font-medium text-gray-700 mb-2">
                 Cleaner *
               </label>
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <select
-                  id="cleaner_id"
-                  name="cleaner_id"
-                  value={formData.cleaner_id}
-                  onChange={handleInputChange}
-                  className={`w-full pl-10 pr-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    errors.cleaner_id ? 'border-red-300' : 'border-gray-300'
-                  }`}
-                  disabled={isLoading}
-                >
-                  <option value="">Select a cleaner</option>
-                  {cleaners.map((cleaner) => (
-                    <option key={cleaner.id} value={cleaner.id}>
-                      {cleaner.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <select
+                id="cleaner_id"
+                name="cleaner_id"
+                value={formData.cleaner_id}
+                onChange={handleInputChange}
+                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  errors.cleaner_id ? 'border-red-300' : 'border-gray-300'
+                }`}
+                disabled={isLoading}
+              >
+                <option value="">Select a cleaner</option>
+                {cleaners.map((cleaner) => (
+                  <option key={cleaner.id} value={cleaner.id}>
+                    {cleaner.name}
+                  </option>
+                ))}
+              </select>
               {errors.cleaner_id && (
                 <p className="mt-1 text-sm text-red-600">{errors.cleaner_id}</p>
               )}
@@ -236,20 +230,17 @@ export default function AddCleaningModal({ isOpen, selectedDate, onClose, onSucc
               <label htmlFor="cleaning_date" className="block text-sm font-medium text-gray-700 mb-2">
                 Cleaning Date *
               </label>
-              <div className="relative">
-                <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input
-                  type="date"
-                  id="cleaning_date"
-                  name="cleaning_date"
-                  value={formData.cleaning_date}
-                  onChange={handleInputChange}
-                  className={`w-full pl-10 pr-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    errors.cleaning_date ? 'border-red-300' : 'border-gray-300'
-                  }`}
-                  disabled={isLoading}
-                />
-              </div>
+              <input
+                type="date"
+                id="cleaning_date"
+                name="cleaning_date"
+                value={formData.cleaning_date}
+                onChange={handleInputChange}
+                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  errors.cleaning_date ? 'border-red-300' : 'border-gray-300'
+                }`}
+                disabled={isLoading}
+              />
               {errors.cleaning_date && (
                 <p className="mt-1 text-sm text-red-600">{errors.cleaning_date}</p>
               )}
@@ -259,42 +250,36 @@ export default function AddCleaningModal({ isOpen, selectedDate, onClose, onSucc
               <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-2">
                 Notes
               </label>
-              <div className="relative">
-                <FileText className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-                <textarea
-                  id="notes"
-                  name="notes"
-                  value={formData.notes}
-                  onChange={handleInputChange}
-                  rows={3}
-                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Add any special instructions or notes..."
-                  disabled={isLoading}
-                />
-              </div>
+              <textarea
+                id="notes"
+                name="notes"
+                value={formData.notes}
+                onChange={handleInputChange}
+                rows={3}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Add any special instructions or notes..."
+                disabled={isLoading}
+              />
             </div>
 
             <div>
               <label htmlFor="price" className="block text-sm font-medium text-gray-700 mb-2">
                 Price (R)
               </label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">R</span>
-                <input
-                  type="number"
-                  id="price"
-                  name="price"
-                  value={formData.price || ''}
-                  onChange={handleInputChange}
-                  min="0"
-                  step="0.01"
-                  className={`w-full pl-8 pr-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    errors.price ? 'border-red-300' : 'border-gray-300'
-                  }`}
-                  placeholder="0.00"
-                  disabled={isLoading}
-                />
-              </div>
+              <input
+                type="number"
+                id="price"
+                name="price"
+                value={formData.price || ''}
+                onChange={handleInputChange}
+                min="0"
+                step="0.01"
+                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  errors.price ? 'border-red-300' : 'border-gray-300'
+                }`}
+                placeholder="0.00"
+                disabled={isLoading}
+              />
               {errors.price && (
                 <p className="mt-1 text-sm text-red-600">{errors.price}</p>
               )}
