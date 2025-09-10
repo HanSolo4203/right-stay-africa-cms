@@ -34,15 +34,24 @@ export default function CleanersList({ onCleanerCountChange }: CleanersListProps
   // Use network error handling
   const { error, isRetrying, handleError, retry, clearError } = useNetworkError();
 
-  // Use ref to store the callback to avoid dependency issues
+  // Use refs to store callbacks to avoid dependency issues
   const onCleanerCountChangeRef = useRef(onCleanerCountChange);
   onCleanerCountChangeRef.current = onCleanerCountChange;
+  
+  const clearErrorRef = useRef(clearError);
+  clearErrorRef.current = clearError;
+  
+  const handleErrorRef = useRef(handleError);
+  handleErrorRef.current = handleError;
+  
+  const retryRef = useRef(retry);
+  retryRef.current = retry;
 
   // Load cleaners from API
   const loadCleaners = useCallback(async () => {
     try {
       setIsLoading(true);
-      clearError();
+      clearErrorRef.current();
       const response = await fetch('/api/cleaners');
       const result = await response.json();
 
@@ -58,12 +67,12 @@ export default function CleanersList({ onCleanerCountChange }: CleanersListProps
       }
     } catch (error) {
       console.error('Error loading cleaners:', error);
-      handleError(error as Error);
+      handleErrorRef.current(error as Error);
       toast.error('Failed to load cleaners');
     } finally {
       setIsLoading(false);
     }
-  }, [clearError, handleError]);
+  }, []);
 
   useEffect(() => {
     loadCleaners();
@@ -167,7 +176,7 @@ export default function CleanersList({ onCleanerCountChange }: CleanersListProps
       {/* Network Error Handler */}
       <NetworkErrorHandler 
         error={error} 
-        onRetry={() => retry(loadCleaners)} 
+        onRetry={() => retryRef.current(loadCleaners)} 
         isRetrying={isRetrying} 
       />
 

@@ -22,6 +22,13 @@ interface AnalyticsData {
     session_count: number;
     cleaner_id: string;
   }>;
+  cleaner_earnings: Array<{
+    cleaner_name: string;
+    cleaner_id: string;
+    session_count: number;
+    total_earnings: number;
+    average_earnings_per_session: number;
+  }>;
   monthly_trends: Array<{
     month: string;
     month_key: string;
