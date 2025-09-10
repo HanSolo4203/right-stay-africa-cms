@@ -39,7 +39,7 @@ export default function EditCleaningModal({ isOpen, session, onClose, onSuccess 
         price: session.price,
       });
     }
-  }, [isOpen, session]);
+  }, [isOpen, session, loadData]);
 
   const loadData = async () => {
     try {

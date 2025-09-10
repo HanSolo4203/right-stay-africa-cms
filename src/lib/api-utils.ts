@@ -34,7 +34,7 @@ export function successPaginatedResponse<T>(
 export function errorResponse(
   error: string,
   status: number = 400,
-  details?: any
+  details?: unknown
 ) {
   const response: ApiResponse = {
     success: false,
@@ -44,7 +44,7 @@ export function errorResponse(
   return NextResponse.json(response, { status });
 }
 
-export function validationErrorResponse(errors: any) {
+export function validationErrorResponse(errors: unknown) {
   return errorResponse('Validation failed', 400, { validation_errors: errors });
 }
 
@@ -57,7 +57,7 @@ export function serverErrorResponse(error?: string) {
 }
 
 // Common error handling wrapper
-export function handleApiError(error: any, context: string = 'API operation') {
+export function handleApiError(error: unknown, context: string = 'API operation') {
   console.error(`${context} error:`, error);
   
   if (error instanceof Error) {
@@ -78,15 +78,15 @@ export function handleApiError(error: any, context: string = 'API operation') {
 
 // Request validation helper
 export function validateRequest<T>(
-  schema: any,
-  data: any,
+  schema: unknown,
+  data: unknown,
   context: string = 'request'
 ): { success: true; data: T } | { success: false; error: NextResponse } {
   try {
     const validatedData = schema.parse(data);
     return { success: true, data: validatedData };
-  } catch (error: any) {
-    const validationErrors = error.errors?.map((err: any) => ({
+  } catch (error: unknown) {
+    const validationErrors = (error as { errors?: Array<{ path: string[]; message: string }> }).errors?.map((err) => ({
       field: err.path.join('.'),
       message: err.message,
     })) || [];

@@ -5,7 +5,7 @@ import { ReactNode } from 'react';
 interface Column<T> {
   key: keyof T;
   label: string;
-  render?: (value: any, item: T) => ReactNode;
+  render?: (value: unknown, item: T) => ReactNode;
   className?: string;
   mobileHidden?: boolean;
 }
@@ -18,7 +18,7 @@ interface ResponsiveTableProps<T> {
   onRowClick?: (item: T) => void;
 }
 
-export default function ResponsiveTable<T extends Record<string, any>>({
+export default function ResponsiveTable<T extends Record<string, unknown>>({
   data,
   columns,
   emptyMessage = 'No data available',

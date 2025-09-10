@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Wifi, WifiOff, RefreshCw, AlertCircle } from 'lucide-react';
+import { WifiOff, RefreshCw, AlertCircle } from 'lucide-react';
 
 interface NetworkErrorHandlerProps {
   error?: Error | null;
@@ -47,7 +47,7 @@ export default function NetworkErrorHandler({
         <div className="flex items-center">
           <WifiOff className="w-5 h-5 text-yellow-600 mr-3" />
           <div className="flex-1">
-            <h3 className="text-sm font-medium text-yellow-800">You're offline</h3>
+            <h3 className="text-sm font-medium text-yellow-800">You&apos;re offline</h3>
             <p className="text-sm text-yellow-700 mt-1">
               Please check your internet connection and try again.
             </p>

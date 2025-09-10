@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface MonthSelectorProps {
@@ -11,7 +11,6 @@ interface MonthSelectorProps {
 }
 
 export default function MonthSelector({ selectedMonth, onMonthChange, selectedYear, onYearChange }: MonthSelectorProps) {
-  const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<'month' | 'year'>('month');
 
   // Generate month options (January 2025 to December 2025)
@@ -121,9 +120,6 @@ export default function MonthSelector({ selectedMonth, onMonthChange, selectedYe
     }
   };
 
-  const toggleViewMode = () => {
-    setViewMode(prev => prev === 'month' ? 'year' : 'month');
-  };
 
   return (
     <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4">

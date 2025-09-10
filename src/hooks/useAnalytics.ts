@@ -30,9 +30,9 @@ interface AnalyticsData {
     unique_cleaners: number;
   }>;
   insights: {
-    most_active_apartment: any;
-    least_active_apartment: any;
-    top_cleaner: any;
+    most_active_apartment: string;
+    least_active_apartment: string;
+    top_cleaner: string;
   };
   invoicing_data: Array<{
     apartment_number: string;
@@ -85,7 +85,7 @@ export function useAnalytics(): UseAnalyticsReturn {
         toast.error(result.error || 'Failed to fetch analytics data');
         return null;
       }
-    } catch (err) {
+    } catch (error) {
       const errorMessage = 'Failed to fetch analytics data';
       setError(errorMessage);
       toast.error(errorMessage);

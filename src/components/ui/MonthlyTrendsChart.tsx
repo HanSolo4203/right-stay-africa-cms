@@ -14,12 +14,16 @@ interface MonthlyTrendsChartProps {
 }
 
 export default function MonthlyTrendsChart({ data }: MonthlyTrendsChartProps) {
-  const CustomTooltip = ({ active, payload, label }: any) => {
+  const CustomTooltip = ({ active, payload, label }: { 
+    active?: boolean; 
+    payload?: Array<{ color: string; value: number; dataKey: string }>; 
+    label?: string 
+  }) => {
     if (active && payload && payload.length) {
       return (
         <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
           <p className="font-medium text-gray-900 mb-2">{label}</p>
-          {payload.map((entry: any, index: number) => (
+          {payload.map((entry, index: number) => (
             <p key={index} style={{ color: entry.color }} className="text-sm">
               <span className="font-medium">{entry.value}</span> {entry.dataKey === 'cleaning_count' ? 'cleanings' : 
                 entry.dataKey === 'unique_apartments' ? 'apartments' : 'cleaners'}

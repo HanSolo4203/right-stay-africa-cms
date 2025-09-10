@@ -13,7 +13,7 @@ interface CleanerWorkloadChartProps {
 
 export default function CleanerWorkloadChart({ data }: CleanerWorkloadChartProps) {
   // Prepare data for the pie chart
-  const chartData = data.map((cleaner, index) => ({
+  const chartData = data.map((cleaner) => ({
     name: cleaner.cleaner_name,
     value: cleaner.session_count,
     cleaner_id: cleaner.cleaner_id,
@@ -27,7 +27,10 @@ export default function CleanerWorkloadChart({ data }: CleanerWorkloadChartProps
     '#ec4899', '#6366f1', '#14b8a6', '#f43f5e'
   ];
 
-  const CustomTooltip = ({ active, payload }: any) => {
+  const CustomTooltip = ({ active, payload }: { 
+    active?: boolean; 
+    payload?: Array<{ payload: { name: string; value: number; percentage: string } }> 
+  }) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
       return (
@@ -45,10 +48,12 @@ export default function CleanerWorkloadChart({ data }: CleanerWorkloadChartProps
     return null;
   };
 
-  const CustomLegend = ({ payload }: any) => {
+  const CustomLegend = ({ payload }: { 
+    payload?: Array<{ value: string; color: string }> 
+  }) => {
     return (
       <div className="flex flex-wrap justify-center gap-4 mt-4">
-        {payload.map((entry: any, index: number) => (
+        {payload?.map((entry, index: number) => (
           <div key={index} className="flex items-center space-x-2">
             <div 
               className="w-3 h-3 rounded-full" 

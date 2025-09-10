@@ -21,7 +21,10 @@ export default function CleaningsByApartmentChart({ data }: CleaningsByApartment
     fullLabel: `Apt ${apartment.apartment_number} (${apartment.owner_name})`
   }));
 
-  const CustomTooltip = ({ active, payload, label }: any) => {
+  const CustomTooltip = ({ active, payload }: { 
+    active?: boolean; 
+    payload?: Array<{ payload: { fullLabel: string; cleaning_count: number } }> 
+  }) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
       return (

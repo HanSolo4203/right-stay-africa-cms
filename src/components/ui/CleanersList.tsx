@@ -6,7 +6,7 @@ import { Cleaner } from '@/lib/types';
 import CleanerCard from './CleanerCard';
 import AddCleanerModal from './AddCleanerModal';
 import EditCleanerModal from './EditCleanerModal';
-import { LoadingSkeleton, TableSkeleton } from './LoadingSkeleton';
+import { LoadingSkeleton } from './LoadingSkeleton';
 import { EmptyCleanersState, EmptySearchState } from './EmptyState';
 import ConfirmationDialog from './ConfirmationDialog';
 import NetworkErrorHandler, { useNetworkError } from './NetworkErrorHandler';
@@ -60,7 +60,7 @@ export default function CleanersList({ onCleanerCountChange }: CleanersListProps
 
   useEffect(() => {
     loadCleaners();
-  }, []);
+  }, [loadCleaners]);
 
   // Filter cleaners based on debounced search term
   useEffect(() => {

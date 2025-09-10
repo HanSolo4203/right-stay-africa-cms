@@ -33,7 +33,7 @@ export function useApartments(): UseApartmentsReturn {
         setError(result.error || 'Failed to fetch apartments');
         toast.error(result.error || 'Failed to fetch apartments');
       }
-    } catch (err) {
+    } catch (error) {
       const errorMessage = 'Failed to fetch apartments';
       setError(errorMessage);
       toast.error(errorMessage);
@@ -65,7 +65,7 @@ export function useApartments(): UseApartmentsReturn {
         toast.error(result.error || 'Failed to create apartment');
         return null;
       }
-    } catch (err) {
+    } catch (error) {
       const errorMessage = 'Failed to create apartment';
       setError(errorMessage);
       toast.error(errorMessage);
@@ -96,7 +96,7 @@ export function useApartments(): UseApartmentsReturn {
         toast.error(result.error || 'Failed to update apartment');
         return null;
       }
-    } catch (err) {
+    } catch (error) {
       const errorMessage = 'Failed to update apartment';
       setError(errorMessage);
       toast.error(errorMessage);
@@ -123,7 +123,7 @@ export function useApartments(): UseApartmentsReturn {
         toast.error(result.error || 'Failed to delete apartment');
         return false;
       }
-    } catch (err) {
+    } catch (error) {
       const errorMessage = 'Failed to delete apartment';
       setError(errorMessage);
       toast.error(errorMessage);
