@@ -33,7 +33,11 @@ export async function GET(request: NextRequest) {
     let filteredSessions = sessions;
     
     if (apartment_id) {
-      filteredSessions = filteredSessions.filter(session => session.apartment_id === apartment_id);
+      // For apartment_id filtering, we need to get the apartment number first
+      const apartmentData = await apartmentsApi.getById(apartment_id);
+      if (apartmentData) {
+        filteredSessions = filteredSessions.filter(session => session.apartment_number === apartmentData.apartment_number);
+      }
     }
     
     if (apartment) {
@@ -41,7 +45,11 @@ export async function GET(request: NextRequest) {
     }
     
     if (cleaner_id) {
-      filteredSessions = filteredSessions.filter(session => session.cleaner_id === cleaner_id);
+      // For cleaner_id filtering, we need to get the cleaner name first
+      const cleanerData = await cleanersApi.getById(cleaner_id);
+      if (cleanerData) {
+        filteredSessions = filteredSessions.filter(session => session.cleaner_name === cleanerData.name);
+      }
     }
     
     if (month) {
@@ -101,7 +109,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check for conflicts (same cleaner, same date)
-    const existingSessions = await cleaningSessionsApi.getAll();
+    const existingSessions = await cleaningSessionsApi.getAllBasic();
     const conflict = existingSessions.find(session => 
       session.cleaner_id === sessionData.cleaner_id && 
       session.cleaning_date === sessionData.cleaning_date

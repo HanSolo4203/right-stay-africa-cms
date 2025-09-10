@@ -27,20 +27,6 @@ export default function EditCleaningModal({ isOpen, session, onClose, onSuccess 
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(true);
 
-  useEffect(() => {
-    if (isOpen && session) {
-      loadData();
-      setFormData({
-        id: session.id,
-        apartment_id: '', // We'll need to find the apartment ID from the apartment_number
-        cleaner_id: '', // We'll need to find the cleaner ID from the cleaner_name
-        cleaning_date: session.cleaning_date,
-        notes: session.notes || '',
-        price: session.price,
-      });
-    }
-  }, [isOpen, session, loadData]);
-
   const loadData = useCallback(async () => {
     try {
       setIsLoadingData(true);
@@ -90,6 +76,20 @@ export default function EditCleaningModal({ isOpen, session, onClose, onSuccess 
       setIsLoadingData(false);
     }
   }, [session]);
+
+  useEffect(() => {
+    if (isOpen && session) {
+      loadData();
+      setFormData({
+        id: session.id,
+        apartment_id: '', // We'll need to find the apartment ID from the apartment_number
+        cleaner_id: '', // We'll need to find the cleaner ID from the cleaner_name
+        cleaning_date: session.cleaning_date,
+        notes: session.notes || '',
+        price: session.price,
+      });
+    }
+  }, [isOpen, session, loadData]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;

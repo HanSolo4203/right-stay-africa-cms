@@ -89,7 +89,7 @@ export default function CleanerWorkloadChart({ data }: CleanerWorkloadChartProps
                 cx="50%"
                 cy="50%"
                 labelLine={false}
-                label={({ name, percentage }) => `${name}: ${percentage}%`}
+                label={({ name, value }) => `${name}: ${value}`}
                 outerRadius={80}
                 fill="#8884d8"
                 dataKey="value"

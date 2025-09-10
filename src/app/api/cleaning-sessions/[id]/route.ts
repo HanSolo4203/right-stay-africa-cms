@@ -87,15 +87,19 @@ export async function PUT(
 
     // Check for conflicts if cleaner or date is being changed
     if (updateData.cleaner_id || updateData.cleaning_date) {
-      const existingSessions = await cleaningSessionsApi.getAll();
-      const conflict = existingSessions.find(session => 
-        session.cleaner_id === (updateData.cleaner_id || existingSession.cleaner_id) && 
-        session.cleaning_date === (updateData.cleaning_date || existingSession.cleaning_date) &&
-        session.id !== id
-      );
+      const existingSessions = await cleaningSessionsApi.getAllBasic();
+      const existingSessionBasic = existingSessions.find(s => s.id === id);
+      
+      if (existingSessionBasic) {
+        const conflict = existingSessions.find(session => 
+          session.cleaner_id === (updateData.cleaner_id || existingSessionBasic.cleaner_id) && 
+          session.cleaning_date === (updateData.cleaning_date || existingSessionBasic.cleaning_date) &&
+          session.id !== id
+        );
 
-      if (conflict) {
-        return errorResponse('Cleaner is already scheduled for this date', 409);
+        if (conflict) {
+          return errorResponse('Cleaner is already scheduled for this date', 409);
+        }
       }
     }
 

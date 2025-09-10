@@ -9,6 +9,65 @@ import MonthlyTrendsChart from '@/components/ui/MonthlyTrendsChart';
 import InvoicingTable from '@/components/ui/InvoicingTable';
 import { Toaster } from 'react-hot-toast';
 
+interface AnalyticsData {
+  summary: {
+    total_cleanings: number;
+    active_apartments: number;
+    active_cleaners: number;
+    average_cleanings_per_apartment: string;
+    total_revenue: number;
+  };
+  cleanings_by_apartment: Array<{
+    apartment_number: string;
+    owner_name: string;
+    cleaning_count: number;
+    apartment_id: string;
+  }>;
+  cleaner_workload: Array<{
+    cleaner_name: string;
+    session_count: number;
+    cleaner_id: string;
+  }>;
+  monthly_trends: Array<{
+    month: string;
+    month_key: string;
+    cleaning_count: number;
+    unique_apartments: number;
+    unique_cleaners: number;
+  }>;
+  insights: {
+    most_active_apartment: {
+      apartment_number: string;
+      owner_name: string;
+      cleaning_count: number;
+      apartment_id: string;
+    } | null;
+    least_active_apartment: {
+      apartment_number: string;
+      owner_name: string;
+      cleaning_count: number;
+      apartment_id: string;
+    } | null;
+    top_cleaner: {
+      cleaner_name: string;
+      session_count: number;
+      cleaner_id: string;
+    } | null;
+  };
+  invoicing_data: Array<{
+    apartment_number: string;
+    owner_name: string;
+    cleaning_count: number;
+    total_amount: number;
+    apartment_id: string;
+  }>;
+  date_range: {
+    month?: string;
+    year?: string;
+    total_sessions: number;
+  };
+}
+
 export default function Dashboard() {
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const now = new Date();
@@ -18,26 +77,7 @@ export default function Dashboard() {
   });
   
   const [selectedYear, setSelectedYear] = useState<string | undefined>(undefined);
-  const [analyticsData, setAnalyticsData] = useState<{
-    summary: {
-      total_cleanings: number;
-      total_revenue: number;
-      active_cleaners: number;
-      active_apartments: number;
-    };
-    invoicing_data: Array<{
-      apartment_number: string;
-      owner_name: string;
-      cleaning_count: number;
-      total_amount: number;
-      apartment_id: string;
-    }>;
-    insights: {
-      top_cleaner: string;
-      busiest_apartment: string;
-      average_cleaning_duration: number;
-    };
-  } | null>(null);
+  const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
 
   const loadAnalyticsData = async (month?: string, year?: string) => {

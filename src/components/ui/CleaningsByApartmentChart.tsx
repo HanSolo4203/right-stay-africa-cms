@@ -31,7 +31,7 @@ export default function CleaningsByApartmentChart({ data }: CleaningsByApartment
         <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
           <p className="font-medium text-gray-900">{data.fullLabel}</p>
           <p className="text-blue-600">
-            <span className="font-medium">{data.cleanings}</span> cleaning{data.cleanings !== 1 ? 's' : ''}
+            <span className="font-medium">{data.cleaning_count}</span> cleaning{data.cleaning_count !== 1 ? 's' : ''}
           </p>
         </div>
       );
