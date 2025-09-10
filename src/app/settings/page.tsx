@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Settings as SettingsIcon, Building2, Users, Bell, Shield, Palette } from 'lucide-react';
+import { Building2, Users, Bell, Shield, Palette } from 'lucide-react';
 import CleanersList from '@/components/ui/CleanersList';
 import ApartmentsList from '@/components/ui/ApartmentsList';
 import { Toaster } from 'react-hot-toast';
@@ -29,50 +29,6 @@ export default function Settings() {
     </div>
   );
 
-  const renderPropertiesTab = () => (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-xl font-semibold text-gray-900">Property Management</h2>
-        <button className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700">
-          Add Property
-        </button>
-      </div>
-      
-      <div className="bg-white rounded-lg shadow-md border border-gray-200">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h3 className="text-lg font-medium text-gray-900">Active Properties</h3>
-        </div>
-        <div className="divide-y divide-gray-200">
-          {[
-            { name: 'Apartment 101', address: '123 Main St, Cape Town', bedrooms: 2, bathrooms: 1, status: 'active' },
-            { name: 'Apartment 205', address: '456 Oak Ave, Cape Town', bedrooms: 3, bathrooms: 2, status: 'active' },
-            { name: 'Apartment 312', address: '789 Pine Rd, Cape Town', bedrooms: 1, bathrooms: 1, status: 'maintenance' },
-            { name: 'Apartment 108', address: '321 Elm St, Cape Town', bedrooms: 2, bathrooms: 2, status: 'active' },
-          ].map((property, index) => (
-            <div key={index} className="px-6 py-4 flex items-center justify-between">
-              <div>
-                <h4 className="text-sm font-medium text-gray-900">{property.name}</h4>
-                <p className="text-sm text-gray-500">{property.address}</p>
-                <p className="text-sm text-gray-500">{property.bedrooms} bed, {property.bathrooms} bath</p>
-              </div>
-              <div className="flex items-center space-x-3">
-                <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                  property.status === 'active' 
-                    ? 'bg-green-100 text-green-800' 
-                    : 'bg-orange-100 text-orange-800'
-                }`}>
-                  {property.status}
-                </span>
-                <button className="text-blue-600 hover:text-blue-800 text-sm font-medium">
-                  Edit
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
 
 
   const renderNotificationsTab = () => (

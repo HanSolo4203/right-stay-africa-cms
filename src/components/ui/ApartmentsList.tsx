@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Search, Plus, Building2, AlertTriangle } from 'lucide-react';
+import { Search, Plus, Building2 } from 'lucide-react';
 import { Apartment } from '@/lib/types';
 import ApartmentCard from './ApartmentCard';
 import AddApartmentModal from './AddApartmentModal';
@@ -59,7 +59,7 @@ export default function ApartmentsList({ onApartmentCountChange }: ApartmentsLis
         if (sessionsResult.success) {
           // Count sessions per apartment
           apartmentsData.forEach(apartment => {
-            const count = sessionsResult.data.filter((session: any) => 
+            const count = sessionsResult.data.filter((session: { apartment_number: string }) => 
               session.apartment_number === apartment.apartment_number
             ).length;
             sessionCounts[apartment.id] = count;
@@ -75,7 +75,7 @@ export default function ApartmentsList({ onApartmentCountChange }: ApartmentsLis
 
   useEffect(() => {
     loadApartments();
-  }, []);
+  }, [loadApartments]);
 
   // Filter apartments based on search term
   useEffect(() => {

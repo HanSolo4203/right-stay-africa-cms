@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Calendar, BarChart3, Settings, Home, Users, Building2 } from 'lucide-react';
+import { Calendar, BarChart3, Settings, Users, Building2 } from 'lucide-react';
 
 export default function HomePage() {
   return (

@@ -1,10 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { BarChart3, Calendar, Users, Building2, TrendingUp, Clock } from 'lucide-react';
-import { DashboardStats } from '@/lib/types';
-import { dashboardApi, cleaningSessionsApi } from '@/lib/database';
-import { CleaningSessionDetailed } from '@/lib/types';
 import MonthSelector from '@/components/ui/MonthSelector';
 import SummaryCards from '@/components/ui/SummaryCards';
 import CleaningsByApartmentChart from '@/components/ui/CleaningsByApartmentChart';
@@ -22,7 +18,26 @@ export default function Dashboard() {
   });
   
   const [selectedYear, setSelectedYear] = useState<string | undefined>(undefined);
-  const [analyticsData, setAnalyticsData] = useState<any>(null);
+  const [analyticsData, setAnalyticsData] = useState<{
+    summary: {
+      total_cleanings: number;
+      total_revenue: number;
+      active_cleaners: number;
+      active_apartments: number;
+    };
+    invoicing_data: Array<{
+      apartment_number: string;
+      owner_name: string;
+      cleaning_count: number;
+      total_amount: number;
+      apartment_id: string;
+    }>;
+    insights: {
+      top_cleaner: string;
+      busiest_apartment: string;
+      average_cleaning_duration: number;
+    };
+  } | null>(null);
   const [loading, setLoading] = useState(true);
 
   const loadAnalyticsData = async (month?: string, year?: string) => {

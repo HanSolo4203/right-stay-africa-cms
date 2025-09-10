@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Calendar, View, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Calendar as BigCalendar, momentLocalizer, Views } from 'react-big-calendar';
 import moment from 'moment';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
@@ -10,13 +10,14 @@ import CalendarEvent from './CalendarEvent';
 import AddCleaningModal from './AddCleaningModal';
 import EditCleaningModal from './EditCleaningModal';
 import { CalendarSkeleton } from './LoadingSkeleton';
-import { ErrorBoundary } from './ErrorBoundary';
 import toast from 'react-hot-toast';
 
 // Setup moment localizer
 const localizer = momentLocalizer(moment);
 
-interface CalendarViewProps {}
+interface CalendarViewProps {
+  // No props needed for this component
+}
 
 export default function CalendarView({}: CalendarViewProps) {
   const [events, setEvents] = useState<CleaningSessionDetailed[]>([]);
@@ -76,13 +77,13 @@ export default function CalendarView({}: CalendarViewProps) {
   }, []);
 
   // Handle event selection (for editing)
-  const handleSelectEvent = useCallback((event: any) => {
+  const handleSelectEvent = useCallback((event: { resource: CleaningSessionDetailed }) => {
     setSelectedEvent(event.resource);
     setIsEditModalOpen(true);
   }, []);
 
   // Handle view change
-  const handleViewChange = (view: any) => {
+  const handleViewChange = (view: string) => {
     setCurrentView(view);
   };
 
@@ -92,12 +93,16 @@ export default function CalendarView({}: CalendarViewProps) {
   };
 
   // Custom event component
-  const EventComponent = ({ event }: { event: any }) => (
+  const EventComponent = ({ event }: { event: { resource: CleaningSessionDetailed } }) => (
     <CalendarEvent event={event.resource} />
   );
 
   // Custom toolbar
-  const CustomToolbar = ({ label, onNavigate, onView }: any) => (
+  const CustomToolbar = ({ label, onNavigate, onView }: { 
+    label: string; 
+    onNavigate: (direction: 'PREV' | 'NEXT' | 'TODAY') => void; 
+    onView: (view: string) => void; 
+  }) => (
     <div className="flex items-center justify-between mb-4 p-4 bg-white rounded-lg shadow-sm border border-gray-200">
       <div className="flex items-center space-x-4">
         <h2 className="text-xl font-semibold text-gray-900">{label}</h2>
