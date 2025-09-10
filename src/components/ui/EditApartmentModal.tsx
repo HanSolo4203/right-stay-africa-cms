@@ -19,6 +19,7 @@ export default function EditApartmentModal({ isOpen, apartment, onClose, onSucce
     owner_name: '',
     owner_email: '',
     address: '',
+    cleaner_payout: undefined,
   });
   const [errors, setErrors] = useState<Partial<UpdateApartmentData>>({});
   const [isLoading, setIsLoading] = useState(false);
@@ -31,13 +32,19 @@ export default function EditApartmentModal({ isOpen, apartment, onClose, onSucce
         owner_name: apartment.owner_name,
         owner_email: apartment.owner_email || '',
         address: apartment.address || '',
+        cleaner_payout: (apartment as any).cleaner_payout ?? undefined,
       });
     }
   }, [apartment]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    if (name === 'cleaner_payout') {
+      const num = value === '' ? undefined : parseFloat(value);
+      setFormData(prev => ({ ...prev, [name]: num }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
     
     // Clear error when user starts typing
     if (errors[name as keyof UpdateApartmentData]) {
@@ -145,6 +152,24 @@ export default function EditApartmentModal({ isOpen, apartment, onClose, onSucce
             {errors.apartment_number && (
               <p className="mt-1 text-sm text-red-600">{errors.apartment_number}</p>
             )}
+          </div>
+
+          <div>
+            <label htmlFor="cleaner_payout" className="block text-sm font-medium text-gray-700 mb-2">
+              Cleaner Payout (R)
+            </label>
+            <input
+              type="number"
+              id="cleaner_payout"
+              name="cleaner_payout"
+              value={formData.cleaner_payout ?? ''}
+              onChange={handleInputChange}
+              min="0"
+              step="0.01"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="e.g., 200"
+              disabled={isLoading}
+            />
           </div>
 
           <div>

@@ -73,16 +73,23 @@ export async function GET(request: NextRequest) {
       };
     }).filter(cleaner => cleaner.session_count > 0);
 
-    // Cleaner earnings calculation
+    // Cleaner earnings calculation (based on per-apartment cleaner_payout)
+    const apartmentIdToPayout: Record<string, number | undefined> = apartments.reduce((acc, apt) => {
+      acc[apt.id] = (apt as any).cleaner_payout as number | undefined;
+      return acc;
+    }, {} as Record<string, number | undefined>);
+
     const cleanerEarnings = cleaners.map(cleaner => {
       const cleanerSessions = filteredSessions.filter(session => 
         session.cleaner_name === cleaner.name
       );
       
-      // Calculate total earnings from cleaning sessions
+      // Calculate total earnings from cleaner payouts per apartment (fallback to 0)
       const totalEarnings = cleanerSessions.reduce((sum, session) => {
-        const price = session.price !== null && session.price !== undefined ? session.price : 150;
-        return sum + price; // Default to R150 if no price set
+        // Find the apartment by apartment_number to read cleaner_payout
+        const apt = apartments.find(a => a.apartment_number === session.apartment_number);
+        const payout = apt && (apt as any).cleaner_payout != null ? Number((apt as any).cleaner_payout) : 0;
+        return sum + payout;
       }, 0);
       
       return {

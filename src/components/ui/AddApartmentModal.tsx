@@ -17,13 +17,19 @@ export default function AddApartmentModal({ isOpen, onClose, onSuccess }: AddApa
     owner_name: '',
     owner_email: '',
     address: '',
+    cleaner_payout: undefined,
   });
   const [errors, setErrors] = useState<Partial<CreateApartmentData>>({});
   const [isLoading, setIsLoading] = useState(false);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    if (name === 'cleaner_payout') {
+      const num = value === '' ? undefined : parseFloat(value);
+      setFormData(prev => ({ ...prev, [name]: num }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
     
     // Clear error when user starts typing
     if (errors[name as keyof CreateApartmentData]) {
@@ -75,7 +81,7 @@ export default function AddApartmentModal({ isOpen, onClose, onSuccess }: AddApa
 
       if (result.success) {
         toast.success('Apartment added successfully!');
-        setFormData({ apartment_number: '', owner_name: '', owner_email: '', address: '' });
+        setFormData({ apartment_number: '', owner_name: '', owner_email: '', address: '', cleaner_payout: undefined });
         onSuccess();
         onClose();
       } else {
@@ -90,7 +96,7 @@ export default function AddApartmentModal({ isOpen, onClose, onSuccess }: AddApa
   };
 
   const handleClose = () => {
-    setFormData({ apartment_number: '', owner_name: '', owner_email: '', address: '' });
+    setFormData({ apartment_number: '', owner_name: '', owner_email: '', address: '', cleaner_payout: undefined });
     setErrors({});
     onClose();
   };
@@ -108,6 +114,24 @@ export default function AddApartmentModal({ isOpen, onClose, onSuccess }: AddApa
           >
             <X className="w-5 h-5" />
           </button>
+        </div>
+
+        <div>
+          <label htmlFor="cleaner_payout" className="block text-sm font-medium text-gray-700 mb-2">
+            Cleaner Payout (R)
+          </label>
+          <input
+            type="number"
+            id="cleaner_payout"
+            name="cleaner_payout"
+            value={formData.cleaner_payout ?? ''}
+            onChange={handleInputChange}
+            min="0"
+            step="0.01"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="e.g., 200"
+            disabled={isLoading}
+          />
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
