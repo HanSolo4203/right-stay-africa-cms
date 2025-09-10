@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Search, Plus, Users } from 'lucide-react';
 import { Cleaner } from '@/lib/types';
 import CleanerCard from './CleanerCard';
@@ -34,6 +34,10 @@ export default function CleanersList({ onCleanerCountChange }: CleanersListProps
   // Use network error handling
   const { error, isRetrying, handleError, retry, clearError } = useNetworkError();
 
+  // Use ref to store the callback to avoid dependency issues
+  const onCleanerCountChangeRef = useRef(onCleanerCountChange);
+  onCleanerCountChangeRef.current = onCleanerCountChange;
+
   // Load cleaners from API
   const loadCleaners = useCallback(async () => {
     try {
@@ -45,7 +49,10 @@ export default function CleanersList({ onCleanerCountChange }: CleanersListProps
       if (result.success) {
         setCleaners(result.data);
         setFilteredCleaners(result.data);
-        onCleanerCountChange?.(result.data.length);
+        // Call the callback if provided
+        if (onCleanerCountChangeRef.current) {
+          onCleanerCountChangeRef.current(result.data.length);
+        }
       } else {
         throw new Error(result.error || 'Failed to load cleaners');
       }
@@ -56,7 +63,7 @@ export default function CleanersList({ onCleanerCountChange }: CleanersListProps
     } finally {
       setIsLoading(false);
     }
-  }, [clearError, handleError, onCleanerCountChange]);
+  }, [clearError, handleError]);
 
   useEffect(() => {
     loadCleaners();
