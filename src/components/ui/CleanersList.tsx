@@ -56,7 +56,7 @@ export default function CleanersList({ onCleanerCountChange }: CleanersListProps
     } finally {
       setIsLoading(false);
     }
-  }, [clearError]);
+  }, [clearError, handleError]);
 
   useEffect(() => {
     loadCleaners();

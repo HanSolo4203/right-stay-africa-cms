@@ -71,7 +71,7 @@ export default function ApartmentsList({ onApartmentCountChange }: ApartmentsLis
     } catch (error) {
       console.error('Error loading session counts:', error);
     }
-  }, []);
+  };
 
   useEffect(() => {
     loadApartments();

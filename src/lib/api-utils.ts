@@ -79,8 +79,7 @@ export function handleApiError(error: unknown, context: string = 'API operation'
 // Request validation helper
 export function validateRequest<T>(
   schema: unknown,
-  data: unknown,
-  _context: string = 'request'
+  data: unknown
 ): { success: true; data: T } | { success: false; error: NextResponse } {
   try {
     const validatedData = schema.parse(data);
