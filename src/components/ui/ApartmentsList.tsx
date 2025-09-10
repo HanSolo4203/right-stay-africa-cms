@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Search, Plus, Building2 } from 'lucide-react';
 import { Apartment } from '@/lib/types';
 import ApartmentCard from './ApartmentCard';
@@ -22,6 +22,10 @@ export default function ApartmentsList({ onApartmentCountChange }: ApartmentsLis
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedApartment, setSelectedApartment] = useState<Apartment | null>(null);
 
+  // Use ref to store the callback to avoid dependency issues
+  const onApartmentCountChangeRef = useRef(onApartmentCountChange);
+  onApartmentCountChangeRef.current = onApartmentCountChange;
+
   // Load apartments from API
   const loadApartments = useCallback(async () => {
     try {
@@ -32,7 +36,10 @@ export default function ApartmentsList({ onApartmentCountChange }: ApartmentsLis
       if (result.success) {
         setApartments(result.data);
         setFilteredApartments(result.data);
-        onApartmentCountChange?.(result.data.length);
+        // Call the callback if provided
+        if (onApartmentCountChangeRef.current) {
+          onApartmentCountChangeRef.current(result.data.length);
+        }
         
         // Load session counts for each apartment
         await loadSessionCounts(result.data);
@@ -45,7 +52,7 @@ export default function ApartmentsList({ onApartmentCountChange }: ApartmentsLis
     } finally {
       setIsLoading(false);
     }
-  }, [onApartmentCountChange]);
+  }, []);
 
   // Load session counts for apartments
   const loadSessionCounts = async (apartmentsData: Apartment[]) => {
