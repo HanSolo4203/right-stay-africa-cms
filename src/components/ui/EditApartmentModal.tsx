@@ -32,7 +32,7 @@ export default function EditApartmentModal({ isOpen, apartment, onClose, onSucce
         owner_name: apartment.owner_name,
         owner_email: apartment.owner_email || '',
         address: apartment.address || '',
-        cleaner_payout: (apartment as any).cleaner_payout ?? undefined,
+        cleaner_payout: apartment.cleaner_payout ?? undefined,
       });
     }
   }, [apartment]);

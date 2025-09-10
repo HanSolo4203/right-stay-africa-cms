@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { cleaningSessionsApi, apartmentsApi, cleanersApi } from '@/lib/database';
+import type { Apartment } from '@/lib/types';
 import { 
   analyticsQuerySchema
 } from '@/lib/validations';
@@ -74,11 +75,6 @@ export async function GET(request: NextRequest) {
     }).filter(cleaner => cleaner.session_count > 0);
 
     // Cleaner earnings calculation (based on per-apartment cleaner_payout)
-    const apartmentIdToPayout: Record<string, number | undefined> = apartments.reduce((acc, apt) => {
-      acc[apt.id] = (apt as any).cleaner_payout as number | undefined;
-      return acc;
-    }, {} as Record<string, number | undefined>);
-
     const cleanerEarnings = cleaners.map(cleaner => {
       const cleanerSessions = filteredSessions.filter(session => 
         session.cleaner_name === cleaner.name
@@ -87,8 +83,8 @@ export async function GET(request: NextRequest) {
       // Calculate total earnings from cleaner payouts per apartment (fallback to 0)
       const totalEarnings = cleanerSessions.reduce((sum, session) => {
         // Find the apartment by apartment_number to read cleaner_payout
-        const apt = apartments.find(a => a.apartment_number === session.apartment_number);
-        const payout = apt && (apt as any).cleaner_payout != null ? Number((apt as any).cleaner_payout) : 0;
+        const apt: Apartment | undefined = apartments.find(a => a.apartment_number === session.apartment_number);
+        const payout = apt && apt.cleaner_payout != null ? Number(apt.cleaner_payout) : 0;
         return sum + payout;
       }, 0);
       
@@ -154,8 +150,8 @@ export async function GET(request: NextRequest) {
     const totalRevenue = invoicingData.reduce((sum, apt) => sum + apt.total_amount, 0);
     // Total cleaner payouts based on apartment cleaner_payout per session
     const totalCleanerPayouts = filteredSessions.reduce((sum, session) => {
-      const apt = apartments.find(a => a.apartment_number === session.apartment_number);
-      const payout = apt && (apt as any).cleaner_payout != null ? Number((apt as any).cleaner_payout) : 0;
+      const apt: Apartment | undefined = apartments.find(a => a.apartment_number === session.apartment_number);
+      const payout = apt && apt.cleaner_payout != null ? Number(apt.cleaner_payout) : 0;
       return sum + payout;
     }, 0);
     const netRevenue = totalRevenue - totalCleanerPayouts;
