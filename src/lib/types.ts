@@ -4,6 +4,8 @@ export interface Apartment {
   owner_name: string;
   owner_email?: string;
   address?: string;
+  // Amount paid to cleaner for a cleaning at this apartment (not customer price)
+  cleaner_payout?: number;
   created_at: string;
   updated_at: string;
 }
@@ -61,6 +63,7 @@ export interface CreateApartmentData {
   owner_name: string;
   owner_email?: string;
   address?: string;
+  cleaner_payout?: number;
 }
 
 export interface UpdateApartmentData extends Partial<CreateApartmentData> {
