@@ -8,6 +8,7 @@ import CleanerWorkloadChart from '@/components/ui/CleanerWorkloadChart';
 import CleanerEarningsChart from '@/components/ui/CleanerEarningsChart';
 import MonthlyTrendsChart from '@/components/ui/MonthlyTrendsChart';
 import InvoicingTable from '@/components/ui/InvoicingTable';
+import AuthWrapper from '@/components/AuthWrapper';
 import { Toaster } from 'react-hot-toast';
 
 interface AnalyticsData {
@@ -77,7 +78,7 @@ interface AnalyticsData {
   };
 }
 
-export default function Dashboard() {
+function DashboardContent() {
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const now = new Date();
     const year = now.getFullYear();
@@ -272,5 +273,13 @@ export default function Dashboard() {
         }}
       />
     </div>
+  );
+}
+
+export default function Dashboard() {
+  return (
+    <AuthWrapper>
+      <DashboardContent />
+    </AuthWrapper>
   );
 }
