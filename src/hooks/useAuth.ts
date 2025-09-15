@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { User } from '@supabase/supabase-js';
+import { User, AuthChangeEvent, Session } from '@supabase/supabase-js';
 import { createClientComponentClient } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 
@@ -45,7 +45,7 @@ export function useAuth() {
     // Listen for auth changes
     console.log('[AUTH HOOK] Setting up auth state change listener');
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      async (event: AuthChangeEvent, session: Session | null) => {
         console.log('[AUTH HOOK] Auth state changed:', {
           event,
           hasSession: !!session,
