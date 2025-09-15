@@ -1,4 +1,5 @@
 import { supabase, TABLES, VIEWS } from './supabase';
+import { createServerComponentClient } from './supabase-server';
 import {
   Apartment,
   Cleaner,
@@ -13,11 +14,22 @@ import {
   DashboardStats,
 } from './types';
 
+// Helper function to get authenticated Supabase client
+const getSupabaseClient = async () => {
+  try {
+    return await createServerComponentClient();
+  } catch (error) {
+    console.warn('Failed to create server client, falling back to client:', error);
+    return supabase;
+  }
+};
+
 // Apartments CRUD operations
 export const apartmentsApi = {
   // Get all apartments
   async getAll(): Promise<Apartment[]> {
-    const { data, error } = await supabase
+    const client = await getSupabaseClient();
+    const { data, error } = await client
       .from(TABLES.APARTMENTS)
       .select('*')
       .order('apartment_number');
@@ -28,7 +40,8 @@ export const apartmentsApi = {
 
   // Get apartment by ID
   async getById(id: string): Promise<Apartment | null> {
-    const { data, error } = await supabase
+    const client = await getSupabaseClient();
+    const { data, error } = await client
       .from(TABLES.APARTMENTS)
       .select('*')
       .eq('id', id)
@@ -40,7 +53,8 @@ export const apartmentsApi = {
 
   // Create new apartment
   async create(apartment: CreateApartmentData): Promise<Apartment> {
-    const { data, error } = await supabase
+    const client = await getSupabaseClient();
+    const { data, error } = await client
       .from(TABLES.APARTMENTS)
       .insert(apartment)
       .select()
@@ -53,7 +67,8 @@ export const apartmentsApi = {
   // Update apartment
   async update(apartment: UpdateApartmentData): Promise<Apartment> {
     const { id, ...updateData } = apartment;
-    const { data, error } = await supabase
+    const client = await getSupabaseClient();
+    const { data, error } = await client
       .from(TABLES.APARTMENTS)
       .update(updateData)
       .eq('id', id)
@@ -66,7 +81,8 @@ export const apartmentsApi = {
 
   // Delete apartment
   async delete(id: string): Promise<void> {
-    const { error } = await supabase
+    const client = await getSupabaseClient();
+    const { error } = await client
       .from(TABLES.APARTMENTS)
       .delete()
       .eq('id', id);
@@ -79,7 +95,8 @@ export const apartmentsApi = {
 export const cleanersApi = {
   // Get all cleaners
   async getAll(): Promise<Cleaner[]> {
-    const { data, error } = await supabase
+    const client = await getSupabaseClient();
+    const { data, error } = await client
       .from(TABLES.CLEANERS)
       .select('*')
       .order('name');
@@ -90,7 +107,8 @@ export const cleanersApi = {
 
   // Get cleaner by ID
   async getById(id: string): Promise<Cleaner | null> {
-    const { data, error } = await supabase
+    const client = await getSupabaseClient();
+    const { data, error } = await client
       .from(TABLES.CLEANERS)
       .select('*')
       .eq('id', id)
@@ -102,7 +120,8 @@ export const cleanersApi = {
 
   // Create new cleaner
   async create(cleaner: CreateCleanerData): Promise<Cleaner> {
-    const { data, error } = await supabase
+    const client = await getSupabaseClient();
+    const { data, error } = await client
       .from(TABLES.CLEANERS)
       .insert(cleaner)
       .select()
@@ -115,7 +134,8 @@ export const cleanersApi = {
   // Update cleaner
   async update(cleaner: UpdateCleanerData): Promise<Cleaner> {
     const { id, ...updateData } = cleaner;
-    const { data, error } = await supabase
+    const client = await getSupabaseClient();
+    const { data, error } = await client
       .from(TABLES.CLEANERS)
       .update(updateData)
       .eq('id', id)
@@ -128,7 +148,8 @@ export const cleanersApi = {
 
   // Delete cleaner
   async delete(id: string): Promise<void> {
-    const { error } = await supabase
+    const client = await getSupabaseClient();
+    const { error } = await client
       .from(TABLES.CLEANERS)
       .delete()
       .eq('id', id);
@@ -141,7 +162,8 @@ export const cleanersApi = {
 export const cleaningSessionsApi = {
   // Get all cleaning sessions with apartment and cleaner details
   async getAll(): Promise<CleaningSessionDetailed[]> {
-    const { data, error } = await supabase
+    const client = await getSupabaseClient();
+    const { data, error } = await client
       .from(VIEWS.CLEANING_SESSIONS_DETAILED)
       .select('*')
       .order('cleaning_date', { ascending: false });
@@ -152,7 +174,8 @@ export const cleaningSessionsApi = {
 
   // Get all cleaning sessions (basic type for conflict checking)
   async getAllBasic(): Promise<CleaningSession[]> {
-    const { data, error } = await supabase
+    const client = await getSupabaseClient();
+    const { data, error } = await client
       .from(TABLES.CLEANING_SESSIONS)
       .select('*')
       .order('cleaning_date', { ascending: false });
@@ -163,7 +186,8 @@ export const cleaningSessionsApi = {
 
   // Get cleaning session by ID
   async getById(id: string): Promise<CleaningSessionDetailed | null> {
-    const { data, error } = await supabase
+    const client = await getSupabaseClient();
+    const { data, error } = await client
       .from(VIEWS.CLEANING_SESSIONS_DETAILED)
       .select('*')
       .eq('id', id)
@@ -175,7 +199,8 @@ export const cleaningSessionsApi = {
 
   // Get cleaning sessions by date range
   async getByDateRange(startDate: string, endDate: string): Promise<CleaningSessionDetailed[]> {
-    const { data, error } = await supabase
+    const client = await getSupabaseClient();
+    const { data, error } = await client
       .from(VIEWS.CLEANING_SESSIONS_DETAILED)
       .select('*')
       .gte('cleaning_date', startDate)
@@ -189,7 +214,8 @@ export const cleaningSessionsApi = {
   // Get upcoming cleaning sessions
   async getUpcoming(): Promise<CleaningSessionDetailed[]> {
     const today = new Date().toISOString().split('T')[0];
-    const { data, error } = await supabase
+    const client = await getSupabaseClient();
+    const { data, error } = await client
       .from(VIEWS.CLEANING_SESSIONS_DETAILED)
       .select('*')
       .gte('cleaning_date', today)
@@ -201,7 +227,8 @@ export const cleaningSessionsApi = {
 
   // Create new cleaning session
   async create(session: CreateCleaningSessionData): Promise<CleaningSession> {
-    const { data, error } = await supabase
+    const client = await getSupabaseClient();
+    const { data, error } = await client
       .from(TABLES.CLEANING_SESSIONS)
       .insert(session)
       .select()
@@ -214,7 +241,8 @@ export const cleaningSessionsApi = {
   // Update cleaning session
   async update(session: UpdateCleaningSessionData): Promise<CleaningSession> {
     const { id, ...updateData } = session;
-    const { data, error } = await supabase
+    const client = await getSupabaseClient();
+    const { data, error } = await client
       .from(TABLES.CLEANING_SESSIONS)
       .update(updateData)
       .eq('id', id)
@@ -227,7 +255,8 @@ export const cleaningSessionsApi = {
 
   // Delete cleaning session
   async delete(id: string): Promise<void> {
-    const { error } = await supabase
+    const client = await getSupabaseClient();
+    const { error } = await client
       .from(TABLES.CLEANING_SESSIONS)
       .delete()
       .eq('id', id);
@@ -239,18 +268,20 @@ export const cleaningSessionsApi = {
 // Dashboard statistics
 export const dashboardApi = {
   async getStats(): Promise<DashboardStats> {
+    const client = await getSupabaseClient();
+    
     // Get total apartments
-    const { count: totalApartments } = await supabase
+    const { count: totalApartments } = await client
       .from(TABLES.APARTMENTS)
       .select('*', { count: 'exact', head: true });
 
     // Get total cleaners
-    const { count: totalCleaners } = await supabase
+    const { count: totalCleaners } = await client
       .from(TABLES.CLEANERS)
       .select('*', { count: 'exact', head: true });
 
     // Get total sessions
-    const { count: totalSessions } = await supabase
+    const { count: totalSessions } = await client
       .from(TABLES.CLEANING_SESSIONS)
       .select('*', { count: 'exact', head: true });
 
@@ -260,7 +291,7 @@ export const dashboardApi = {
     const endOfMonth = new Date();
     endOfMonth.setMonth(endOfMonth.getMonth() + 1, 0);
     
-    const { count: sessionsThisMonth } = await supabase
+    const { count: sessionsThisMonth } = await client
       .from(TABLES.CLEANING_SESSIONS)
       .select('*', { count: 'exact', head: true })
       .gte('cleaning_date', startOfMonth.toISOString().split('T')[0])
@@ -271,7 +302,7 @@ export const dashboardApi = {
     const nextWeek = new Date();
     nextWeek.setDate(today.getDate() + 7);
     
-    const { count: upcomingSessions } = await supabase
+    const { count: upcomingSessions } = await client
       .from(TABLES.CLEANING_SESSIONS)
       .select('*', { count: 'exact', head: true })
       .gte('cleaning_date', today.toISOString().split('T')[0])
