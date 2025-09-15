@@ -1,9 +1,20 @@
-import { createClient } from '@supabase/supabase-js';
+import { createBrowserClient } from '@supabase/ssr';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Single client instance for client-side operations
+let supabaseClient: ReturnType<typeof createBrowserClient> | null = null;
+
+export const createClientComponentClient = () => {
+  if (!supabaseClient) {
+    supabaseClient = createBrowserClient(supabaseUrl, supabaseAnonKey);
+  }
+  return supabaseClient;
+};
+
+// For backward compatibility, export the client instance
+export const supabase = createClientComponentClient();
 
 // Database table names
 export const TABLES = {

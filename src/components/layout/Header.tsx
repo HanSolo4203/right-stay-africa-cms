@@ -3,7 +3,8 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { Calendar, BarChart3, Settings, Home } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { Home, LogOut, User, LogIn, Calendar, BarChart3, Settings } from 'lucide-react';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: BarChart3 },
@@ -13,6 +14,7 @@ const navigation = [
 
 export default function Header() {
   const pathname = usePathname();
+  const { user, signOut } = useAuth();
 
   return (
     <header className="bg-white shadow-sm border-b border-gray-200">
@@ -31,27 +33,56 @@ export default function Header() {
             </Link>
           </div>
 
-          {/* Navigation */}
-          <nav className="hidden md:flex space-x-8">
-            {navigation.map((item) => {
-              const isActive = pathname === item.href;
-              return (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  className={cn(
-                    'flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors',
-                    isActive
-                      ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                  )}
+          {/* Navigation and User Menu */}
+          <div className="hidden md:flex items-center space-x-8">
+            {user && (
+              <nav className="flex space-x-8">
+                {navigation.map((item) => {
+                  const isActive = pathname === item.href;
+                  return (
+                    <Link
+                      key={item.name}
+                      href={item.href}
+                      className={cn(
+                        'flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors',
+                        isActive
+                          ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                      )}
+                    >
+                      <item.icon className="w-4 h-4" />
+                      <span>{item.name}</span>
+                    </Link>
+                  );
+                })}
+              </nav>
+            )}
+
+            {/* User Menu */}
+            {user ? (
+              <div className="flex items-center space-x-4">
+                <div className="flex items-center space-x-2 text-sm text-gray-600">
+                  <User className="w-4 h-4" />
+                  <span>{user.email}</span>
+                </div>
+                <button
+                  onClick={signOut}
+                  className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors"
                 >
-                  <item.icon className="w-4 h-4" />
-                  <span>{item.name}</span>
-                </Link>
-              );
-            })}
-          </nav>
+                  <LogOut className="w-4 h-4" />
+                  <span>Logout</span>
+                </button>
+              </div>
+            ) : (
+              <Link
+                href="/login"
+                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors"
+              >
+                <LogIn className="w-4 h-4" />
+                <span>Login</span>
+              </Link>
+            )}
+          </div>
 
           {/* Mobile menu button */}
           <div className="md:hidden">
@@ -81,24 +112,52 @@ export default function Header() {
       {/* Mobile Navigation */}
       <div className="md:hidden border-t border-gray-200">
         <div className="px-2 pt-2 pb-3 space-y-1">
-          {navigation.map((item) => {
-            const isActive = pathname === item.href;
-            return (
-              <Link
-                key={item.name}
-                href={item.href}
-                className={cn(
-                  'flex items-center space-x-2 px-3 py-2 rounded-md text-base font-medium',
-                  isActive
-                    ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                )}
-              >
-                <item.icon className="w-5 h-5" />
-                <span>{item.name}</span>
-              </Link>
-            );
-          })}
+          {user ? (
+            <div className="space-y-1">
+              {/* Navigation Links */}
+              {navigation.map((item) => {
+                const isActive = pathname === item.href;
+                return (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    className={cn(
+                      'flex items-center space-x-2 px-3 py-2 rounded-md text-base font-medium',
+                      isActive
+                        ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                    )}
+                  >
+                    <item.icon className="w-5 h-5" />
+                    <span>{item.name}</span>
+                  </Link>
+                );
+              })}
+              
+              {/* User Info and Logout */}
+              <div className="border-t border-gray-200 pt-3 mt-3">
+                <div className="flex items-center space-x-2 px-3 py-2 text-sm text-gray-600">
+                  <User className="w-5 h-5" />
+                  <span>{user.email}</span>
+                </div>
+                <button
+                  onClick={signOut}
+                  className="flex items-center space-x-2 px-3 py-2 rounded-md text-base font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50 w-full"
+                >
+                  <LogOut className="w-5 h-5" />
+                  <span>Logout</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            <Link
+              href="/login"
+              className="flex items-center space-x-2 px-3 py-2 bg-blue-600 text-white rounded-md text-base font-medium hover:bg-blue-700 transition-colors"
+            >
+              <LogIn className="w-5 h-5" />
+              <span>Login</span>
+            </Link>
+          )}
         </div>
       </div>
     </header>

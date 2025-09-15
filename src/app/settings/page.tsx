@@ -4,9 +4,10 @@ import { useState } from 'react';
 import { Building2, Users, Bell, Shield, Palette } from 'lucide-react';
 import CleanersList from '@/components/ui/CleanersList';
 import ApartmentsList from '@/components/ui/ApartmentsList';
+import AuthWrapper from '@/components/AuthWrapper';
 import { Toaster } from 'react-hot-toast';
 
-export default function Settings() {
+function SettingsContent() {
   const [activeTab, setActiveTab] = useState('cleaners');
 
   const tabs = [
@@ -219,5 +220,13 @@ export default function Settings() {
         }}
       />
     </div>
+  );
+}
+
+export default function Settings() {
+  return (
+    <AuthWrapper>
+      <SettingsContent />
+    </AuthWrapper>
   );
 }
