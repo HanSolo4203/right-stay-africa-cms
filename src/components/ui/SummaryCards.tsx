@@ -16,14 +16,6 @@ interface SummaryCardsProps {
 export default function SummaryCards({ data }: SummaryCardsProps) {
   const cards = [
     {
-      title: 'Total Cleanings',
-      value: data.total_cleanings,
-      icon: Calendar,
-      color: 'blue',
-      change: 'This month',
-      format: 'number'
-    },
-    {
       title: 'Active Apartments',
       value: data.active_apartments,
       icon: Building2,
@@ -46,14 +38,6 @@ export default function SummaryCards({ data }: SummaryCardsProps) {
       color: 'orange',
       change: 'Cleanings per property',
       format: 'decimal'
-    },
-    {
-      title: 'Total Revenue',
-      value: data.total_revenue,
-      icon: DollarSign,
-      color: 'emerald',
-      change: 'Monthly income',
-      format: 'currency'
     },
     {
       title: 'Net Revenue',
@@ -93,7 +77,7 @@ export default function SummaryCards({ data }: SummaryCardsProps) {
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+    <div className="inline-grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
       {cards.map((card, index) => (
         <div
           key={index}
