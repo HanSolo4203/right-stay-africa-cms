@@ -166,10 +166,23 @@ function DashboardContent() {
           />
         </div>
 
-        {/* Summary Cards */}
+        {/* Invoicing Table - Moved to top as first section */}
         {analyticsData && (
           <div className="mb-6 sm:mb-8">
-            <SummaryCards data={analyticsData.summary} />
+            <InvoicingTable 
+              data={analyticsData.invoicing_data} 
+              month={selectedMonth}
+              year={selectedYear}
+            />
+          </div>
+        )}
+
+        {/* Summary Cards (centered) */}
+        {analyticsData && (
+          <div className="mb-6 sm:mb-8 flex justify-center">
+            <div className="max-w-6xl w-full flex justify-center">
+              <SummaryCards data={analyticsData.summary} />
+            </div>
           </div>
         )}
 
@@ -188,23 +201,9 @@ function DashboardContent() {
           </div>
         )}
 
-        {/* Monthly Trends */}
-        {analyticsData && (
-          <div className="mb-6 sm:mb-8">
-            <MonthlyTrendsChart data={analyticsData.monthly_trends} />
-          </div>
-        )}
+        
 
-        {/* Invoicing Table */}
-        {analyticsData && (
-          <div className="mb-6 sm:mb-8">
-            <InvoicingTable 
-              data={analyticsData.invoicing_data} 
-              month={selectedMonth}
-              year={selectedYear}
-            />
-          </div>
-        )}
+        
 
         {/* Insights Section */}
         {analyticsData && analyticsData.insights && (

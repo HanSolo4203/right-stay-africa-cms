@@ -432,12 +432,16 @@ export default function InvoicingTable({ data, month, year }: InvoicingTableProp
           </tbody>
           <tfoot className="bg-gray-50">
             <tr>
-              <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900" colSpan={4}>
+              <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900" colSpan={2}>
                 Total
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
+                {totalCleanings}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
                 R{totalAmount.toLocaleString()}
               </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900"></td>
             </tr>
           </tfoot>
         </table>

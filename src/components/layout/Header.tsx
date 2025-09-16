@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
-import { Home, LogOut, User, LogIn, Calendar, BarChart3, Settings } from 'lucide-react';
+import { LogOut, User, LogIn, Calendar, BarChart3, Settings } from 'lucide-react';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: BarChart3 },
@@ -19,15 +19,18 @@ export default function Header() {
   return (
     <header className="bg-white shadow-sm border-b border-gray-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
+        <div className="flex justify-between items-center h-20">
           {/* Logo and Brand */}
           <div className="flex items-center">
             <Link href="/" className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-green-600 rounded-lg flex items-center justify-center">
-                <Home className="w-5 h-5 text-white" />
-              </div>
+              <img
+                src="/logo.png"
+                alt="Right Stay Africa logo"
+                width={64}
+                height={64}
+                className="w-16 h-16 object-contain"
+              />
               <div>
-                <h1 className="text-xl font-bold text-gray-900">Right Stay Africa</h1>
                 <p className="text-xs text-gray-500">Cleaning Management</p>
               </div>
             </Link>

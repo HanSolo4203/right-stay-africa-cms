@@ -25,6 +25,16 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+/* React Big Calendar: ensure day labels and date numbers are black */
+.rbc-month-view .rbc-month-header .rbc-header,
+.rbc-month-view .rbc-date-cell,
+.rbc-month-view .rbc-date-cell > a.rbc-button-link,
+.rbc-month-view .rbc-date-cell.rbc-now,
+.rbc-month-view .rbc-off-range,
+.rbc-month-view .rbc-off-range > a.rbc-button-link {
+  color: #111827 !important; /* Tailwind gray-900 */
+}
+
 /* Global form control text color: enforce near-black text across site */
 input, textarea, select {
   color: #111827; /* Tailwind gray-900 */
