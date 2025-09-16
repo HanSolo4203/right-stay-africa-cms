@@ -176,7 +176,7 @@ export default function MonthSelector({ selectedMonth, onMonthChange, selectedYe
                 <select
                   value={selectedMonth}
                   onChange={(e) => onMonthChange(e.target.value)}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white min-w-0"
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white min-w-0 text-gray-900"
                 >
                   {monthOptions.map((option, index) => {
                     const isFuture = new Date(option.value + '-01') > new Date();
@@ -221,7 +221,7 @@ export default function MonthSelector({ selectedMonth, onMonthChange, selectedYe
                 <select
                   value={selectedYear || ''}
                   onChange={(e) => onYearChange?.(e.target.value)}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white min-w-0"
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white min-w-0 text-gray-900"
                 >
                   {yearOptions.map((option) => (
                     <option key={option.value} value={option.value}>

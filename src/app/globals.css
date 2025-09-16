@@ -25,6 +25,25 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+/* Global form control text color: enforce near-black text across site */
+input, textarea, select {
+  color: #111827; /* Tailwind gray-900 */
+  caret-color: #111827;
+}
+
+/* Placeholder color for readability */
+input::placeholder,
+textarea::placeholder {
+  color: #374151; /* Tailwind gray-700 */
+}
+
+/* Ensure select text renders black on desktop for readability */
+@media (min-width: 1024px) {
+  select, select option { 
+    color: #111827; /* Tailwind gray-900 (near black) */
+  }
+}
+
 /* Mobile readability improvements */
 @media (max-width: 640px) {
   /* Force solid black text for form controls */
