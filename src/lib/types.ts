@@ -86,6 +86,7 @@ export interface CreateCleaningSessionData {
   cleaning_date: string;
   notes?: string;
   price?: number;
+  include_welcome_pack?: boolean;
 }
 
 export interface UpdateCleaningSessionData extends Partial<CreateCleaningSessionData> {

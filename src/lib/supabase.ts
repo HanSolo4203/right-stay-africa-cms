@@ -28,3 +28,8 @@ export const TABLES = {
 export const VIEWS = {
   CLEANING_SESSIONS_DETAILED: 'cleaning_sessions_detailed',
 } as const;
+
+// App settings table
+export const SETTINGS = {
+  APP_SETTINGS: 'app_settings',
+} as const;

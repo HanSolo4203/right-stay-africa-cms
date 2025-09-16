@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { cleaningSessionsApi, apartmentsApi, cleanersApi } from '@/lib/database';
+import { cleaningSessionsApi, apartmentsApi, cleanersApi, settingsApi } from '@/lib/database';
 import { 
   createCleaningSessionSchema, 
   cleaningSessionQuerySchema
@@ -119,7 +119,17 @@ export async function POST(request: NextRequest) {
       return errorResponse('Cleaner is already scheduled for this date', 409);
     }
 
-    const newSession = await cleaningSessionsApi.create(sessionData);
+    // Apply Welcome pack fee if requested
+    let sessionToCreate = { ...sessionData } as any;
+    if (sessionData.include_welcome_pack) {
+      const welcomeFee = await settingsApi.getWelcomePackFee();
+      const basePrice = typeof sessionData.price === 'number' ? sessionData.price : 0;
+      sessionToCreate.price = basePrice + Number(welcomeFee);
+    }
+    // Remove flag before persisting
+    delete sessionToCreate.include_welcome_pack;
+
+    const newSession = await cleaningSessionsApi.create(sessionToCreate);
     
     return successResponse(newSession, 'Cleaning session created successfully', 201);
   } catch (error) {

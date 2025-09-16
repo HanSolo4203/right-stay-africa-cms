@@ -27,6 +27,7 @@ export const createCleaningSessionSchema = z.object({
   cleaning_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format (YYYY-MM-DD)'),
   notes: z.string().max(500, 'Notes too long').optional().or(z.literal('')),
   price: z.number().min(0, 'Price must be positive').optional(),
+  include_welcome_pack: z.boolean().optional(),
 });
 
 export const updateCleaningSessionSchema = createCleaningSessionSchema.partial();
