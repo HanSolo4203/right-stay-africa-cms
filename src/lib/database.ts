@@ -1,4 +1,4 @@
-import { supabase, TABLES, VIEWS } from './supabase';
+import { supabase, TABLES, VIEWS, SETTINGS } from './supabase';
 import { createServerComponentClient } from './supabase-server';
 import {
   Apartment,
@@ -261,6 +261,28 @@ export const cleaningSessionsApi = {
       .delete()
       .eq('id', id);
     
+    if (error) throw error;
+  },
+};
+
+// App settings operations
+export const settingsApi = {
+  async getWelcomePackFee(): Promise<number> {
+    const client = await getSupabaseClient();
+    const { data, error } = await client
+      .from(SETTINGS.APP_SETTINGS)
+      .select('value')
+      .eq('key', 'welcome_pack_fee')
+      .single();
+    if (error) throw error;
+    return Number(data?.value ?? 0);
+  },
+
+  async setWelcomePackFee(fee: number): Promise<void> {
+    const client = await getSupabaseClient();
+    const { error } = await client
+      .from(SETTINGS.APP_SETTINGS)
+      .upsert({ key: 'welcome_pack_fee', value: fee, updated_at: new Date().toISOString() }, { onConflict: 'key' });
     if (error) throw error;
   },
 };

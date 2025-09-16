@@ -25,6 +25,8 @@ export default function AddCleaningModal({ isOpen, selectedDate, onClose, onSucc
   const [errors, setErrors] = useState<Partial<CreateCleaningSessionData>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(true);
+  const [welcomePackFee, setWelcomePackFee] = useState<number>(0);
+  const [includeWelcomePack, setIncludeWelcomePack] = useState<boolean>(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -48,15 +50,17 @@ export default function AddCleaningModal({ isOpen, selectedDate, onClose, onSucc
     try {
       setIsLoadingData(true);
       
-      // Load apartments and cleaners in parallel
-      const [apartmentsResponse, cleanersResponse] = await Promise.all([
+      // Load apartments, cleaners and welcome fee in parallel
+      const [apartmentsResponse, cleanersResponse, feeResponse] = await Promise.all([
         fetch('/api/apartments'),
-        fetch('/api/cleaners')
+        fetch('/api/cleaners'),
+        fetch('/api/settings/welcome-pack')
       ]);
 
-      const [apartmentsResult, cleanersResult] = await Promise.all([
+      const [apartmentsResult, cleanersResult, feeResult] = await Promise.all([
         apartmentsResponse.json(),
-        cleanersResponse.json()
+        cleanersResponse.json(),
+        feeResponse.json()
       ]);
 
       if (apartmentsResult.success) {
@@ -65,6 +69,10 @@ export default function AddCleaningModal({ isOpen, selectedDate, onClose, onSucc
 
       if (cleanersResult.success) {
         setCleaners(cleanersResult.data);
+      }
+
+      if (feeResult?.success) {
+        setWelcomePackFee(Number(feeResult.data.fee));
       }
     } catch (error) {
       console.error('Error loading data:', error);
@@ -125,7 +133,7 @@ export default function AddCleaningModal({ isOpen, selectedDate, onClose, onSucc
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({ ...formData, include_welcome_pack: includeWelcomePack }),
       });
 
       const result = await response.json();
@@ -260,6 +268,20 @@ export default function AddCleaningModal({ isOpen, selectedDate, onClose, onSucc
                 placeholder="Add any special instructions or notes..."
                 disabled={isLoading}
               />
+            </div>
+
+            {/* Welcome Pack Option */}
+            <div>
+              <label className="inline-flex items-center space-x-3">
+                <input
+                  type="checkbox"
+                  checked={includeWelcomePack}
+                  onChange={(e) => setIncludeWelcomePack(e.target.checked)}
+                  className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+                />
+                <span className="text-sm text-gray-700">Add Welcome pack ({`R${welcomePackFee.toFixed(2)}`})</span>
+              </label>
+              <p className="mt-1 text-xs text-gray-500">A once-off welcome pack fee that can be configured in settings.</p>
             </div>
 
             <div>

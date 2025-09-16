@@ -108,6 +108,18 @@ FROM cleaning_sessions cs
 JOIN apartments a ON cs.apartment_id = a.id
 JOIN cleaners c ON cs.cleaner_id = c.id;
 
+-- Application settings table for configurable fees and options
+CREATE TABLE IF NOT EXISTS app_settings (
+    key TEXT PRIMARY KEY,
+    value NUMERIC,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Seed default Welcome Pack fee (in Rand)
+INSERT INTO app_settings (key, value)
+VALUES ('welcome_pack_fee', 80)
+ON CONFLICT (key) DO NOTHING;
+
 -- Grant necessary permissions (adjust based on your RLS policies)
 -- ALTER TABLE apartments ENABLE ROW LEVEL SECURITY;
 -- ALTER TABLE cleaners ENABLE ROW LEVEL SECURITY;
