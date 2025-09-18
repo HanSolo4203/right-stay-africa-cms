@@ -119,12 +119,11 @@ export async function POST(request: NextRequest) {
       return errorResponse('Cleaner is already scheduled for this date', 409);
     }
 
-    // Apply Welcome pack fee if requested
+    // Apply Welcome pack fee separately (do NOT add to price)
     let sessionToCreate = { ...sessionData } as any;
     if (sessionData.include_welcome_pack) {
       const welcomeFee = await settingsApi.getWelcomePackFee();
-      const basePrice = typeof sessionData.price === 'number' ? sessionData.price : 0;
-      sessionToCreate.price = basePrice + Number(welcomeFee);
+      sessionToCreate.welcome_pack_fee = Number(welcomeFee);
     }
     // Remove flag before persisting
     delete sessionToCreate.include_welcome_pack;

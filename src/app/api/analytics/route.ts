@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { cleaningSessionsApi, apartmentsApi, cleanersApi } from '@/lib/database';
+import { cleaningSessionsApi, apartmentsApi, cleanersApi, settingsApi } from '@/lib/database';
 import type { Apartment } from '@/lib/types';
 import { 
   analyticsQuerySchema
@@ -23,6 +23,12 @@ export async function GET(request: NextRequest) {
     }
     
     const { month, year } = validation.data;
+
+    // Special case: expose current welcome pack fee when requested
+    if (searchParams.get('welcomePackFee') === '1') {
+      const fee = await settingsApi.getWelcomePackFee();
+      return successResponse({ welcome_pack_fee: fee }, 'Welcome pack fee retrieved');
+    }
 
     // Get all data
     const [sessions, apartments, cleaners] = await Promise.all([

@@ -34,6 +34,7 @@ export default function EditMultipleCleaningsModal({
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
+  const [visibleSessions, setVisibleSessions] = useState<CleaningSessionDetailed[]>(sessions);
 
   const loadData = useCallback(async () => {
     try {
@@ -72,6 +73,7 @@ export default function EditMultipleCleaningsModal({
   useEffect(() => {
     if (isOpen) {
       loadData();
+      setVisibleSessions(sessions);
     }
   }, [isOpen, loadData]);
 
@@ -189,6 +191,7 @@ export default function EditMultipleCleaningsModal({
 
       if (result.success) {
         toast.success('Cleaning session deleted successfully');
+        setVisibleSessions(prev => prev.filter(s => s.id !== session.id));
         onSuccess();
       } else {
         toast.error(result.message || 'Failed to delete cleaning session');
@@ -215,8 +218,8 @@ export default function EditMultipleCleaningsModal({
                 day: 'numeric' 
               })}
             </h2>
-            <p className="text-sm text-gray-600 mt-1">
-              {sessions.length} cleaning{sessions.length !== 1 ? 's' : ''} scheduled
+            <p className="text-sm text-black mt-1">
+              {visibleSessions.length} cleaning{visibleSessions.length !== 1 ? 's' : ''} scheduled
             </p>
           </div>
           <button
@@ -238,179 +241,167 @@ export default function EditMultipleCleaningsModal({
             <div className="space-y-6">
               {/* Sessions List */}
               <div className="space-y-4">
-                {sessions.map((session) => (
+                {visibleSessions.map((session) => (
                   <div key={session.id} className="border border-gray-200 rounded-lg p-4">
                     {editingSession?.id === session.id ? (
-                      /* Edit Form */
-                      <form onSubmit={handleSubmit} className="space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          {/* Apartment */}
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              <Building2 className="w-4 h-4 inline mr-1" />
-                              Apartment
-                            </label>
-                            <select
-                              name="apartment_id"
-                              value={formData.apartment_id}
-                              onChange={handleInputChange}
-                              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                                errors.apartment_id ? 'border-red-500' : 'border-gray-300'
-                              }`}
-                            >
-                              <option value="">Select apartment</option>
-                              {apartments.map((apartment) => (
-                                <option key={apartment.id} value={apartment.id}>
-                                  {apartment.apartment_number} - {apartment.owner_name}
-                                </option>
-                              ))}
-                            </select>
-                            {errors.apartment_id && (
-                              <p className="text-red-500 text-sm mt-1">{errors.apartment_id}</p>
-                            )}
-                          </div>
+                          /* Edit Form */
+                          <form onSubmit={handleSubmit} className="space-y-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              {/* Apartment */}
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                  <Building2 className="w-4 h-4 inline mr-1" />
+                                  Apartment
+                                </label>
+                                <select
+                                  name="apartment_id"
+                                  value={formData.apartment_id}
+                                  onChange={handleInputChange}
+                                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                                    errors.apartment_id ? 'border-red-500' : 'border-gray-300'
+                                  }`}
+                                >
+                                  <option value="">Select apartment</option>
+                                  {apartments.map((apartment) => (
+                                    <option key={apartment.id} value={apartment.id}>
+                                      {apartment.apartment_number} - {apartment.owner_name}
+                                    </option>
+                                  ))}
+                                </select>
+                                {errors.apartment_id && (
+                                  <p className="text-red-500 text-sm mt-1">{errors.apartment_id}</p>
+                                )}
+                              </div>
 
-                          {/* Cleaner */}
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              <User className="w-4 h-4 inline mr-1" />
-                              Cleaner
-                            </label>
-                            <select
-                              name="cleaner_id"
-                              value={formData.cleaner_id}
-                              onChange={handleInputChange}
-                              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                                errors.cleaner_id ? 'border-red-500' : 'border-gray-300'
-                              }`}
-                            >
-                              <option value="">Select cleaner</option>
-                              {cleaners.map((cleaner) => (
-                                <option key={cleaner.id} value={cleaner.id}>
-                                  {cleaner.name}
-                                </option>
-                              ))}
-                            </select>
-                            {errors.cleaner_id && (
-                              <p className="text-red-500 text-sm mt-1">{errors.cleaner_id}</p>
-                            )}
-                          </div>
+                              {/* Cleaner */}
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                  <User className="w-4 h-4 inline mr-1" />
+                                  Cleaner
+                                </label>
+                                <select
+                                  name="cleaner_id"
+                                  value={formData.cleaner_id}
+                                  onChange={handleInputChange}
+                                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                                    errors.cleaner_id ? 'border-red-500' : 'border-gray-300'
+                                  }`}
+                                >
+                                  <option value="">Select cleaner</option>
+                                  {cleaners.map((cleaner) => (
+                                    <option key={cleaner.id} value={cleaner.id}>
+                                      {cleaner.name}
+                                    </option>
+                                  ))}
+                                </select>
+                                {errors.cleaner_id && (
+                                  <p className="text-red-500 text-sm mt-1">{errors.cleaner_id}</p>
+                                )}
+                              </div>
 
-                          {/* Date */}
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              <Calendar className="w-4 h-4 inline mr-1" />
-                              Cleaning Date
-                            </label>
-                            <input
-                              type="date"
-                              name="cleaning_date"
-                              value={formData.cleaning_date}
-                              onChange={handleInputChange}
-                              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                                errors.cleaning_date ? 'border-red-500' : 'border-gray-300'
-                              }`}
-                            />
-                            {errors.cleaning_date && (
-                              <p className="text-red-500 text-sm mt-1">{errors.cleaning_date}</p>
-                            )}
-                          </div>
+                              {/* Date */}
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                  <Calendar className="w-4 h-4 inline mr-1" />
+                                  Cleaning Date
+                                </label>
+                                <input
+                                  type="date"
+                                  name="cleaning_date"
+                                  value={formData.cleaning_date}
+                                  onChange={handleInputChange}
+                                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                                    errors.cleaning_date ? 'border-red-500' : 'border-gray-300'
+                                  }`}
+                                />
+                                {errors.cleaning_date && (
+                                  <p className="text-red-500 text-sm mt-1">{errors.cleaning_date}</p>
+                                )}
+                              </div>
 
-                          {/* Price */}
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Price (R)
-                            </label>
-                            <input
-                              type="number"
-                              name="price"
-                              value={formData.price || ''}
-                              onChange={handleInputChange}
-                              min="0"
-                              step="0.01"
-                              placeholder="0.00"
-                              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                                errors.price ? 'border-red-500' : 'border-gray-300'
-                              }`}
-                            />
-                            {errors.price && (
-                              <p className="text-red-500 text-sm mt-1">{errors.price}</p>
-                            )}
-                          </div>
-                        </div>
+                              {/* Price */}
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                  Price (R)
+                                </label>
+                                <input
+                                  type="number"
+                                  name="price"
+                                  value={formData.price || ''}
+                                  onChange={handleInputChange}
+                                  min="0"
+                                  step="0.01"
+                                  placeholder="0.00"
+                                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                                    errors.price ? 'border-red-500' : 'border-gray-300'
+                                  }`}
+                                />
+                                {errors.price && (
+                                  <p className="text-red-500 text-sm mt-1">{errors.price}</p>
+                                )}
+                              </div>
+                            </div>
 
-                        {/* Notes */}
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            <FileText className="w-4 h-4 inline mr-1" />
-                            Notes
-                          </label>
-                          <textarea
-                            name="notes"
-                            value={formData.notes}
-                            onChange={handleInputChange}
-                            rows={3}
-                            placeholder="Add any notes about this cleaning session..."
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          />
-                        </div>
+                            {/* Notes */}
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                <FileText className="w-4 h-4 inline mr-1" />
+                                Notes
+                              </label>
+                              <textarea
+                                name="notes"
+                                value={formData.notes}
+                                onChange={handleInputChange}
+                                rows={3}
+                                placeholder="Add any notes about this cleaning session..."
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              />
+                            </div>
 
-                        {/* Form Actions */}
-                        <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
-                          <button
-                            type="button"
-                            onClick={cancelEditing}
-                            className="px-4 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
-                          >
-                            Cancel
-                          </button>
-                          <button
-                            type="submit"
-                            disabled={isLoading}
-                            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            {isLoading ? 'Saving...' : 'Save Changes'}
-                          </button>
-                        </div>
+                            {/* Form Actions */}
+                            <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+                              <button
+                                type="button"
+                                onClick={cancelEditing}
+                                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                type="submit"
+                                disabled={isLoading}
+                                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {isLoading ? 'Saving...' : 'Save Changes'}
+                              </button>
+                            </div>
                       </form>
                     ) : (
-                      /* Session Display */
-                      <div className="flex items-center justify-between">
+                      /* Session Display (no dropdown) */
+                      <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="flex items-center space-x-4">
                             <div className="flex items-center space-x-2">
                               <Building2 className="w-4 h-4 text-gray-500" />
-                              <span className="font-medium">Apt {session.apartment_number}</span>
+                              <span className="font-medium text-black">Apt {session.apartment_number}</span>
                             </div>
                             <div className="flex items-center space-x-2">
                               <User className="w-4 h-4 text-gray-500" />
-                              <span>{session.cleaner_name}</span>
+                              <span className="text-black">{session.cleaner_name}</span>
                             </div>
                             {session.price && (
-                              <div className="flex items-center space-x-2">
-                                <span className="font-semibold text-green-600">
-                                  R{session.price.toFixed(2)}
-                                </span>
-                              </div>
+                              <span className="font-semibold text-green-600">R{session.price.toFixed(2)}</span>
                             )}
                           </div>
                           {session.notes && (
-                            <p className="text-sm text-gray-600 mt-2">{session.notes}</p>
+                            <p className="text-sm text-black mt-2">{session.notes}</p>
                           )}
                         </div>
                         <div className="flex items-center space-x-2">
-                          <button
-                            onClick={() => startEditing(session)}
-                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
-                            title="Edit cleaning"
-                          >
+                          <button onClick={() => startEditing(session)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-md transition-colors" title="Edit cleaning">
                             <Edit className="w-4 h-4" />
                           </button>
-                          <button
-                            onClick={() => handleDelete(session)}
-                            className="p-2 text-red-600 hover:bg-red-50 rounded-md transition-colors"
-                            title="Delete cleaning"
-                          >
+                          <button onClick={() => handleDelete(session)} className="p-2 text-red-600 hover:bg-red-50 rounded-md transition-colors" title="Delete cleaning">
                             <Trash2 className="w-4 h-4" />
                           </button>
                         </div>

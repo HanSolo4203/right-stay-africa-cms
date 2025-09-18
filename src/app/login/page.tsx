@@ -46,8 +46,8 @@ export default function LoginPage() {
       if (response.ok) {
         console.log('[LOGIN PAGE] Login successful, redirecting to dashboard...');
         toast.success('Login successful!');
-        // Refresh the page to update auth state
-        window.location.href = '/dashboard';
+        // Redirect to calendar as the first page after login
+        window.location.href = '/calendar';
       } else {
         console.error('[LOGIN PAGE] Login failed:', data.error);
         toast.error(data.error || 'Login failed');
@@ -66,27 +66,27 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
+    <div className="min-h-screen flex items-start justify-center bg-gray-50 pt-6 pb-10 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-6">
         <div>
           <div className="flex justify-center">
             <Image
               src="/logo.png"
               alt="Right Stay Africa logo"
-              width={350}
-              height={350}
-              className="h-[70px] w-auto"
+              width={700}
+              height={700}
+              className="h-[140px] w-auto"
               priority
             />
           </div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+          <h2 className="mt-2 text-center text-3xl font-extrabold text-gray-900">
             Sign in to your account
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
-            Right Stay Africa CMS
+            Right Stay Africa Cleaning Management Service
           </p>
         </div>
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+        <form className="mt-6 space-y-6" onSubmit={handleSubmit}>
           <div className="rounded-md shadow-sm -space-y-px">
             <div>
               <label htmlFor="email-address" className="sr-only">

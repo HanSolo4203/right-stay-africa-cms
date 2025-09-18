@@ -34,6 +34,7 @@ export default function InvoicingTable({ data, month, year }: InvoicingTableProp
     };
     sessions: CleaningSessionDetailed[];
   } | null>(null);
+  const [welcomePackFee, setWelcomePackFee] = useState<number>(0);
 
   // Filter and sort data
   const filteredData = data
@@ -73,8 +74,20 @@ export default function InvoicingTable({ data, month, year }: InvoicingTableProp
         url += `&year=${year}`;
       }
       
-      const response = await fetch(url);
-      const result = await response.json();
+      const [sessionsRes, settingsRes] = await Promise.all([
+        fetch(url),
+        fetch('/api/analytics?welcomePackFee=1')
+      ]);
+      const result = await sessionsRes.json();
+      // Try to read welcome pack fee from settings API if provided; falls back to per-session values
+      try {
+        const settingsData = await settingsRes.json();
+        if (typeof settingsData?.data?.welcome_pack_fee === 'number') {
+          setWelcomePackFee(Number(settingsData.data.welcome_pack_fee));
+        }
+      } catch {
+        // ignore settings errors; session-level welcome_pack_fee will still be used if present
+      }
       
       if (result.success) {
         setCleaningDetails(prev => ({
@@ -380,7 +393,8 @@ export default function InvoicingTable({ data, month, year }: InvoicingTableProp
                             <span className="ml-2 text-sm text-gray-600">Loading details...</span>
                           </div>
                         ) : cleaningDetails[`${apartment.apartment_number}-${month || year || 'all'}`]?.length > 0 ? (
-                          <div className="space-y-2">
+                          <div className="space-y-4">
+                            {/* Sessions list */}
                             {cleaningDetails[`${apartment.apartment_number}-${month || year || 'all'}`].map((session) => (
                               <div key={session.id} className="bg-white p-3 rounded-lg border border-gray-200">
                                 <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-sm">
@@ -416,6 +430,31 @@ export default function InvoicingTable({ data, month, year }: InvoicingTableProp
                                 </div>
                               </div>
                             ))}
+
+                            {/* Welcome Pack Summary */}
+                            {(() => {
+                              const sessions = cleaningDetails[`${apartment.apartment_number}-${month || year || 'all'}`];
+                              const usedCount = sessions.filter(s => (s.welcome_pack_fee && Number(s.welcome_pack_fee) > 0) || (!s.welcome_pack_fee && welcomePackFee > 0)).length;
+                              const totalWelcomeAmount = sessions.reduce((sum, s) => {
+                                const fee = Number(s.welcome_pack_fee);
+                                if (!isNaN(fee) && fee > 0) return sum + fee;
+                                return sum + (welcomePackFee > 0 ? welcomePackFee : 0);
+                              }, 0);
+                              return (
+                                <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                                  <div className="flex items-center justify-between">
+                                    <div>
+                                      <p className="text-sm font-medium text-yellow-900">Welcome Packs Used</p>
+                                      <p className="text-xs text-yellow-700">Count and total for the selected period</p>
+                                    </div>
+                                    <div className="text-right">
+                                      <p className="text-xl font-bold text-yellow-900">{usedCount}</p>
+                                      <p className="text-sm font-semibold text-yellow-800">R{totalWelcomeAmount.toFixed(2)}</p>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })()}
                           </div>
                         ) : (
                           <div className="text-center py-4 text-gray-500">
