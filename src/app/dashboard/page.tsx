@@ -6,7 +6,7 @@ import SummaryCards from '@/components/ui/SummaryCards';
 import CleaningsByApartmentChart from '@/components/ui/CleaningsByApartmentChart';
 import CleanerWorkloadChart from '@/components/ui/CleanerWorkloadChart';
 import CleanerEarningsChart from '@/components/ui/CleanerEarningsChart';
-import MonthlyTrendsChart from '@/components/ui/MonthlyTrendsChart';
+// import MonthlyTrendsChart from '@/components/ui/MonthlyTrendsChart';
 import InvoicingTable from '@/components/ui/InvoicingTable';
 import AuthWrapper from '@/components/AuthWrapper';
 import { Toaster } from 'react-hot-toast';
