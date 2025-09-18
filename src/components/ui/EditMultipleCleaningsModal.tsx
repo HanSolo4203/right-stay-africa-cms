@@ -75,7 +75,7 @@ export default function EditMultipleCleaningsModal({
       loadData();
       setVisibleSessions(sessions);
     }
-  }, [isOpen, loadData]);
+  }, [isOpen, loadData, sessions]);
 
   const startEditing = (session: CleaningSessionDetailed) => {
     setEditingSession(session);

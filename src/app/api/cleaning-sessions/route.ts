@@ -4,6 +4,7 @@ import {
   createCleaningSessionSchema, 
   cleaningSessionQuerySchema
 } from '@/lib/validations';
+import type { CreateCleaningSessionData } from '@/lib/types';
 import {
   successResponse,
   successPaginatedResponse,
@@ -120,15 +121,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Apply Welcome pack fee separately (do NOT add to price)
-    let sessionToCreate = { ...sessionData } as any;
+    const sessionToCreate: CreateCleaningSessionData & { welcome_pack_fee?: number } = { ...sessionData };
     if (sessionData.include_welcome_pack) {
       const welcomeFee = await settingsApi.getWelcomePackFee();
-      sessionToCreate.welcome_pack_fee = Number(welcomeFee);
+      (sessionToCreate as { welcome_pack_fee?: number }).welcome_pack_fee = Number(welcomeFee);
     }
     // Remove flag before persisting
     delete sessionToCreate.include_welcome_pack;
 
-    const newSession = await cleaningSessionsApi.create(sessionToCreate);
+    const newSession = await cleaningSessionsApi.create(sessionToCreate as unknown as CreateCleaningSessionData);
     
     return successResponse(newSession, 'Cleaning session created successfully', 201);
   } catch (error) {

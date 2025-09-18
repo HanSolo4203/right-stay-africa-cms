@@ -1,6 +1,6 @@
 'use client';
 
-import { Calendar, Building2, Users, TrendingUp, DollarSign } from 'lucide-react';
+import { Building2, Users, TrendingUp, DollarSign } from 'lucide-react';
 
 interface SummaryCardsProps {
   data: {
