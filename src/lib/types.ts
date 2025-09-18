@@ -38,6 +38,8 @@ export interface CleaningSessionDetailed {
   cleaning_date: string;
   notes?: string;
   price?: number;
+  // Optional: present when welcome pack fee is applied
+  welcome_pack_fee?: number;
   created_at: string;
   updated_at: string;
   apartment_number: string;
