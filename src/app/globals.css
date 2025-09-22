@@ -25,6 +25,41 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+/* Force common grey utility text colors to render as black site-wide */
+.text-gray-300,
+.text-gray-400,
+.text-gray-500,
+.text-gray-600,
+.text-gray-700,
+.text-gray-800 {
+  color: #000 !important;
+}
+
+/* Ensure SVG icons (chevrons, etc.) that inherit currentColor render black */
+.text-gray-300 svg,
+.text-gray-400 svg,
+.text-gray-500 svg,
+.text-gray-600 svg,
+.text-gray-700 svg,
+.text-gray-800 svg {
+  color: #000 !important;
+}
+
+/* Make arrow and dropdown icons black globally (Lucide/heroicons use currentColor) */
+svg[stroke="currentColor"],
+svg[fill="currentColor"],
+button svg[stroke="currentColor"],
+button svg[fill="currentColor"],
+summary svg,
+details svg {
+  color: #000 !important; /* sets currentColor to black */
+}
+
+/* React Big Calendar navigation arrows */
+.rbc-toolbar button svg {
+  color: #000 !important;
+}
+
 /* React Big Calendar: ensure day labels and date numbers are black */
 .rbc-month-view .rbc-month-header .rbc-header,
 .rbc-month-view .rbc-date-cell,

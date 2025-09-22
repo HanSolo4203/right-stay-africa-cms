@@ -32,8 +32,19 @@ export default function Header() {
           {/* Left logo */}
           <div className="flex items-center w-32">
             <Link href="/" className="flex items-center space-x-2">
-              <Image src="/logo.png" alt="Right Stay Africa" width={32} height={32} priority />
-              <span className="hidden sm:inline text-sm font-semibold text-gray-900">Right Stay Africa</span>
+              <div suppressHydrationWarning>
+                <Image
+                  src="/logo.png"
+                  alt="Right Stay Africa"
+                  width={200}
+                  height={200}
+                  priority
+                  quality={100}
+                  sizes="200px"
+                  className="h-20 w-auto"
+                  style={{ objectFit: 'contain' }}
+                />
+              </div>
             </Link>
           </div>
 

@@ -80,6 +80,20 @@ export default function CalendarView({}: CalendarViewProps) {
 
   useEffect(() => {
     loadEvents();
+    // Restore last used calendar view and date from localStorage
+    try {
+      const savedView = localStorage.getItem('calendar:lastView');
+      const savedDate = localStorage.getItem('calendar:lastDate');
+      if (savedView) {
+        setCurrentView(savedView as View);
+      }
+      if (savedDate) {
+        const parsed = new Date(savedDate);
+        if (!isNaN(parsed.getTime())) setCurrentDate(parsed);
+      }
+    } catch {
+      // ignore storage errors
+    }
   }, []);
 
   // Convert RSA laundry expenses to cleaning session format for calendar display
@@ -149,11 +163,15 @@ export default function CalendarView({}: CalendarViewProps) {
   // Handle view change
   const handleViewChange = (view: View) => {
     setCurrentView(view);
+    // Persist selection
+    try { localStorage.setItem('calendar:lastView', String(view)); } catch {}
   };
 
   // Handle date change
   const handleNavigate = (date: Date) => {
     setCurrentDate(date);
+    // Persist selection
+    try { localStorage.setItem('calendar:lastDate', date.toISOString()); } catch {}
   };
 
   // Custom event component

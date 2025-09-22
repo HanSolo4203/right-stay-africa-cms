@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { X, Building2, User, Calendar, FileText, Plus, Trash2 } from 'lucide-react';
+import { X, Plus, Trash2 } from 'lucide-react';
 import { CleaningSessionDetailed, UpdateCleaningSessionData, UpdateRSALaundryExpenseData, Cleaner, SchedulableProperty } from '@/lib/types';
 import { isRSALaundryAsset, getPropertyDisplayName } from '@/lib/property-utils';
 import toast from 'react-hot-toast';
@@ -555,14 +555,13 @@ export default function EditCleaningModal({ isOpen, session, onClose, onSuccess 
               <label htmlFor="apartment_id" className="block text-sm font-medium text-gray-700 mb-2">
                 Property *
               </label>
-              <div className="relative">
-                <Building2 className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <div>
                 <select
                   id="apartment_id"
                   name="apartment_id"
                   value={formData.apartment_id}
                   onChange={handleInputChange}
-                  className={`w-full pl-10 pr-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                     errors.apartment_id ? 'border-red-300' : 'border-gray-300'
                   }`}
                   disabled={isLoading}
@@ -570,10 +569,9 @@ export default function EditCleaningModal({ isOpen, session, onClose, onSuccess 
                   <option value="">Select a property</option>
                   {schedulableProperties.map((property) => (
                     <option key={property.id} value={property.id}>
-                      {isRSALaundryAsset(property) 
-                        ? `🏢 ${getPropertyDisplayName(property)} - ${property.owner_name} (Internal)`
-                        : `🏠 ${getPropertyDisplayName(property)} - ${property.owner_name}`
-                      }
+                      {isRSALaundryAsset(property)
+                        ? `${getPropertyDisplayName(property)} - ${property.owner_name} (Internal)`
+                        : `${getPropertyDisplayName(property)} - ${property.owner_name}`}
                     </option>
                   ))}
                 </select>
@@ -588,14 +586,13 @@ export default function EditCleaningModal({ isOpen, session, onClose, onSuccess 
               <label htmlFor="cleaner_id" className="block text-sm font-medium text-gray-700 mb-2">
                 {isApartment ? 'Primary Cleaner *' : 'Cleaner *'}
               </label>
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <div>
                 <select
                   id="cleaner_id"
                   name="cleaner_id"
                   value={formData.cleaner_id}
                   onChange={handleInputChange}
-                  className={`w-full pl-10 pr-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                     errors.cleaner_id ? 'border-red-300' : 'border-gray-300'
                   }`}
                   disabled={isLoading}
@@ -735,15 +732,14 @@ export default function EditCleaningModal({ isOpen, session, onClose, onSuccess 
               <label htmlFor="cleaning_date" className="block text-sm font-medium text-gray-700 mb-2">
                 Cleaning Date *
               </label>
-              <div className="relative">
-                <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <div>
                 <input
                   type="date"
                   id="cleaning_date"
                   name="cleaning_date"
                   value={formData.cleaning_date}
                   onChange={handleInputChange}
-                  className={`w-full pl-10 pr-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                     errors.cleaning_date ? 'border-red-300' : 'border-gray-300'
                   }`}
                   disabled={isLoading}
@@ -759,15 +755,14 @@ export default function EditCleaningModal({ isOpen, session, onClose, onSuccess 
               <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-2">
                 Notes
               </label>
-              <div className="relative">
-                <FileText className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+              <div>
                 <textarea
                   id="notes"
                   name="notes"
                   value={formData.notes}
                   onChange={handleInputChange}
                   rows={3}
-                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Add any special instructions or notes..."
                   disabled={isLoading}
                 />

@@ -396,49 +396,49 @@ export default function InvoiceGenerator({
             <div className="bg-gray-50 p-4 rounded-lg">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Invoice Summary</h3>
+                  <h3 className="text-lg font-semibold text-black mb-3">Invoice Summary</h3>
                   <div className="space-y-2">
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Apartment:</span>
-                      <span className="font-medium">{apartment.apartment_number}</span>
+                      <span className="text-black">Apartment:</span>
+                      <span className="font-medium text-black">{apartment.apartment_number}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Owner:</span>
-                      <span className="font-medium">{apartment.owner_name}</span>
+                      <span className="text-black">Owner:</span>
+                      <span className="font-medium text-black">{apartment.owner_name}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Period:</span>
-                      <span className="font-medium">{formatPeriod()}</span>
+                      <span className="text-black">Period:</span>
+                      <span className="font-medium text-black">{formatPeriod()}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Total Cleanings:</span>
-                      <span className="font-medium">{apartment.cleaning_count}</span>
+                      <span className="text-black">Total Cleanings:</span>
+                      <span className="font-medium text-black">{apartment.cleaning_count}</span>
                     </div>
                     <div className="flex justify-between border-t pt-2">
-                      <span className="text-gray-900 font-semibold">Total Amount:</span>
+                      <span className="text-black font-semibold">Total Amount:</span>
                       <span className="text-green-600 font-bold text-lg">R{apartment.total_amount.toFixed(2)}</span>
                     </div>
                   </div>
                 </div>
 
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Cleaning Sessions</h3>
+                  <h3 className="text-lg font-semibold text-black mb-3">Cleaning Sessions</h3>
                   <div className="space-y-2 max-h-48 overflow-y-auto">
                     {cleaningSessions.map((session) => (
                       <div key={session.id} className="bg-white p-3 rounded border">
                         <div className="flex justify-between items-start">
                           <div>
                             <div className="flex items-center space-x-2 text-sm">
-                              <Calendar className="w-4 h-4 text-gray-400" />
-                              <span>{formatDate(session.cleaning_date)}</span>
+                              <Calendar className="w-4 h-4 text-black" />
+                              <span className="text-black">{formatDate(session.cleaning_date)}</span>
                             </div>
-                            <div className="flex items-center space-x-2 text-sm text-gray-600 mt-1">
+                            <div className="flex items-center space-x-2 text-sm text-black mt-1">
                               {session.is_multi_cleaner && session.cleaner_2_name ? (
                                 <Users className="w-4 h-4 text-blue-600" />
                               ) : (
-                                <User className="w-4 h-4 text-gray-400" />
+                                <User className="w-4 h-4 text-black" />
                               )}
-                              <span>
+                              <span className="text-black">
                                 {session.is_multi_cleaner && session.cleaner_2_name 
                                   ? `${session.cleaner_1_name || session.cleaner_name} & ${session.cleaner_2_name}`
                                   : session.cleaner_1_name || session.cleaner_name
