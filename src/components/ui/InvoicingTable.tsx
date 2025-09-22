@@ -275,34 +275,34 @@ export default function InvoicingTable({ data, month, year }: InvoicingTableProp
   return (
     <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
-        <div className="flex items-center space-x-3 mb-4 sm:mb-0">
+        <div className="flex items-center gap-3 mb-4 sm:mb-0">
           <FileText className="w-6 h-6 text-green-600" />
           <h3 className="text-lg font-semibold text-gray-900">Invoicing Summary</h3>
         </div>
         
-        <div className="flex items-center space-x-3">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
           <button
             onClick={clearCache}
-            className="flex items-center space-x-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
+            className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors shrink-0"
             title="Refresh data"
           >
             <RefreshCw className="w-4 h-4" />
             <span>Refresh</span>
           </button>
-          <div className="relative">
+          <div className="relative w-full sm:w-64">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="text"
               placeholder="Search apartments..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
             />
           </div>
           
           <button
             onClick={exportToCSV}
-            className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+            className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors shrink-0"
           >
             <Download className="w-4 h-4 mr-2" />
             CSV
@@ -310,7 +310,7 @@ export default function InvoicingTable({ data, month, year }: InvoicingTableProp
           
           <button
             onClick={printInvoice}
-            className="inline-flex items-center px-3 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 transition-colors"
+            className="inline-flex items-center px-3 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 transition-colors shrink-0"
           >
             <Printer className="w-4 h-4 mr-2" />
             Print
@@ -323,30 +323,30 @@ export default function InvoicingTable({ data, month, year }: InvoicingTableProp
           <thead className="bg-gray-50">
             <tr>
               <th 
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                 onClick={() => handleSort('apartment_number')}
               >
                 Apartment {sortBy === 'apartment_number' && (sortOrder === 'asc' ? '↑' : '↓')}
               </th>
               <th 
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                className="hidden md:table-cell px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                 onClick={() => handleSort('owner_name')}
               >
                 Owner {sortBy === 'owner_name' && (sortOrder === 'asc' ? '↑' : '↓')}
               </th>
               <th 
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                 onClick={() => handleSort('cleaning_count')}
               >
                 Cleanings {sortBy === 'cleaning_count' && (sortOrder === 'asc' ? '↑' : '↓')}
               </th>
               <th 
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                 onClick={() => handleSort('total_amount')}
               >
                 Amount {sortBy === 'total_amount' && (sortOrder === 'asc' ? '↑' : '↓')}
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="hidden md:table-cell px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Actions
               </th>
             </tr>
@@ -355,7 +355,7 @@ export default function InvoicingTable({ data, month, year }: InvoicingTableProp
             {filteredData.map((apartment) => (
               <React.Fragment key={apartment.apartment_id}>
                 <tr className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                  <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                     <button
                       onClick={() => toggleApartmentDetails(apartment.apartment_number)}
                       className="flex items-center space-x-2 hover:text-blue-600 transition-colors"
@@ -368,16 +368,16 @@ export default function InvoicingTable({ data, month, year }: InvoicingTableProp
                       <span>Apartment {apartment.apartment_number}</span>
                     </button>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                  <td className="hidden md:table-cell px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                     {apartment.owner_name}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                  <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                     {apartment.cleaning_count}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                  <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                     R{apartment.total_amount.toLocaleString()}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <td className="hidden md:table-cell px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     <button
                       onClick={() => generateInvoice(apartment)}
                       disabled={loadingDetails === apartment.apartment_number}
@@ -401,7 +401,7 @@ export default function InvoicingTable({ data, month, year }: InvoicingTableProp
                 {/* Expanded details row */}
                 {expandedApartment === apartment.apartment_number && (
                   <tr>
-                    <td colSpan={5} className="px-6 py-4 bg-gray-50">
+                    <td colSpan={5} className="px-4 md:px-6 py-4 bg-gray-50">
                       <div className="space-y-3">
                         <h4 className="text-sm font-medium text-gray-900 mb-3">
                           Cleaning Details for Apartment {apartment.apartment_number}
@@ -413,6 +413,7 @@ export default function InvoicingTable({ data, month, year }: InvoicingTableProp
                             <span className="ml-2 text-sm text-gray-600">Loading details...</span>
                           </div>
                         ) : cleaningDetails[`${apartment.apartment_number}-${month || year || 'all'}`]?.length > 0 ? (
+                          <>
                           <div className="space-y-4">
                             {/* Sessions list */}
                             {cleaningDetails[`${apartment.apartment_number}-${month || year || 'all'}`].map((session) => (
@@ -487,6 +488,27 @@ export default function InvoicingTable({ data, month, year }: InvoicingTableProp
                               );
                             })()}
                           </div>
+                          {/* Mobile invoice action */}
+                          <div className="md:hidden pt-2">
+                            <button
+                              onClick={() => generateInvoice(apartment)}
+                              disabled={loadingDetails === apartment.apartment_number}
+                              className="w-full inline-flex items-center justify-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {loadingDetails === apartment.apartment_number ? (
+                                <>
+                                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                                  Loading...
+                                </>
+                              ) : (
+                                <>
+                                  <Receipt className="w-4 h-4 mr-2" />
+                                  Generate Invoice
+                                </>
+                              )}
+                            </button>
+                          </div>
+                          </>
                         ) : (
                           <div className="text-center py-4 text-gray-500">
                             <Calendar className="w-8 h-8 text-gray-300 mx-auto mb-2" />
@@ -502,16 +524,16 @@ export default function InvoicingTable({ data, month, year }: InvoicingTableProp
           </tbody>
           <tfoot className="bg-gray-50">
             <tr>
-              <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900" colSpan={2}>
+              <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900" colSpan={2}>
                 Total
               </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
+              <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
                 {totalCleanings}
               </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
+              <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
                 R{totalAmount.toLocaleString()}
               </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900"></td>
+              <td className="hidden md:table-cell px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900"></td>
             </tr>
           </tfoot>
         </table>
