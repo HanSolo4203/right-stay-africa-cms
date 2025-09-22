@@ -1,6 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { createServerComponentClient } from '@/lib/supabase-server';
 import { z } from 'zod';
+import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
+import { logger } from '@/lib/logger';
 
 // Validation schema for creating RSA laundry expenses
 const createRsaLaundryExpenseSchema = z.object({
@@ -16,21 +18,7 @@ const createRsaLaundryExpenseSchema = z.object({
 //   payment_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format (YYYY-MM-DD)').optional(),
 // });
 
-// Helper function to create error response
-function errorResponse(message: string, status: number = 400) {
-  return NextResponse.json({ success: false, error: message }, { status });
-}
-
-// Helper function to create success response
-function successResponse(data: unknown, message: string = 'Success', status: number = 200) {
-  return NextResponse.json({ success: true, data, message }, { status });
-}
-
-// Helper function to handle API errors
-function handleApiError(error: unknown, operation: string) {
-  console.error(`Error ${operation}:`, error);
-  return errorResponse(`Internal server error while ${operation}`, 500);
-}
+// Use shared helpers from '@/lib/api-utils' and central logger
 
 // GET /api/rsa-laundry-expenses - Get all RSA laundry expenses
 export async function GET(request: NextRequest) {
@@ -66,7 +54,7 @@ export async function GET(request: NextRequest) {
     const { data: expenses, error } = await query;
 
     if (error) {
-      console.error('Error fetching RSA laundry expenses:', error);
+      logger.error('Error fetching RSA laundry expenses:', error);
       return errorResponse('Failed to fetch RSA laundry expenses', 500);
     }
 
@@ -141,7 +129,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (createError) {
-      console.error('Error creating RSA laundry expense:', createError);
+      logger.error('Error creating RSA laundry expense:', createError);
       return errorResponse('Failed to create RSA laundry expense', 500);
     }
 

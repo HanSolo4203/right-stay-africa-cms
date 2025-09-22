@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
+import LoadingImage from '@/components/ui/LoadingImage';
 
 interface LoginLoadingAnimationProps {
   onComplete: () => void;
@@ -102,72 +103,41 @@ export default function LoginLoadingAnimation({ onComplete, userEmail }: LoginLo
     );
   }
 
-  // Regular Matrix loading screen for other users
+  // Regular loading screen for other users using the specified image
   return (
     <div className="fixed inset-0 bg-black flex items-center justify-center z-50">
-      {/* Matrix background for loading screen */}
-      <div className="absolute inset-0 opacity-30">
-        <div className="matrix-bg" />
-      </div>
-      
       <div className="relative z-10 text-center">
-        {/* Logo */}
         <div className="mb-8">
-          <Image
-            src="/logo.png"
-            alt="Right Stay Africa logo"
-            width={200}
-            height={200}
-            className="h-32 w-auto mx-auto animate-pulse"
-            priority
-          />
+          <LoadingImage size={260} fullScreen={false} alt="Loading" />
         </div>
 
-        {/* Loading Text */}
         <div className="mb-6">
-          <h2 className="text-2xl font-bold text-green-400 mb-2">
+          <h2 className="text-2xl font-bold text-white mb-2">
             {loadingText}
           </h2>
-          <p className="text-green-300 text-sm">
+          <p className="text-white text-sm">
             Please wait while we prepare your dashboard...
           </p>
         </div>
 
-        {/* Progress Bar */}
         <div className="w-80 mx-auto mb-4">
-          <div className="bg-black bg-opacity-50 border border-green-500 rounded-full h-3 overflow-hidden">
+          <div className="bg-gray-700 border border-white rounded-full h-3 overflow-hidden">
             <div 
-              className="h-full bg-gradient-to-r from-green-500 to-green-400 transition-all duration-300 ease-out"
+              className="h-full bg-gradient-to-r from-white to-gray-300 transition-all duration-300 ease-out"
               style={{ width: `${progress}%` }}
             />
           </div>
         </div>
 
-        {/* Progress Percentage */}
-        <div className="text-green-400 text-sm font-mono">
+        <div className="text-white text-sm font-mono">
           {Math.round(progress)}%
         </div>
 
-        {/* Matrix-style dots animation */}
-        <div className="mt-6 flex justify-center space-x-2">
-          {[0, 1, 2].map((i) => (
-            <div
-              key={i}
-              className="w-2 h-2 bg-green-400 rounded-full animate-pulse"
-              style={{
-                animationDelay: `${i * 0.2}s`,
-                animationDuration: '1s'
-              }}
-            />
-          ))}
-        </div>
-
-        {/* Enter Dashboard Button - only show when loading is complete */}
         {loadingComplete && (
           <div className="mt-8">
             <button
               onClick={onComplete}
-              className="px-8 py-3 bg-green-500 text-white font-bold text-lg rounded-lg hover:bg-green-600 transition-colors duration-200 shadow-lg border border-green-400"
+              className="px-8 py-3 bg-white text-black font-bold text-lg rounded-lg hover:bg-gray-200 transition-colors duration-200 shadow-lg"
             >
               Enter Dashboard
             </button>

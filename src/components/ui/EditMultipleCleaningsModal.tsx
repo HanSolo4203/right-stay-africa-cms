@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { X, Building2, User, Calendar, FileText, Edit, Trash2, Users } from 'lucide-react';
+import WelcomePackToggle from './WelcomePackToggle';
 import { CleaningSessionDetailed, UpdateCleaningSessionData, Cleaner, SchedulableProperty } from '@/lib/types';
 import { isRSALaundryAsset, getPropertyDisplayName } from '@/lib/property-utils';
 import toast from 'react-hot-toast';
@@ -444,19 +445,7 @@ export default function EditMultipleCleaningsModal({
                               const isRSALaundryRoom = editingSession?.apartment_number === 'RSA Laundry Room';
                               const isRSAExpense = editingSession?.property_category === 'internal_asset';
                               return !(isRSALaundryRoom || isRSAExpense) && (
-                                <div>
-                                  <label className="inline-flex items-center space-x-3">
-                                    <input
-                                      type="checkbox"
-                                      checked={includeWelcomePack}
-                                      onChange={(e) => setIncludeWelcomePack(e.target.checked)}
-                                      className="h-4 w-4 text-blue-600 border-gray-300 rounded"
-                                      disabled={isLoading}
-                                    />
-                                    <span className="text-sm text-gray-700">Add Welcome pack ({`R${welcomePackFee.toFixed(2)}`})</span>
-                                  </label>
-                                  <p className="mt-1 text-xs text-gray-500">A once-off welcome pack fee that can be configured in settings.</p>
-                                </div>
+                                <WelcomePackToggle fee={welcomePackFee} checked={includeWelcomePack} disabled={isLoading} onChange={setIncludeWelcomePack} />
                               );
                             })()}
 

@@ -62,6 +62,11 @@ export async function PUT(
     }
     
     const updateData = validation.data;
+
+    // Normalize empty string values coming from the UI
+    if (updateData.cleaner_2_id === '') {
+      updateData.cleaner_2_id = null;
+    }
     
     // Check if session exists
     const existingSession = await cleaningSessionsApi.getById(id);
@@ -121,7 +126,8 @@ export async function PUT(
     }
 
     // Handle cleaner fees based on whether this is a multi-cleaner session
-    if (updateData.cleaner_2_id !== null && updateData.cleaner_2_id !== undefined) {
+    const hasSecondCleaner = typeof updateData.cleaner_2_id === 'string' && updateData.cleaner_2_id.trim() !== '';
+    if (hasSecondCleaner) {
       // Multi-cleaner session: set individual fees to apartment's cleaner payout amount
       const session = await cleaningSessionsApi.getById(id);
       if (!session) {
@@ -164,8 +170,8 @@ export async function PUT(
           }
         }
       }
-      if (updateData.cleaner_2_id !== null && updateData.cleaner_2_id !== undefined) {
-        const cleaner2 = await cleanersApi.getById(updateData.cleaner_2_id);
+      if (hasSecondCleaner) {
+        const cleaner2 = await cleanersApi.getById(updateData.cleaner_2_id as string);
         if (cleaner2) {
           updateData.cleaner_2_name = cleaner2.name;
         } else {
@@ -180,9 +186,12 @@ export async function PUT(
       // Total cleaning fee is the amount entered in popup (price field)
       // This is already set in updateData.price, so we keep it as is
     } else {
-      // Single-cleaner session: clear second cleaner fee and name
+      // Single-cleaner session: remove second cleaner completely
+      updateData.cleaner_2_id = null;
       updateData.cleaner_2_fee = null;
       updateData.cleaner_2_name = null;
+      updateData.is_multi_cleaner = false;
+      updateData.cleaner_count = 1;
       
       // Only set total_cleaning_fee if cleaner_1_fee was explicitly provided
       if (updateData.cleaner_1_fee !== undefined && updateData.cleaner_1_fee !== null) {
@@ -212,28 +221,14 @@ export async function PUT(
         cleaner_1_fee: updateData.cleaner_1_fee,
         cleaner_2_fee: updateData.cleaner_2_fee,
         total_cleaning_fee: updateData.total_cleaning_fee,
-        is_multi_cleaner: updateData.is_multi_cleaner,
-        cleaner_count: updateData.cleaner_count,
+        is_multi_cleaner: hasSecondCleaner,
+        cleaner_count: hasSecondCleaner ? 2 : 1,
         timestamp: new Date().toISOString()
       });
     }
 
-    // Ensure null values are converted to undefined for type compatibility
-    const cleanedUpdateData = { ...updateData };
-    if (cleanedUpdateData.cleaner_2_name === null) {
-      cleanedUpdateData.cleaner_2_name = undefined;
-    }
-    if (cleanedUpdateData.cleaner_2_id === null) {
-      cleanedUpdateData.cleaner_2_id = undefined;
-    }
-    if (cleanedUpdateData.cleaner_2_fee === null) {
-      cleanedUpdateData.cleaner_2_fee = undefined;
-    }
-    if (cleanedUpdateData.welcome_pack_fee === null) {
-      cleanedUpdateData.welcome_pack_fee = undefined;
-    }
-    
-    const updatedSession = await cleaningSessionsApi.update({ id, ...cleanedUpdateData });
+    // Send nulls to Supabase to clear columns
+    const updatedSession = await cleaningSessionsApi.update({ id, ...updateData });
     
     return successResponse(updatedSession, 'Cleaning session updated successfully');
   } catch (error) {

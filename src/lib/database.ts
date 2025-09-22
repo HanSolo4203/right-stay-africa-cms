@@ -288,7 +288,10 @@ export const cleaningSessionsApi = {
   // Update cleaning session
   async update(session: UpdateCleaningSessionData): Promise<CleaningSession> {
     const { id, ...updateData } = session;
-    console.log(`[AUDIT] Updating cleaning session ${id} with data:`, JSON.stringify(updateData, null, 2));
+    // Use logger for optional audit
+    // import locally to avoid cyclic deps at module top
+    const { logger } = await import('./logger');
+    logger.audit(`Updating cleaning session ${id} with data:`, JSON.stringify(updateData, null, 2));
     
     const client = await getSupabaseClient();
     const { data, error } = await client
@@ -299,11 +302,11 @@ export const cleaningSessionsApi = {
       .single();
     
     if (error) {
-      console.error(`[AUDIT] Database update error for session ${id}:`, error);
+      logger.error(`[AUDIT] Database update error for session ${id}:`, error);
       throw error;
     }
     
-    console.log(`[AUDIT] Successfully updated cleaning session ${id}`);
+    logger.audit(`Successfully updated cleaning session ${id}`);
     return data;
   },
 

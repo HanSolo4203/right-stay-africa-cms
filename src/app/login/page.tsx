@@ -81,7 +81,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="login-page min-h-screen flex items-start justify-center pt-6 pb-10 px-4 sm:px-6 lg:px-8 relative">
+    <div className="login-page min-h-screen flex items-center justify-center px-4 sm:px-6 lg:px-8 relative">
       <MatrixBackground />
       <div className="max-w-md w-full space-y-6 relative z-10">
         <div>
@@ -102,7 +102,7 @@ export default function LoginPage() {
             Right Stay Africa Cleaning Management Service
           </p>
         </div>
-        <form className="mt-6 space-y-6 bg-black bg-opacity-80 backdrop-blur-sm rounded-lg p-6 border border-green-500 border-opacity-30" onSubmit={handleSubmit}>
+        <form className="mt-6 space-y-6 bg-white bg-opacity-90 backdrop-blur-sm rounded-lg p-6 border border-gray-300" onSubmit={handleSubmit}>
           <div className="rounded-md shadow-sm -space-y-px">
             <div>
               <label htmlFor="email-address" className="sr-only">
@@ -114,7 +114,7 @@ export default function LoginPage() {
                 type="email"
                 autoComplete="email"
                 required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-green-500 placeholder-green-400 text-white bg-black bg-opacity-50 rounded-t-md focus:outline-none focus:ring-green-500 focus:border-green-500 focus:z-10 sm:text-sm"
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-black bg-white rounded-t-md focus:outline-none focus:ring-gray-800 focus:border-gray-800 focus:z-10 sm:text-sm"
                 placeholder="Email address"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -130,7 +130,7 @@ export default function LoginPage() {
                 type="password"
                 autoComplete="current-password"
                 required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-green-500 placeholder-green-400 text-white bg-black bg-opacity-50 rounded-b-md focus:outline-none focus:ring-green-500 focus:border-green-500 focus:z-10 sm:text-sm"
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-black bg-white rounded-b-md focus:outline-none focus:ring-gray-800 focus:border-gray-800 focus:z-10 sm:text-sm"
                 placeholder="Password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -142,7 +142,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={isLoading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-green-500 text-sm font-medium rounded-md text-green-100 bg-black bg-opacity-50 hover:bg-green-500 hover:text-black focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+              className="group relative w-full flex justify-center py-2 px-4 border border-gray-800 text-sm font-medium rounded-md text-black bg-white hover:bg-gray-800 hover:text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
             >
               {isLoading ? 'Signing in...' : 'Sign in'}
             </button>

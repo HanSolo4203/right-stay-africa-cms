@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Plus, ChevronLeft, ChevronRight } from 'lucide-react';
-import { Calendar as BigCalendar, momentLocalizer, Views, View } from 'react-big-calendar';
-import moment from 'moment';
+import { Calendar as BigCalendar, dateFnsLocalizer, Views, View } from 'react-big-calendar';
+import { format, parse, startOfWeek, getDay } from 'date-fns';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { CleaningSessionDetailed, RSALaundryExpenseDetailed } from '@/lib/types';
+import { mapRsaExpenseToSession } from '@/lib/property-utils';
 import CalendarEvent from './CalendarEvent';
 import AddCleaningModal from './AddCleaningModal';
 import EditCleaningModal from './EditCleaningModal';
@@ -13,8 +14,15 @@ import EditMultipleCleaningsModal from './EditMultipleCleaningsModal';
 import { CalendarSkeleton } from './LoadingSkeleton';
 import toast from 'react-hot-toast';
 
-// Setup moment localizer
-const localizer = momentLocalizer(moment);
+// Setup date-fns localizer to avoid moment dependency
+const locales: Record<string, unknown> = {};
+const localizer = dateFnsLocalizer({
+  format,
+  parse,
+  startOfWeek,
+  getDay,
+  locales,
+});
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 interface CalendarViewProps {
@@ -75,25 +83,7 @@ export default function CalendarView({}: CalendarViewProps) {
   }, []);
 
   // Convert RSA laundry expenses to cleaning session format for calendar display
-  const convertedRsaExpenses: CleaningSessionDetailed[] = rsaLaundryExpenses.map(expense => ({
-    id: expense.id,
-    apartment_id: expense.asset_id,
-    cleaner_id: expense.cleaner_id,
-    cleaning_date: expense.service_date,
-    notes: expense.notes || '',
-    price: expense.daily_payment_amount,
-    created_at: expense.created_at,
-    updated_at: expense.updated_at,
-    apartment_number: 'RSA Laundry Room',
-    owner_name: expense.asset_owner,
-    owner_email: '',
-    address: expense.asset_location || '',
-    cleaner_name: expense.cleaner_name,
-    cleaner_phone: expense.cleaner_phone || '',
-    cleaner_email: expense.cleaner_email || '',
-    welcome_pack_fee: 0,
-    property_category: 'internal_asset' as const
-  }));
+  const convertedRsaExpenses: CleaningSessionDetailed[] = rsaLaundryExpenses.map(mapRsaExpenseToSession);
 
   // Combine regular cleaning sessions and converted RSA expenses
   const allEvents = [...events, ...convertedRsaExpenses];
@@ -285,28 +275,18 @@ export default function CalendarView({}: CalendarViewProps) {
             toolbar: CustomToolbar,
           }}
           eventPropGetter={(event) => {
-            // Debug: Log all events to see structure
-            console.log('EventPropGetter called for event:', event);
-            
+            // Debug logging removed; keep styling below
+
             // Check if any events are RSA laundry expenses
             const hasRSALaundryExpense = event.resource.events.some((evt: CleaningSessionDetailed) => {
               const isRSA = evt.apartment_number === 'RSA Laundry Room' || 
                            evt.property_category === 'internal_asset' ||
                            evt.property_category === 'rsa_asset';
-              if (isRSA) {
-                console.log('Found RSA event:', evt);
-              }
               return isRSA;
             });
             
-            // Debug logging
-            if (hasRSALaundryExpense) {
-              console.log('RSA Laundry Expense detected:', event.resource.events);
-            }
-            
             // Orange styling for RSA laundry expenses
             if (hasRSALaundryExpense) {
-              console.log('Applying orange styling to RSA laundry expense');
               return { 
                 backgroundColor: '#f97316', // orange-500
                 borderColor: '#ea580c', // orange-600

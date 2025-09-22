@@ -106,53 +106,5 @@ export default function ResponsiveTable<T extends Record<string, unknown>>({
   );
 }
 
-// Specialized table for invoicing data
-interface InvoicingRow {
-  apartment_number: string;
-  owner_name: string;
-  cleaning_count: number;
-  total_amount: number;
-  [key: string]: unknown;
-}
-
-export function InvoicingTable({ data }: { data: InvoicingRow[] }) {
-  const columns: Column<InvoicingRow>[] = [
-    {
-      key: 'apartment_number',
-      label: 'Apartment',
-      className: 'font-medium'
-    },
-    {
-      key: 'owner_name',
-      label: 'Owner',
-      mobileHidden: true
-    },
-    {
-      key: 'cleaning_count',
-      label: 'Cleanings',
-      render: (value) => (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-          {value as React.ReactNode}
-        </span>
-      )
-    },
-    {
-      key: 'total_amount',
-      label: 'Total',
-      render: (value) => (
-        <span className="font-semibold text-green-600">
-          R{(value as number).toFixed(2)}
-        </span>
-      ),
-      className: 'text-right'
-    }
-  ];
-
-  return (
-    <ResponsiveTable
-      data={data}
-      columns={columns}
-      emptyMessage="No invoicing data available for this period"
-    />
-  );
-}
+// Note: Invoicing table specialization was removed to avoid duplication with
+// src/components/ui/InvoicingTable.tsx. Use the dedicated component there.

@@ -113,19 +113,20 @@ textarea::placeholder {
   left: 0;
   width: 100%;
   height: 100%;
-  background: #fff;
+  background: #fff; /* White background per request */
   overflow: hidden;
-  z-index: -1;
+  z-index: 0; /* Sit below content but above page background */
+  pointer-events: none;
 }
 
 .matrix-column {
   position: absolute;
   top: -100%;
-  color: #00ff00;
+  color: #000000; /* Black matrix characters on white */
   font-family: 'Courier New', monospace;
   font-size: 16px;
   line-height: 16px;
-  text-shadow: 0 0 8px #00ff00, 0 0 16px #00ff00;
+  text-shadow: 0 0 8px rgba(0,0,0,0.08), 0 0 16px rgba(0,0,0,0.06);
   animation: matrix-fall linear infinite;
   white-space: pre;
   opacity: 0.9;
@@ -155,8 +156,8 @@ textarea::placeholder {
 
 /* Override input text color for login page */
 .login-page input {
-  color: white !important;
-  caret-color: white !important;
+  color: #111827 !important; /* black */
+  caret-color: #111827 !important;
 }
 
 /* Enhanced tooltip styles for calendar events */

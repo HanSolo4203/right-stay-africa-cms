@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { cleaningSessionsApi, cleanersApi, settingsApi } from '@/lib/database';
+import { getSchedulableProperties } from '@/lib/property-server';
 import { 
   analyticsQuerySchema
 } from '@/lib/validations';
@@ -60,49 +61,16 @@ export async function GET(request: NextRequest) {
     let properties: Property[] = [];
     
     try {
-      // Import the RSA laundry expenses API functions directly
       const { createServerComponentClient } = await import('@/lib/supabase-server');
       const supabase = await createServerComponentClient();
-      
-      // Get RSA laundry expenses
-      const { data: rsaExpensesData, error: rsaError } = await supabase
+      const { data: rsaExpensesData } = await supabase
         .from('rsa_laundry_expenses_detailed')
         .select('*')
         .order('service_date', { ascending: false });
-      
-      if (!rsaError && rsaExpensesData) {
-        rsaExpenses = rsaExpensesData;
-      }
-      
-      // Get schedulable properties using the unified view
-      const { data: propertiesData, error: propertiesError } = await supabase
-        .from('all_schedulable_properties')
-        .select('*')
-        .order('property_category', { ascending: true })
-        .order('property_name', { ascending: true });
-      
-      if (!propertiesError && propertiesData) {
-        properties = propertiesData.map((prop: {
-          id: string;
-          property_name: string;
-          owner_name: string;
-          owner_email?: string;
-          address?: string;
-          cleaner_payout?: number;
-          property_category: 'apartment' | 'internal_asset';
-        }) => ({
-          id: prop.id,
-          property_name: prop.property_name,
-          owner_name: prop.owner_name,
-          owner_email: prop.owner_email,
-          address: prop.address,
-          cleaner_payout: prop.cleaner_payout,
-          property_category: prop.property_category
-        }));
-      }
-      
-    } catch (error) {
-      console.warn('Failed to fetch RSA laundry expenses or properties:', error);
+      rsaExpenses = (rsaExpensesData || []) as RSALaundryExpense[];
+      properties = (await getSchedulableProperties()) as unknown as Property[];
+    } catch {
+      // fall through with empty arrays
     }
 
     // Filter sessions by month/year if provided

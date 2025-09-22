@@ -1,4 +1,4 @@
-import { RSALaundryAsset, SchedulableProperty } from './types';
+import { RSALaundryAsset, SchedulableProperty, CleaningSessionDetailed } from './types';
 
 /**
  * Utility functions for property management
@@ -113,4 +113,48 @@ export function getLaundryServiceAssets(assets: RSALaundryAsset[]): RSALaundryAs
  */
 export function isRSALaundryRoom(propertyName: string): boolean {
   return propertyName === 'RSA Laundry Room';
+}
+
+/**
+ * Fetch all schedulable properties (apartments + internal assets) from unified view
+ */
+// Server-only: see src/lib/property-server.ts for getSchedulableProperties()
+
+/**
+ * Convert an RSA laundry expense row into a CleaningSessionDetailed-like object for calendar display
+ */
+export function mapRsaExpenseToSession(expense: {
+  id: string;
+  asset_id: string;
+  cleaner_id: string;
+  service_date: string;
+  daily_payment_amount: number;
+  created_at?: string;
+  updated_at?: string;
+  asset_owner?: string;
+  asset_location?: string;
+  cleaner_name: string;
+  cleaner_phone?: string;
+  cleaner_email?: string;
+  notes?: string | null;
+}): CleaningSessionDetailed {
+  return {
+    id: expense.id,
+    apartment_id: expense.asset_id,
+    cleaner_id: expense.cleaner_id,
+    cleaning_date: expense.service_date,
+    notes: expense.notes || '',
+    price: expense.daily_payment_amount,
+    created_at: expense.created_at || '',
+    updated_at: expense.updated_at || '',
+    apartment_number: 'RSA Laundry Room',
+    owner_name: expense.asset_owner || 'Right Stay Africa',
+    owner_email: '',
+    address: expense.asset_location || '',
+    cleaner_name: expense.cleaner_name,
+    cleaner_phone: expense.cleaner_phone || '',
+    cleaner_email: expense.cleaner_email || '',
+    welcome_pack_fee: 0,
+    property_category: 'internal_asset',
+  } as CleaningSessionDetailed;
 }

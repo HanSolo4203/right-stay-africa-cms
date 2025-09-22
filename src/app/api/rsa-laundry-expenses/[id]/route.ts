@@ -1,6 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { createServerComponentClient } from '@/lib/supabase-server';
 import { z } from 'zod';
+import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
+import { logger } from '@/lib/logger';
 
 // Validation schema for updating RSA laundry expenses
 const updateRsaLaundryExpenseSchema = z.object({
@@ -13,21 +15,7 @@ const updateRsaLaundryExpenseSchema = z.object({
   payment_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format (YYYY-MM-DD)').optional(),
 });
 
-// Helper function to create error response
-function errorResponse(message: string, status: number = 400) {
-  return NextResponse.json({ success: false, error: message }, { status });
-}
-
-// Helper function to create success response
-function successResponse(data: unknown, message: string = 'Success', status: number = 200) {
-  return NextResponse.json({ success: true, data, message }, { status });
-}
-
-// Helper function to handle API errors
-function handleApiError(error: unknown, operation: string) {
-  console.error(`Error ${operation}:`, error);
-  return errorResponse(`Internal server error while ${operation}`, 500);
-}
+// Use shared helpers from '@/lib/api-utils' and central logger
 
 // GET /api/rsa-laundry-expenses/[id] - Get specific RSA laundry expense
 export async function GET(
@@ -48,7 +36,7 @@ export async function GET(
       if (error.code === 'PGRST116') {
         return errorResponse('RSA laundry expense not found', 404);
       }
-      console.error('Error fetching RSA laundry expense:', error);
+      logger.error('Error fetching RSA laundry expense:', error);
       return errorResponse('Failed to fetch RSA laundry expense', 500);
     }
 
@@ -109,7 +97,7 @@ export async function PUT(
       .single();
 
     if (updateError) {
-      console.error('Error updating RSA laundry expense:', updateError);
+      logger.error('Error updating RSA laundry expense:', updateError);
       return errorResponse('Failed to update RSA laundry expense', 500);
     }
 
@@ -146,7 +134,7 @@ export async function DELETE(
       .eq('id', id);
 
     if (deleteError) {
-      console.error('Error deleting RSA laundry expense:', deleteError);
+      logger.error('Error deleting RSA laundry expense:', deleteError);
       return errorResponse('Failed to delete RSA laundry expense', 500);
     }
 

@@ -5,6 +5,7 @@ import { X, Building2, User, Calendar, FileText, Plus, Trash2 } from 'lucide-rea
 import { CleaningSessionDetailed, UpdateCleaningSessionData, UpdateRSALaundryExpenseData, Cleaner, SchedulableProperty } from '@/lib/types';
 import { isRSALaundryAsset, getPropertyDisplayName } from '@/lib/property-utils';
 import toast from 'react-hot-toast';
+import WelcomePackToggle from './WelcomePackToggle';
 
 interface EditCleaningModalProps {
   isOpen: boolean;
@@ -804,21 +805,9 @@ export default function EditCleaningModal({ isOpen, session, onClose, onSuccess 
             )}
 
             {/* Welcome Pack Option - only show for non-RSA properties */}
-            {!(isRSALaundryRoom || isRSAExpense) && (
-              <div>
-                <label className="inline-flex items-center space-x-3">
-                  <input
-                    type="checkbox"
-                    checked={includeWelcomePack}
-                    onChange={(e) => setIncludeWelcomePack(e.target.checked)}
-                    className="h-4 w-4 text-blue-600 border-gray-300 rounded"
-                    disabled={isLoading}
-                  />
-                  <span className="text-sm text-gray-700">Add Welcome pack ({`R${welcomePackFee.toFixed(2)}`})</span>
-                </label>
-                <p className="mt-1 text-xs text-gray-500">A once-off welcome pack fee that can be configured in settings.</p>
-              </div>
-            )}
+      {!(isRSALaundryRoom || isRSAExpense) && (
+        <WelcomePackToggle fee={welcomePackFee} checked={includeWelcomePack} disabled={isLoading} onChange={setIncludeWelcomePack} />
+      )}
 
             {/* Regular Price Field - only show for non-RSA properties */}
             {!(isRSALaundryRoom || isRSAExpense) && (
