@@ -42,6 +42,123 @@ export default function InvoicingTable({ data, month, year }: InvoicingTableProp
     setExpandedApartment(null);
   };
 
+  // Reusable renderer for expanded details (used by desktop table and mobile list)
+  const renderApartmentDetails = (apartment: {
+    apartment_number: string;
+    owner_name: string;
+    cleaning_count: number;
+    total_amount: number;
+    apartment_id: string;
+  }) => {
+    return (
+      <div className="space-y-3">
+        <h4 className="text-sm font-medium text-gray-900 mb-3">
+          Cleaning Details for Apartment {apartment.apartment_number}
+        </h4>
+        {loadingDetails === apartment.apartment_number ? (
+          <div className="flex items-center justify-center py-4">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+            <span className="ml-2 text-sm text-gray-600">Loading details...</span>
+          </div>
+        ) : cleaningDetails[`${apartment.apartment_number}-${month || year || 'all'}`]?.length > 0 ? (
+          <>
+            <div className="space-y-4">
+              {cleaningDetails[`${apartment.apartment_number}-${month || year || 'all'}`].map((session) => (
+                <div key={session.id} className="bg-white p-3 rounded-lg border border-gray-200">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-sm">
+                    <div className="flex items-center space-x-2">
+                      <Calendar className="w-4 h-4 text-gray-400" />
+                      <span className="font-medium text-gray-900">
+                        {new Date(session.cleaning_date).toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric'
+                        })}
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      {session.is_multi_cleaner && session.cleaner_2_name ? (
+                        <Users className="w-4 h-4 text-blue-600" />
+                      ) : (
+                        <User className="w-4 h-4 text-gray-400" />
+                      )}
+                      <span className="text-gray-600">
+                        {session.is_multi_cleaner && session.cleaner_2_name 
+                          ? `${session.cleaner_1_name || session.cleaner_name} & ${session.cleaner_2_name}`
+                          : session.cleaner_1_name || session.cleaner_name}
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <DollarSign className="w-4 h-4 text-gray-400" />
+                      <span className="font-medium text-green-600">
+                        R{session.price ? session.price.toFixed(2) : '150.00'}
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <NoteIcon className="w-4 h-4 text-gray-400" />
+                      <span className="text-gray-600">
+                        {session.notes || 'No notes'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {/* Welcome Pack Summary */}
+              {(() => {
+                const sessions = cleaningDetails[`${apartment.apartment_number}-${month || year || 'all'}`];
+                const usedCount = sessions.filter(s => s.welcome_pack_fee && Number(s.welcome_pack_fee) > 0).length;
+                const totalWelcomeAmount = sessions.reduce((sum, s) => {
+                  const fee = Number(s.welcome_pack_fee);
+                  if (!isNaN(fee) && fee > 0) return sum + fee;
+                  return sum;
+                }, 0);
+                return (
+                  <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-yellow-900">Welcome Packs Used</p>
+                        <p className="text-xs text-yellow-700">Count and total for the selected period</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xl font-bold text-yellow-900">{usedCount}</p>
+                        <p className="text-sm font-semibold text-yellow-800">R{totalWelcomeAmount.toFixed(2)}</p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+            {/* Mobile invoice action */}
+            <div className="md:hidden pt-2">
+              <button
+                onClick={() => generateInvoice(apartment)}
+                disabled={loadingDetails === apartment.apartment_number}
+                className="w-full inline-flex items-center justify-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loadingDetails === apartment.apartment_number ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                    Loading...
+                  </>
+                ) : (
+                  <>
+                    <Receipt className="w-4 h-4 mr-2" />
+                    Generate Invoice
+                  </>
+                )}
+              </button>
+            </div>
+          </>
+        ) : (
+          <div className="text-center py-4 text-gray-500">
+            <Calendar className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+            <p className="text-sm">No cleaning sessions found for this month</p>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   // Clear cache when data changes (e.g., when dashboard refreshes)
   useEffect(() => {
     clearCache();
@@ -318,7 +435,40 @@ export default function InvoicingTable({ data, month, year }: InvoicingTableProp
         </div>
       </div>
 
-      <div className="overflow-x-auto">
+      {/* Mobile list (no horizontal scroll) */}
+      <div className="md:hidden">
+        <div className="divide-y divide-gray-200">
+          {filteredData.map((apartment) => (
+            <div key={apartment.apartment_id} className="py-3">
+              <button
+                onClick={() => toggleApartmentDetails(apartment.apartment_number)}
+                className="w-full flex items-center justify-between text-left"
+              >
+                <div>
+                  <div className="text-sm font-semibold text-gray-900">Apartment {apartment.apartment_number}</div>
+                  <div className="mt-1 flex items-center gap-4 text-xs text-gray-600">
+                    <span>Cleanings: <span className="font-medium text-gray-900">{apartment.cleaning_count}</span></span>
+                    <span>Amount: <span className="font-medium text-gray-900">R{apartment.total_amount.toLocaleString()}</span></span>
+                  </div>
+                </div>
+                {expandedApartment === apartment.apartment_number ? (
+                  <ChevronDown className="w-4 h-4 text-gray-500" />
+                ) : (
+                  <ChevronRight className="w-4 h-4 text-gray-500" />
+                )}
+              </button>
+              {expandedApartment === apartment.apartment_number && (
+                <div className="mt-3 bg-gray-50 rounded-md p-3 border border-gray-200">
+                  {renderApartmentDetails(apartment)}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Desktop table */}
+      <div className="hidden md:block overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
