@@ -9,6 +9,42 @@ import {
   validateRequest
 } from '@/lib/api-utils';
 
+interface RSALaundryExpense {
+  id: string;
+  service_date: string;
+  cleaner_name: string;
+  daily_payment_amount: number;
+  [key: string]: unknown;
+}
+
+interface Property {
+  id: string;
+  property_name: string;
+  owner_name: string;
+  owner_email?: string;
+  address?: string;
+  cleaner_payout?: number;
+  property_category: 'apartment' | 'internal_asset';
+}
+
+interface ApartmentData {
+  id: string;
+  apartment_number: string;
+  owner_name: string;
+  owner_email?: string;
+  address?: string;
+  cleaner_payout?: number;
+}
+
+interface AssetData {
+  id: string;
+  asset_name: string;
+  owner_name: string;
+  owner_email?: string;
+  location?: string;
+  cleaner_payout?: number;
+}
+
 // GET /api/analytics - Get analytics data for dashboard
 export async function GET(request: NextRequest) {
   try {
@@ -35,28 +71,64 @@ export async function GET(request: NextRequest) {
       cleanersApi.getAll()
     ]);
 
-    // Get RSA laundry expenses with error handling
-    let rsaExpenses = [];
+    // Get RSA laundry expenses and properties directly from database
+    let rsaExpenses: RSALaundryExpense[] = [];
+    let properties: Property[] = [];
+    
     try {
-      const rsaExpensesResponse = await fetch(`http://localhost:3000/api/rsa-laundry-expenses`);
-      if (rsaExpensesResponse.ok) {
-        const rsaExpensesResult = await rsaExpensesResponse.json();
-        rsaExpenses = rsaExpensesResult.success ? rsaExpensesResult.data : [];
+      // Import the RSA laundry expenses API functions directly
+      const { createServerComponentClient } = await import('@/lib/supabase-server');
+      const supabase = await createServerComponentClient();
+      
+      // Get RSA laundry expenses
+      const { data: rsaExpensesData, error: rsaError } = await supabase
+        .from('rsa_laundry_expenses_detailed')
+        .select('*')
+        .order('service_date', { ascending: false });
+      
+      if (!rsaError && rsaExpensesData) {
+        rsaExpenses = rsaExpensesData;
       }
+      
+      // Get schedulable properties (apartments + internal assets)
+      const [apartmentsResult, assetsResult] = await Promise.all([
+        supabase
+          .from('apartments')
+          .select('id, apartment_number, owner_name, owner_email, address, cleaner_payout')
+          .eq('is_active', true),
+        supabase
+          .from('internal_assets')
+          .select('id, asset_name, owner_name, owner_email, location, cleaner_payout')
+          .eq('is_active', true)
+      ]);
+      
+      const apartments: ApartmentData[] = apartmentsResult.data || [];
+      const assets: AssetData[] = assetsResult.data || [];
+      
+      // Combine apartments and assets into properties array
+      properties = [
+        ...apartments.map((apt: ApartmentData) => ({ 
+          id: apt.id,
+          property_name: apt.apartment_number,
+          owner_name: apt.owner_name,
+          owner_email: apt.owner_email,
+          address: apt.address,
+          cleaner_payout: apt.cleaner_payout,
+          property_category: 'apartment' as const 
+        })),
+        ...assets.map((asset: AssetData) => ({ 
+          id: asset.id,
+          property_name: asset.asset_name,
+          owner_name: asset.owner_name,
+          owner_email: asset.owner_email,
+          address: asset.location,
+          cleaner_payout: asset.cleaner_payout,
+          property_category: 'internal_asset' as const 
+        }))
+      ];
+      
     } catch (error) {
-      console.warn('Failed to fetch RSA laundry expenses:', error);
-    }
-
-    // Get schedulable properties with error handling
-    let properties = [];
-    try {
-      const propertiesResponse = await fetch(`http://localhost:3000/api/schedulable-properties`);
-      if (propertiesResponse.ok) {
-        const propertiesResult = await propertiesResponse.json();
-        properties = propertiesResult.success ? propertiesResult.data : [];
-      }
-    } catch (error) {
-      console.warn('Failed to fetch schedulable properties:', error);
+      console.warn('Failed to fetch RSA laundry expenses or properties:', error);
     }
 
     // Filter sessions by month/year if provided
