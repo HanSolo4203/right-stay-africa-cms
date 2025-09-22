@@ -92,7 +92,7 @@ export default function InvoicingTable({ data, month, year }: InvoicingTableProp
       const result = await sessionsRes.json();
       // Try to read welcome pack fee from settings API if provided; falls back to per-session values
       try {
-        const settingsData = await settingsRes.json();
+        await settingsRes.json();
         // Note: We don't need to store the global welcome pack fee since we use per-session values
         // if (typeof settingsData?.data?.welcome_pack_fee === 'number') {
         //   setWelcomePackFee(Number(settingsData.data.welcome_pack_fee));

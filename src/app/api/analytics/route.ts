@@ -27,23 +27,6 @@ interface Property {
   property_category: 'apartment' | 'internal_asset';
 }
 
-interface ApartmentData {
-  id: string;
-  apartment_number: string;
-  owner_name: string;
-  owner_email?: string;
-  address?: string;
-  cleaner_payout?: number;
-}
-
-interface AssetData {
-  id: string;
-  asset_name: string;
-  owner_name: string;
-  owner_email?: string;
-  location?: string;
-  cleaner_payout?: number;
-}
 
 // GET /api/analytics - Get analytics data for dashboard
 export async function GET(request: NextRequest) {
@@ -99,7 +82,15 @@ export async function GET(request: NextRequest) {
         .order('property_name', { ascending: true });
       
       if (!propertiesError && propertiesData) {
-        properties = propertiesData.map((prop: any) => ({
+        properties = propertiesData.map((prop: {
+          id: string;
+          property_name: string;
+          owner_name: string;
+          owner_email?: string;
+          address?: string;
+          cleaner_payout?: number;
+          property_category: 'apartment' | 'internal_asset';
+        }) => ({
           id: prop.id,
           property_name: prop.property_name,
           owner_name: prop.owner_name,
