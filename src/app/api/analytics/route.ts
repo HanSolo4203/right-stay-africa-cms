@@ -71,6 +71,7 @@ export async function GET(request: NextRequest) {
       cleanersApi.getAll()
     ]);
 
+
     // Get RSA laundry expenses and properties directly from database
     let rsaExpenses: RSALaundryExpense[] = [];
     let properties: Property[] = [];
@@ -90,42 +91,24 @@ export async function GET(request: NextRequest) {
         rsaExpenses = rsaExpensesData;
       }
       
-      // Get schedulable properties (apartments + internal assets)
-      const [apartmentsResult, assetsResult] = await Promise.all([
-        supabase
-          .from('apartments')
-          .select('id, apartment_number, owner_name, owner_email, address, cleaner_payout')
-          .eq('is_active', true),
-        supabase
-          .from('internal_assets')
-          .select('id, asset_name, owner_name, owner_email, location, cleaner_payout')
-          .eq('is_active', true)
-      ]);
+      // Get schedulable properties using the unified view
+      const { data: propertiesData, error: propertiesError } = await supabase
+        .from('all_schedulable_properties')
+        .select('*')
+        .order('property_category', { ascending: true })
+        .order('property_name', { ascending: true });
       
-      const apartments: ApartmentData[] = apartmentsResult.data || [];
-      const assets: AssetData[] = assetsResult.data || [];
-      
-      // Combine apartments and assets into properties array
-      properties = [
-        ...apartments.map((apt: ApartmentData) => ({ 
-          id: apt.id,
-          property_name: apt.apartment_number,
-          owner_name: apt.owner_name,
-          owner_email: apt.owner_email,
-          address: apt.address,
-          cleaner_payout: apt.cleaner_payout,
-          property_category: 'apartment' as const 
-        })),
-        ...assets.map((asset: AssetData) => ({ 
-          id: asset.id,
-          property_name: asset.asset_name,
-          owner_name: asset.owner_name,
-          owner_email: asset.owner_email,
-          address: asset.location,
-          cleaner_payout: asset.cleaner_payout,
-          property_category: 'internal_asset' as const 
-        }))
-      ];
+      if (!propertiesError && propertiesData) {
+        properties = propertiesData.map((prop: any) => ({
+          id: prop.id,
+          property_name: prop.property_name,
+          owner_name: prop.owner_name,
+          owner_email: prop.owner_email,
+          address: prop.address,
+          cleaner_payout: prop.cleaner_payout,
+          property_category: prop.property_category
+        }));
+      }
       
     } catch (error) {
       console.warn('Failed to fetch RSA laundry expenses or properties:', error);
