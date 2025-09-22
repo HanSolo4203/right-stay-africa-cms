@@ -6,10 +6,12 @@ import { DollarSign, TrendingUp, Users } from 'lucide-react';
 
 interface CleanerEarningsData {
   cleaner_name: string;
-  cleaner_id: string;
+  cleaner_id: string | null;
   session_count: number;
   total_earnings: number;
   average_earnings_per_session: number;
+  primary_sessions: number;
+  secondary_sessions: number;
 }
 
 interface CleanerEarningsChartProps {
@@ -47,8 +49,18 @@ export default function CleanerEarningsChart({ data }: CleanerEarningsChartProps
             Total Earnings: R{data.total_earnings.toFixed(2)}
           </p>
           <p className="text-gray-600">
-            Sessions: {data.session_count}
+            Total Sessions: {data.session_count}
           </p>
+          {data.primary_sessions > 0 && (
+            <p className="text-green-600 text-sm">
+              Primary: {data.primary_sessions} session{data.primary_sessions !== 1 ? 's' : ''}
+            </p>
+          )}
+          {data.secondary_sessions > 0 && (
+            <p className="text-purple-600 text-sm">
+              Secondary: {data.secondary_sessions} session{data.secondary_sessions !== 1 ? 's' : ''}
+            </p>
+          )}
           <p className="text-gray-600">
             Avg per Session: R{data.average_earnings_per_session.toFixed(2)}
           </p>
@@ -170,7 +182,12 @@ export default function CleanerEarningsChart({ data }: CleanerEarningsChartProps
                   </div>
                   <div>
                     <p className="font-medium text-gray-900">{cleaner.cleaner_name}</p>
-                    <p className="text-sm text-gray-600">{cleaner.session_count} sessions</p>
+                    <p className="text-sm text-gray-600">{cleaner.session_count} total sessions</p>
+                    {cleaner.primary_sessions > 0 && cleaner.secondary_sessions > 0 && (
+                      <p className="text-xs text-gray-500">
+                        {cleaner.primary_sessions} primary, {cleaner.secondary_sessions} secondary
+                      </p>
+                    )}
                   </div>
                 </div>
                 <div className="text-left sm:text-right">

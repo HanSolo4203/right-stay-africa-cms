@@ -5,7 +5,7 @@ import { Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Calendar as BigCalendar, momentLocalizer, Views, View } from 'react-big-calendar';
 import moment from 'moment';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
-import { CleaningSessionDetailed } from '@/lib/types';
+import { CleaningSessionDetailed, RSALaundryExpenseDetailed } from '@/lib/types';
 import CalendarEvent from './CalendarEvent';
 import AddCleaningModal from './AddCleaningModal';
 import EditCleaningModal from './EditCleaningModal';
@@ -23,6 +23,7 @@ interface CalendarViewProps {
 
 export default function CalendarView({}: CalendarViewProps) {
   const [events, setEvents] = useState<CleaningSessionDetailed[]>([]);
+  const [rsaLaundryExpenses, setRsaLaundryExpenses] = useState<RSALaundryExpenseDetailed[]>([]);
   const [currentView, setCurrentView] = useState<View>(Views.MONTH);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [isLoading, setIsLoading] = useState(true);
@@ -35,21 +36,35 @@ export default function CalendarView({}: CalendarViewProps) {
   const [selectedMultipleDate, setSelectedMultipleDate] = useState<string>('');
 
 
-  // Load cleaning sessions
+  // Load cleaning sessions and RSA laundry expenses
   const loadEvents = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch('/api/cleaning-sessions');
-      const result = await response.json();
+      
+      // Fetch cleaning sessions and RSA laundry expenses in parallel
+      const [cleaningResponse, rsaExpensesResponse] = await Promise.all([
+        fetch('/api/cleaning-sessions'),
+        fetch('/api/rsa-laundry-expenses')
+      ]);
 
-      if (result.success) {
-        setEvents(result.data);
+      const cleaningResult = await cleaningResponse.json();
+      const rsaExpensesResult = await rsaExpensesResponse.json();
+
+      if (cleaningResult.success) {
+        setEvents(cleaningResult.data);
       } else {
         toast.error('Failed to load cleaning sessions');
       }
+
+      if (rsaExpensesResult.success) {
+        setRsaLaundryExpenses(rsaExpensesResult.data);
+      } else {
+        console.error('Failed to load RSA laundry expenses:', rsaExpensesResult.error);
+        // Don't show error toast for RSA expenses as it's not critical
+      }
     } catch (error) {
-      console.error('Error loading cleaning sessions:', error);
-      toast.error('Failed to load cleaning sessions');
+      console.error('Error loading calendar data:', error);
+      toast.error('Failed to load calendar data');
     } finally {
       setIsLoading(false);
     }
@@ -59,8 +74,32 @@ export default function CalendarView({}: CalendarViewProps) {
     loadEvents();
   }, []);
 
+  // Convert RSA laundry expenses to cleaning session format for calendar display
+  const convertedRsaExpenses: CleaningSessionDetailed[] = rsaLaundryExpenses.map(expense => ({
+    id: expense.id,
+    apartment_id: expense.asset_id,
+    cleaner_id: expense.cleaner_id,
+    cleaning_date: expense.service_date,
+    notes: expense.notes || '',
+    price: expense.daily_payment_amount,
+    created_at: expense.created_at,
+    updated_at: expense.updated_at,
+    apartment_number: 'RSA Laundry Room',
+    owner_name: expense.asset_owner,
+    owner_email: '',
+    address: expense.asset_location || '',
+    cleaner_name: expense.cleaner_name,
+    cleaner_phone: expense.cleaner_phone || '',
+    cleaner_email: expense.cleaner_email || '',
+    welcome_pack_fee: 0,
+    property_category: 'internal_asset' as const
+  }));
+
+  // Combine regular cleaning sessions and converted RSA expenses
+  const allEvents = [...events, ...convertedRsaExpenses];
+
   // Group events by date and convert to calendar events
-  const groupedEvents = events.reduce((acc, event) => {
+  const groupedEvents = allEvents.reduce((acc, event) => {
     const dateKey = event.cleaning_date;
     if (!acc[dateKey]) {
       acc[dateKey] = [];
@@ -69,29 +108,30 @@ export default function CalendarView({}: CalendarViewProps) {
     return acc;
   }, {} as Record<string, CleaningSessionDetailed[]>);
 
-  const calendarEvents = Object.entries(groupedEvents).map(([dateKey, dayEvents]) => {
+  const calendarEvents = Object.entries(groupedEvents).flatMap(([dateKey, dayEvents]) => {
     // Create date in local timezone to avoid timezone issues
     const [year, month, day] = dateKey.split('-').map(Number);
+    
+    // All events are now all-day events since we removed time slots
     const startDate = new Date(year, month - 1, day);
     const endDate = new Date(year, month - 1, day);
     
-    // Create title based on number of events
-    const eventCount = dayEvents.length;
-    const title = eventCount === 1 
-      ? `Apt ${dayEvents[0].apartment_number} - ${dayEvents[0].cleaner_name}`
-      : `${eventCount} Cleanings`;
+    const title = dayEvents.length === 1 
+      ? `${dayEvents[0].apartment_number === 'RSA Laundry Room' ? 'RSA Laundry Room' : `Apt ${dayEvents[0].apartment_number}`} - ${dayEvents[0].cleaner_name}`
+      : `${dayEvents.length} Services`;
     
-    return {
-      id: `grouped-${dateKey}`,
+    return [{
+      id: `allday-${dateKey}`,
       title,
+      allDay: true,
       start: startDate,
       end: endDate,
       resource: {
         date: dateKey,
         events: dayEvents,
-        isGrouped: eventCount > 1
-      },
-    };
+        isGrouped: dayEvents.length > 1
+      }
+    }];
   });
 
   // Handle date selection (for adding new events)
@@ -135,7 +175,7 @@ export default function CalendarView({}: CalendarViewProps) {
   const CustomToolbar = ({ label, onNavigate, onView }: { 
     label: string; 
     onNavigate: (direction: 'PREV' | 'NEXT' | 'TODAY') => void; 
-    onView: (view: string) => void; 
+    onView: (view: View) => void; 
   }) => (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4 p-3 sm:p-4 bg-white rounded-lg shadow-sm border border-gray-200">
       {/* Left: Month label and navigation */}
@@ -224,7 +264,6 @@ export default function CalendarView({}: CalendarViewProps) {
 
         {/* Calendar */}
         <div className="bg-white rounded-lg shadow-md border border-gray-200 p-2 sm:p-4">
-          {/* @ts-expect-error - react-big-calendar types are complex and don't match our usage */}
           <BigCalendar
             localizer={localizer}
             events={calendarEvents}
@@ -246,6 +285,36 @@ export default function CalendarView({}: CalendarViewProps) {
             toolbar: CustomToolbar,
           }}
           eventPropGetter={(event) => {
+            // Debug: Log all events to see structure
+            console.log('EventPropGetter called for event:', event);
+            
+            // Check if any events are RSA laundry expenses
+            const hasRSALaundryExpense = event.resource.events.some((evt: CleaningSessionDetailed) => {
+              const isRSA = evt.apartment_number === 'RSA Laundry Room' || 
+                           evt.property_category === 'internal_asset' ||
+                           evt.property_category === 'rsa_asset';
+              if (isRSA) {
+                console.log('Found RSA event:', evt);
+              }
+              return isRSA;
+            });
+            
+            // Debug logging
+            if (hasRSALaundryExpense) {
+              console.log('RSA Laundry Expense detected:', event.resource.events);
+            }
+            
+            // Orange styling for RSA laundry expenses
+            if (hasRSALaundryExpense) {
+              console.log('Applying orange styling to RSA laundry expense');
+              return { 
+                backgroundColor: '#f97316', // orange-500
+                borderColor: '#ea580c', // orange-600
+                color: 'white',
+                className: 'rsa-laundry-event'
+              };
+            }
+            
             // Generate consistent colors based on first apartment number or use special color for grouped events
             const colors = [
               { backgroundColor: '#dbeafe', borderColor: '#3b82f6', color: '#1e40af' },

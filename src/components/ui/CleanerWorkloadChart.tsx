@@ -7,7 +7,9 @@ interface CleanerWorkloadChartProps {
   data: Array<{
     cleaner_name: string;
     session_count: number;
-    cleaner_id: string;
+    cleaner_id: string | null;
+    primary_sessions: number;
+    secondary_sessions: number;
   }>;
 }
 
@@ -17,6 +19,8 @@ export default function CleanerWorkloadChart({ data }: CleanerWorkloadChartProps
     name: cleaner.cleaner_name,
     value: cleaner.session_count,
     cleaner_id: cleaner.cleaner_id,
+    primary_sessions: cleaner.primary_sessions,
+    secondary_sessions: cleaner.secondary_sessions,
     percentage: data.length > 0 ? ((cleaner.session_count / data.reduce((sum, c) => sum + c.session_count, 0)) * 100).toFixed(1) : '0'
   }));
 
@@ -29,7 +33,7 @@ export default function CleanerWorkloadChart({ data }: CleanerWorkloadChartProps
 
   const CustomTooltip = ({ active, payload }: { 
     active?: boolean; 
-    payload?: Array<{ payload: { name: string; value: number; percentage: string } }> 
+    payload?: Array<{ payload: { name: string; value: number; percentage: string; primary_sessions: number; secondary_sessions: number } }> 
   }) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
@@ -37,8 +41,18 @@ export default function CleanerWorkloadChart({ data }: CleanerWorkloadChartProps
         <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
           <p className="font-medium text-gray-900">{data.name}</p>
           <p className="text-blue-600">
-            <span className="font-medium">{data.value}</span> session{data.value !== 1 ? 's' : ''}
+            <span className="font-medium">{data.value}</span> total session{data.value !== 1 ? 's' : ''}
           </p>
+          {data.primary_sessions > 0 && (
+            <p className="text-green-600 text-sm">
+              Primary: {data.primary_sessions} session{data.primary_sessions !== 1 ? 's' : ''}
+            </p>
+          )}
+          {data.secondary_sessions > 0 && (
+            <p className="text-purple-600 text-sm">
+              Secondary: {data.secondary_sessions} session{data.secondary_sessions !== 1 ? 's' : ''}
+            </p>
+          )}
           <p className="text-gray-500 text-sm">
             {data.percentage}% of total workload
           </p>

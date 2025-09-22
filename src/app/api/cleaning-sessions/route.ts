@@ -97,41 +97,104 @@ export async function POST(request: NextRequest) {
     
     const sessionData = validation.data;
 
-    // Check if apartment exists
-    const apartment = await apartmentsApi.getById(sessionData.apartment_id);
-    if (!apartment) {
-      return errorResponse('Apartment not found', 404);
+    // Check if property exists using the unified schedulable properties approach
+    const { createServerComponentClient } = await import('@/lib/supabase-server');
+    const supabase = await createServerComponentClient();
+    
+    const { data: property, error: propertyError } = await supabase
+      .from('all_schedulable_properties')
+      .select('*')
+      .eq('id', sessionData.apartment_id)
+      .single();
+    
+    if (propertyError || !property) {
+      return errorResponse('Property not found', 404);
     }
+    
+    const propertyCategory = property.property_category;
 
-    // Check if cleaner exists
+    // Check if primary cleaner exists
     const cleaner = await cleanersApi.getById(sessionData.cleaner_id);
     if (!cleaner) {
-      return errorResponse('Cleaner not found', 404);
+      return errorResponse('Primary cleaner not found', 404);
     }
 
-    // Check for conflicts (same cleaner, same date)
-    const existingSessions = await cleaningSessionsApi.getAllBasic();
-    const conflict = existingSessions.find(session => 
-      session.cleaner_id === sessionData.cleaner_id && 
-      session.cleaning_date === sessionData.cleaning_date
-    );
-
-    if (conflict) {
-      return errorResponse('Cleaner is already scheduled for this date', 409);
+    // Check if second cleaner exists (if provided)
+    let cleaner2 = null;
+    if (sessionData.cleaner_2_id) {
+      cleaner2 = await cleanersApi.getById(sessionData.cleaner_2_id);
+      if (!cleaner2) {
+        return errorResponse('Second cleaner not found', 404);
+      }
     }
 
+    // Note: Removed conflict checking to allow cleaners to work multiple sessions per day
+    // This supports multi-cleaner sessions and allows cleaners to work multiple apartments
+
+    // Prepare session data with multi-cleaner support
+    const sessionToCreate: CreateCleaningSessionData & { 
+      welcome_pack_fee?: number | null;
+      property_category: 'apartment' | 'internal_asset' | 'rsa_asset';
+      property_id: string;
+      cleaner_1_name?: string;
+      cleaner_2_name?: string | null;
+      is_multi_cleaner?: boolean;
+      cleaner_count?: number;
+      total_cleaning_fee?: number;
+    } = { 
+      ...sessionData,
+      property_category: propertyCategory as 'apartment' | 'internal_asset' | 'rsa_asset',
+      property_id: sessionData.apartment_id,
+      cleaner_1_name: cleaner.name,
+      cleaner_2_name: cleaner2?.name,
+      is_multi_cleaner: !!sessionData.cleaner_2_id,
+      cleaner_count: sessionData.cleaner_2_id ? 2 : 1
+    };
+    
     // Apply Welcome pack fee separately (do NOT add to price)
-    const sessionToCreate: CreateCleaningSessionData & { welcome_pack_fee?: number } = { ...sessionData };
     if (sessionData.include_welcome_pack) {
       const welcomeFee = await settingsApi.getWelcomePackFee();
-      (sessionToCreate as { welcome_pack_fee?: number }).welcome_pack_fee = Number(welcomeFee);
+      sessionToCreate.welcome_pack_fee = Number(welcomeFee);
     }
+    
+    // For internal assets, ensure the price is set (daily payment amount)
+    if (propertyCategory === 'internal_asset' && !sessionToCreate.price) {
+      return errorResponse('Payment amount is required for internal asset services', 400);
+    }
+    
+    // For multi-cleaner sessions, set individual fees to apartment's cleaner payout amount
+    if (sessionData.cleaner_2_id && propertyCategory === 'apartment') {
+      // Get the apartment's cleaner payout amount
+      const apartmentPayout = (property as { cleaner_payout?: number }).cleaner_payout;
+      if (!apartmentPayout) {
+        return errorResponse('Apartment cleaner payout amount not found', 400);
+      }
+      
+      // Set individual cleaner fees to apartment payout amount only if not manually provided
+      if (sessionData.cleaner_1_fee === undefined || sessionData.cleaner_1_fee === null) {
+        sessionToCreate.cleaner_1_fee = apartmentPayout;
+      }
+      if (sessionData.cleaner_2_fee === undefined || sessionData.cleaner_2_fee === null) {
+        sessionToCreate.cleaner_2_fee = apartmentPayout;
+      }
+      
+      // Calculate total cleaning fee as sum of both cleaner fees
+      sessionToCreate.total_cleaning_fee = (sessionToCreate.cleaner_1_fee || 0) + (sessionToCreate.cleaner_2_fee || 0);
+    } else if (propertyCategory === 'apartment' && (sessionData.cleaner_1_fee !== undefined && sessionData.cleaner_1_fee !== null)) {
+      // For single cleaner sessions, only set total_cleaning_fee if cleaner_1_fee was explicitly provided
+      sessionToCreate.total_cleaning_fee = sessionData.cleaner_1_fee;
+    }
+    
     // Remove flag before persisting
     delete sessionToCreate.include_welcome_pack;
 
-    const newSession = await cleaningSessionsApi.create(sessionToCreate as unknown as CreateCleaningSessionData);
+    const newSession = await cleaningSessionsApi.create(sessionToCreate as CreateCleaningSessionData);
     
-    return successResponse(newSession, 'Cleaning session created successfully', 201);
+    const successMessage = sessionData.cleaner_2_id 
+      ? 'Multi-cleaner session created successfully'
+      : 'Cleaning session created successfully';
+    
+    return successResponse(newSession, successMessage, 201);
   } catch (error) {
     return handleApiError(error, 'creating cleaning session');
   }

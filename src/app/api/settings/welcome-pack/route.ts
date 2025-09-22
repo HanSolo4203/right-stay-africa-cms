@@ -5,7 +5,7 @@ export async function GET() {
   try {
     const fee = await settingsApi.getWelcomePackFee();
     return NextResponse.json({ success: true, data: { fee } });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ success: false, error: 'Failed to load welcome pack fee' }, { status: 500 });
   }
 }
@@ -19,7 +19,7 @@ export async function PUT(request: NextRequest) {
     }
     await settingsApi.setWelcomePackFee(fee);
     return NextResponse.json({ success: true });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ success: false, error: 'Failed to update welcome pack fee' }, { status: 500 });
   }
 }

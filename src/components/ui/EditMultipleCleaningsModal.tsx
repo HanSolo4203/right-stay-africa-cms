@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { X, Building2, User, Calendar, FileText, Edit, Trash2 } from 'lucide-react';
-import { CleaningSessionDetailed, UpdateCleaningSessionData, Apartment, Cleaner } from '@/lib/types';
+import { X, Building2, User, Calendar, FileText, Edit, Trash2, Users } from 'lucide-react';
+import { CleaningSessionDetailed, UpdateCleaningSessionData, Cleaner, SchedulableProperty } from '@/lib/types';
+import { isRSALaundryAsset, getPropertyDisplayName } from '@/lib/property-utils';
 import toast from 'react-hot-toast';
 
 interface EditMultipleCleaningsModalProps {
@@ -20,7 +21,7 @@ export default function EditMultipleCleaningsModal({
   onClose, 
   onSuccess 
 }: EditMultipleCleaningsModalProps) {
-  const [apartments, setApartments] = useState<Apartment[]>([]);
+  const [schedulableProperties, setSchedulableProperties] = useState<SchedulableProperty[]>([]);
   const [cleaners, setCleaners] = useState<Cleaner[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [editingSession, setEditingSession] = useState<CleaningSessionDetailed | null>(null);
@@ -32,35 +33,46 @@ export default function EditMultipleCleaningsModal({
     notes: '',
     price: undefined,
   });
+  const [cleaner2Id, setCleaner2Id] = useState<string>('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [visibleSessions, setVisibleSessions] = useState<CleaningSessionDetailed[]>(sessions);
+  const [welcomePackFee, setWelcomePackFee] = useState<number>(0);
+  const [includeWelcomePack, setIncludeWelcomePack] = useState<boolean>(false);
 
   const loadData = useCallback(async () => {
     try {
       setIsLoadingData(true);
       
-      // Load apartments and cleaners in parallel
-      const [apartmentsResponse, cleanersResponse] = await Promise.all([
-        fetch('/api/apartments'),
-        fetch('/api/cleaners')
+      // Load schedulable properties, cleaners, and welcome pack fee in parallel
+      const [propertiesResponse, cleanersResponse, welcomePackResponse] = await Promise.all([
+        fetch('/api/schedulable-properties'),
+        fetch('/api/cleaners'),
+        fetch('/api/analytics?welcomePackFee=1')
       ]);
 
-      const [apartmentsResult, cleanersResult] = await Promise.all([
-        apartmentsResponse.json(),
-        cleanersResponse.json()
+      const [propertiesResult, cleanersResult, welcomePackResult] = await Promise.all([
+        propertiesResponse.json(),
+        cleanersResponse.json(),
+        welcomePackResponse.json()
       ]);
 
-      if (apartmentsResult.success) {
-        setApartments(apartmentsResult.data);
+      if (propertiesResult.success) {
+        setSchedulableProperties(propertiesResult.data);
       } else {
-        toast.error('Failed to load apartments');
+        toast.error('Failed to load properties');
       }
 
       if (cleanersResult.success) {
         setCleaners(cleanersResult.data);
       } else {
         toast.error('Failed to load cleaners');
+      }
+
+      if (welcomePackResult.success) {
+        setWelcomePackFee(Number(welcomePackResult.data.welcome_pack_fee));
+      } else {
+        console.warn('Failed to load welcome pack fee');
       }
     } catch (error) {
       console.error('Error loading data:', error);
@@ -80,19 +92,24 @@ export default function EditMultipleCleaningsModal({
   const startEditing = (session: CleaningSessionDetailed) => {
     setEditingSession(session);
     
-    // Find the apartment ID from the session's apartment number
-    const apartment = apartments.find(apt => apt.apartment_number === session.apartment_number);
+    // Find the property ID from the session's apartment number
+    const property = schedulableProperties.find(prop => prop.property_name === session.apartment_number);
     // Find the cleaner ID from the session's cleaner name
     const cleaner = cleaners.find(cleaner => cleaner.name === session.cleaner_name);
+    // Find the second cleaner ID if it exists
+    const cleaner2 = session.cleaner_2_name ? cleaners.find(cleaner => cleaner.name === session.cleaner_2_name) : null;
     
     setFormData({
       id: session.id,
-      apartment_id: apartment?.id || '',
+      apartment_id: property?.id || '',
       cleaner_id: cleaner?.id || '',
       cleaning_date: session.cleaning_date,
       notes: session.notes || '',
       price: session.price || undefined,
     });
+    setCleaner2Id(cleaner2?.id || '');
+    // Set welcome pack status based on database record
+    setIncludeWelcomePack(!!(session.welcome_pack_fee && Number(session.welcome_pack_fee) > 0));
     setErrors({});
   };
 
@@ -106,6 +123,8 @@ export default function EditMultipleCleaningsModal({
       notes: '',
       price: undefined,
     });
+    setCleaner2Id('');
+    setIncludeWelcomePack(false);
     setErrors({});
   };
 
@@ -125,11 +144,19 @@ export default function EditMultipleCleaningsModal({
     }
   };
 
+  const handleCleaner2Change = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setCleaner2Id(e.target.value);
+    // Clear error when user starts typing
+    if (errors.cleaner_2_id) {
+      setErrors(prev => ({ ...prev, cleaner_2_id: '' }));
+    }
+  };
+
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
     if (!formData.apartment_id) {
-      newErrors.apartment_id = 'Apartment is required';
+      newErrors.apartment_id = 'Property is required';
     }
     if (!formData.cleaner_id) {
       newErrors.cleaner_id = 'Cleaner is required';
@@ -152,18 +179,34 @@ export default function EditMultipleCleaningsModal({
 
     setIsLoading(true);
     try {
+      const updateData = {
+        ...formData,
+        cleaner_2_id: cleaner2Id || null,
+        is_multi_cleaner: !!cleaner2Id,
+        cleaner_count: cleaner2Id ? 2 : 1,
+        include_welcome_pack: includeWelcomePack,
+      };
+
       const response = await fetch(`/api/cleaning-sessions/${editingSession.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(updateData),
       });
 
       const result = await response.json();
 
       if (result.success) {
         toast.success('Cleaning session updated successfully');
+        
+        // Update the session in the visible sessions list with the new data
+        setVisibleSessions(prev => prev.map(session => 
+          session.id === editingSession.id 
+            ? { ...session, ...result.data }
+            : session
+        ));
+        
         cancelEditing();
         onSuccess();
       } else {
@@ -178,27 +221,41 @@ export default function EditMultipleCleaningsModal({
   };
 
   const handleDelete = async (session: CleaningSessionDetailed) => {
-    if (!confirm(`Are you sure you want to delete the cleaning for Apartment ${session.apartment_number}?`)) {
+    // Detect if this is an RSA Laundry Room expense
+    const isRSAExpense = session.apartment_number === 'RSA Laundry Room' || 
+                         session.property_category === 'internal_asset' ||
+                         session.property_category === 'rsa_asset';
+
+    const confirmMessage = isRSAExpense 
+      ? `Are you sure you want to delete the RSA Laundry Room service?`
+      : `Are you sure you want to delete the cleaning for Apartment ${session.apartment_number}?`;
+
+    if (!confirm(confirmMessage)) {
       return;
     }
 
     try {
-      const response = await fetch(`/api/cleaning-sessions/${session.id}`, {
+      const apiEndpoint = isRSAExpense 
+        ? `/api/rsa-laundry-expenses/${session.id}`
+        : `/api/cleaning-sessions/${session.id}`;
+
+      const response = await fetch(apiEndpoint, {
         method: 'DELETE',
       });
 
       const result = await response.json();
 
       if (result.success) {
-        toast.success('Cleaning session deleted successfully');
+        toast.success(`${isRSAExpense ? 'RSA Laundry Room service' : 'Cleaning session'} deleted successfully`);
+        // Remove the deleted session from the visible sessions list
         setVisibleSessions(prev => prev.filter(s => s.id !== session.id));
         onSuccess();
       } else {
-        toast.error(result.message || 'Failed to delete cleaning session');
+        toast.error(result.message || `Failed to delete ${isRSAExpense ? 'RSA Laundry Room service' : 'cleaning session'}`);
       }
     } catch (error) {
-      console.error('Error deleting cleaning session:', error);
-      toast.error('Failed to delete cleaning session');
+      console.error('Error deleting session:', error);
+      toast.error(`Failed to delete ${isRSAExpense ? 'RSA Laundry Room service' : 'cleaning session'}`);
     }
   };
 
@@ -247,11 +304,11 @@ export default function EditMultipleCleaningsModal({
                           /* Edit Form */
                           <form onSubmit={handleSubmit} className="space-y-4">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              {/* Apartment */}
+                              {/* Property */}
                               <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
                                   <Building2 className="w-4 h-4 inline mr-1" />
-                                  Apartment
+                                  Property
                                 </label>
                                 <select
                                   name="apartment_id"
@@ -261,10 +318,13 @@ export default function EditMultipleCleaningsModal({
                                     errors.apartment_id ? 'border-red-500' : 'border-gray-300'
                                   }`}
                                 >
-                                  <option value="">Select apartment</option>
-                                  {apartments.map((apartment) => (
-                                    <option key={apartment.id} value={apartment.id}>
-                                      {apartment.apartment_number} - {apartment.owner_name}
+                                  <option value="">Select property</option>
+                                  {schedulableProperties.map((property) => (
+                                    <option key={property.id} value={property.id}>
+                                      {isRSALaundryAsset(property) 
+                                        ? `🏢 ${getPropertyDisplayName(property)} - ${property.owner_name} (Internal)`
+                                        : `🏠 ${getPropertyDisplayName(property)} - ${property.owner_name}`
+                                      }
                                     </option>
                                   ))}
                                 </select>
@@ -273,11 +333,11 @@ export default function EditMultipleCleaningsModal({
                                 )}
                               </div>
 
-                              {/* Cleaner */}
+                              {/* Primary Cleaner */}
                               <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
                                   <User className="w-4 h-4 inline mr-1" />
-                                  Cleaner
+                                  Primary Cleaner
                                 </label>
                                 <select
                                   name="cleaner_id"
@@ -287,7 +347,7 @@ export default function EditMultipleCleaningsModal({
                                     errors.cleaner_id ? 'border-red-500' : 'border-gray-300'
                                   }`}
                                 >
-                                  <option value="">Select cleaner</option>
+                                  <option value="">Select primary cleaner</option>
                                   {cleaners.map((cleaner) => (
                                     <option key={cleaner.id} value={cleaner.id}>
                                       {cleaner.name}
@@ -296,6 +356,43 @@ export default function EditMultipleCleaningsModal({
                                 </select>
                                 {errors.cleaner_id && (
                                   <p className="text-red-500 text-sm mt-1">{errors.cleaner_id}</p>
+                                )}
+                              </div>
+
+                              {/* Secondary Cleaner */}
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                  <Users className="w-4 h-4 inline mr-1 text-blue-600" />
+                                  Secondary Cleaner (Optional)
+                                </label>
+                                <select
+                                  value={cleaner2Id}
+                                  onChange={handleCleaner2Change}
+                                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                                    errors.cleaner_2_id ? 'border-red-500' : 'border-gray-300'
+                                  }`}
+                                >
+                                  <option value="">No secondary cleaner</option>
+                                  {cleaners
+                                    .filter(cleaner => cleaner.id !== formData.cleaner_id)
+                                    .map((cleaner) => (
+                                      <option key={cleaner.id} value={cleaner.id}>
+                                        {cleaner.name}
+                                      </option>
+                                    ))}
+                                </select>
+                                {errors.cleaner_2_id && (
+                                  <p className="text-red-500 text-sm mt-1">{errors.cleaner_2_id}</p>
+                                )}
+                                {cleaner2Id && (
+                                  <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
+                                    <div className="flex items-center space-x-2">
+                                      <Users className="w-4 h-4 text-blue-600" />
+                                      <span className="text-sm text-blue-800">
+                                        Multi-cleaner session: {cleaners.find(c => c.id === formData.cleaner_id)?.name} & {cleaners.find(c => c.id === cleaner2Id)?.name}
+                                      </span>
+                                    </div>
+                                  </div>
                                 )}
                               </div>
 
@@ -342,6 +439,27 @@ export default function EditMultipleCleaningsModal({
                               </div>
                             </div>
 
+                            {/* Welcome Pack Option - only show for non-RSA properties */}
+                            {(() => {
+                              const isRSALaundryRoom = editingSession?.apartment_number === 'RSA Laundry Room';
+                              const isRSAExpense = editingSession?.property_category === 'internal_asset';
+                              return !(isRSALaundryRoom || isRSAExpense) && (
+                                <div>
+                                  <label className="inline-flex items-center space-x-3">
+                                    <input
+                                      type="checkbox"
+                                      checked={includeWelcomePack}
+                                      onChange={(e) => setIncludeWelcomePack(e.target.checked)}
+                                      className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+                                      disabled={isLoading}
+                                    />
+                                    <span className="text-sm text-gray-700">Add Welcome pack ({`R${welcomePackFee.toFixed(2)}`})</span>
+                                  </label>
+                                  <p className="mt-1 text-xs text-gray-500">A once-off welcome pack fee that can be configured in settings.</p>
+                                </div>
+                              );
+                            })()}
+
                             {/* Notes */}
                             <div>
                               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -386,12 +504,28 @@ export default function EditMultipleCleaningsModal({
                               <span className="font-medium text-black">Apt {session.apartment_number}</span>
                             </div>
                             <div className="flex items-center space-x-2">
-                              <User className="w-4 h-4 text-gray-500" />
-                              <span className="text-black">{session.cleaner_name}</span>
+                              {session.is_multi_cleaner && session.cleaner_2_name ? (
+                                <Users className="w-4 h-4 text-blue-600" />
+                              ) : (
+                                <User className="w-4 h-4 text-gray-500" />
+                              )}
+                              <span className="text-black">
+                                {session.is_multi_cleaner && session.cleaner_2_name 
+                                  ? `${session.cleaner_name} & ${session.cleaner_2_name}`
+                                  : session.cleaner_name
+                                }
+                              </span>
                             </div>
-                            {session.price && (
-                              <span className="font-semibold text-green-600">R{session.price.toFixed(2)}</span>
-                            )}
+                            <div className="flex items-center space-x-2">
+                              {session.price && (
+                                <span className="font-semibold text-green-600">R{session.price.toFixed(2)}</span>
+                              )}
+                              {session.welcome_pack_fee && Number(session.welcome_pack_fee) > 0 && (
+                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                  Welcome Pack: R{Number(session.welcome_pack_fee).toFixed(2)}
+                                </span>
+                              )}
+                            </div>
                           </div>
                           {session.notes && (
                             <p className="text-sm text-black mt-2">{session.notes}</p>

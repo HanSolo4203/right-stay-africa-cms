@@ -95,10 +95,10 @@ export default function LoginPage() {
               priority
             />
           </div>
-          <h2 className="mt-2 text-center text-3xl font-extrabold text-white">
+          <h2 className="mt-2 text-center text-3xl font-extrabold text-black">
             Sign in to your account
           </h2>
-          <p className="mt-2 text-center text-sm text-white">
+          <p className="mt-2 text-center text-sm text-black">
             Right Stay Africa Cleaning Management Service
           </p>
         </div>

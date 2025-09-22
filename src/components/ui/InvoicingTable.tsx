@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Download, Printer, FileText, Search, ChevronDown, ChevronRight, Calendar, User, DollarSign, FileText as NoteIcon, Receipt } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Download, Printer, FileText, Search, ChevronDown, ChevronRight, Calendar, User, DollarSign, FileText as NoteIcon, Receipt, Users, RefreshCw } from 'lucide-react';
 import { CleaningSessionDetailed } from '@/lib/types';
 import InvoiceGenerator from './InvoiceGenerator';
 
@@ -34,7 +34,18 @@ export default function InvoicingTable({ data, month, year }: InvoicingTableProp
     };
     sessions: CleaningSessionDetailed[];
   } | null>(null);
-  const [welcomePackFee, setWelcomePackFee] = useState<number>(0);
+  // const [welcomePackFee] = useState<number>(0);
+
+  // Function to clear cached data (useful for refreshing after updates)
+  const clearCache = () => {
+    setCleaningDetails({});
+    setExpandedApartment(null);
+  };
+
+  // Clear cache when data changes (e.g., when dashboard refreshes)
+  useEffect(() => {
+    clearCache();
+  }, [data, month, year]);
 
   // Filter and sort data
   const filteredData = data
@@ -82,9 +93,10 @@ export default function InvoicingTable({ data, month, year }: InvoicingTableProp
       // Try to read welcome pack fee from settings API if provided; falls back to per-session values
       try {
         const settingsData = await settingsRes.json();
-        if (typeof settingsData?.data?.welcome_pack_fee === 'number') {
-          setWelcomePackFee(Number(settingsData.data.welcome_pack_fee));
-        }
+        // Note: We don't need to store the global welcome pack fee since we use per-session values
+        // if (typeof settingsData?.data?.welcome_pack_fee === 'number') {
+        //   setWelcomePackFee(Number(settingsData.data.welcome_pack_fee));
+        // }
       } catch {
         // ignore settings errors; session-level welcome_pack_fee will still be used if present
       }
@@ -269,6 +281,14 @@ export default function InvoicingTable({ data, month, year }: InvoicingTableProp
         </div>
         
         <div className="flex items-center space-x-3">
+          <button
+            onClick={clearCache}
+            className="flex items-center space-x-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
+            title="Refresh data"
+          >
+            <RefreshCw className="w-4 h-4" />
+            <span>Refresh</span>
+          </button>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
@@ -410,8 +430,17 @@ export default function InvoicingTable({ data, month, year }: InvoicingTableProp
                                   </div>
                                   
                                   <div className="flex items-center space-x-2">
-                                    <User className="w-4 h-4 text-gray-400" />
-                                    <span className="text-gray-600">{session.cleaner_name}</span>
+                                    {session.is_multi_cleaner && session.cleaner_2_name ? (
+                                      <Users className="w-4 h-4 text-blue-600" />
+                                    ) : (
+                                      <User className="w-4 h-4 text-gray-400" />
+                                    )}
+                                    <span className="text-gray-600">
+                                      {session.is_multi_cleaner && session.cleaner_2_name 
+                                        ? `${session.cleaner_1_name || session.cleaner_name} & ${session.cleaner_2_name}`
+                                        : session.cleaner_1_name || session.cleaner_name
+                                      }
+                                    </span>
                                   </div>
                                   
                                   <div className="flex items-center space-x-2">
@@ -434,11 +463,13 @@ export default function InvoicingTable({ data, month, year }: InvoicingTableProp
                             {/* Welcome Pack Summary */}
                             {(() => {
                               const sessions = cleaningDetails[`${apartment.apartment_number}-${month || year || 'all'}`];
-                              const usedCount = sessions.filter(s => (s.welcome_pack_fee && Number(s.welcome_pack_fee) > 0) || (!s.welcome_pack_fee && welcomePackFee > 0)).length;
+                              // Only count sessions that actually have a welcome pack fee set in the database
+                              const usedCount = sessions.filter(s => s.welcome_pack_fee && Number(s.welcome_pack_fee) > 0).length;
                               const totalWelcomeAmount = sessions.reduce((sum, s) => {
                                 const fee = Number(s.welcome_pack_fee);
+                                // Only add the fee if it's actually set in the database
                                 if (!isNaN(fee) && fee > 0) return sum + fee;
-                                return sum + (welcomePackFee > 0 ? welcomePackFee : 0);
+                                return sum; // Don't add anything if no fee is set
                               }, 0);
                               return (
                                 <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-4">

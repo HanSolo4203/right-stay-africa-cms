@@ -5,9 +5,10 @@ import MonthSelector from '@/components/ui/MonthSelector';
 import SummaryCards from '@/components/ui/SummaryCards';
 import CleaningsByApartmentChart from '@/components/ui/CleaningsByApartmentChart';
 import CleanerWorkloadChart from '@/components/ui/CleanerWorkloadChart';
-import CleanerEarningsChart from '@/components/ui/CleanerEarningsChart';
+import CleanerEarningsReport from '@/components/ui/CleanerEarningsReport';
 // import MonthlyTrendsChart from '@/components/ui/MonthlyTrendsChart';
 import InvoicingTable from '@/components/ui/InvoicingTable';
+import RSALaundryStats from '@/components/ui/RSALaundryStats';
 import AuthWrapper from '@/components/AuthWrapper';
 import { Toaster } from 'react-hot-toast';
 
@@ -29,14 +30,21 @@ interface AnalyticsData {
   cleaner_workload: Array<{
     cleaner_name: string;
     session_count: number;
-    cleaner_id: string;
+    cleaner_id: string | null;
+    primary_sessions: number;
+    secondary_sessions: number;
   }>;
   cleaner_earnings: Array<{
     cleaner_name: string;
-    cleaner_id: string;
+    cleaner_id: string | null;
     session_count: number;
     total_earnings: number;
     average_earnings_per_session: number;
+    primary_sessions: number;
+    secondary_sessions: number;
+    cleaning_earnings: number;
+    rsa_laundry_earnings: number;
+    rsa_laundry_sessions: number;
   }>;
   monthly_trends: Array<{
     month: string;
@@ -80,6 +88,13 @@ interface AnalyticsData {
 
 function DashboardContent() {
   const [selectedMonth, setSelectedMonth] = useState(() => {
+    // Try to get the saved month from localStorage, fallback to current month
+    if (typeof window !== 'undefined') {
+      const savedMonth = localStorage.getItem('dashboard-selected-month');
+      if (savedMonth) {
+        return savedMonth;
+      }
+    }
     const now = new Date();
     const year = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, '0');
@@ -132,6 +147,10 @@ function DashboardContent() {
   const handleMonthChange = (month: string) => {
     setSelectedMonth(month);
     setSelectedYear(undefined); // Clear year selection when month is selected
+    // Save the selected month to localStorage
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('dashboard-selected-month', month);
+    }
   };
 
   if (loading) {
@@ -177,6 +196,12 @@ function DashboardContent() {
           </div>
         )}
 
+        {/* RSA Laundry Service Statistics */}
+        <div className="mb-6 sm:mb-8">
+          <RSALaundryStats selectedMonth={selectedMonth} />
+        </div>
+
+
         {/* Summary Cards (centered) */}
         {analyticsData && (
           <div className="mb-6 sm:mb-8 flex justify-center">
@@ -194,10 +219,10 @@ function DashboardContent() {
           </div>
         )}
 
-        {/* Cleaner Earnings Chart */}
+        {/* Cleaner Earnings Report */}
         {analyticsData && (
           <div className="mb-6 sm:mb-8">
-            <CleanerEarningsChart data={analyticsData.cleaner_earnings} />
+            <CleanerEarningsReport data={analyticsData.cleaner_earnings} />
           </div>
         )}
 

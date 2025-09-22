@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
-import { CreateCleaningSessionData, Apartment, Cleaner } from '@/lib/types';
+import { X, Plus, Trash2 } from 'lucide-react';
+import { CreateCleaningSessionData, CreateRSALaundryExpenseData, Cleaner, SchedulableProperty } from '@/lib/types';
+import { isRSALaundryAsset, getPropertyDisplayName } from '@/lib/property-utils';
 import toast from 'react-hot-toast';
 
 interface AddCleaningModalProps {
@@ -20,13 +21,27 @@ export default function AddCleaningModal({ isOpen, selectedDate, onClose, onSucc
     notes: '',
     price: undefined,
   });
-  const [apartments, setApartments] = useState<Apartment[]>([]);
+  const [dailyPaymentAmount, setDailyPaymentAmount] = useState<number | undefined>(undefined);
+  const [schedulableProperties, setSchedulableProperties] = useState<SchedulableProperty[]>([]);
   const [cleaners, setCleaners] = useState<Cleaner[]>([]);
-  const [errors, setErrors] = useState<Partial<CreateCleaningSessionData>>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [welcomePackFee, setWelcomePackFee] = useState<number>(0);
   const [includeWelcomePack, setIncludeWelcomePack] = useState<boolean>(false);
+  
+  // Multi-cleaner state for apartment properties
+  const [additionalCleaners, setAdditionalCleaners] = useState<string[]>([]);
+  const [maxCleaners] = useState(2); // Maximum 2 cleaners total
+
+  // Check if selected property is RSA Laundry Room
+  const selectedProperty = schedulableProperties.find(p => p.id === formData.apartment_id);
+  const isRSALaundryRoom = selectedProperty && isRSALaundryAsset(selectedProperty);
+  const isApartment = selectedProperty && !isRSALaundryAsset(selectedProperty);
+  
+  // Calculate total cleaners selected
+  const totalCleanersSelected = 1 + additionalCleaners.length; // Primary cleaner + additional cleaners
+  const canAddMoreCleaners = isApartment && totalCleanersSelected < maxCleaners;
 
   useEffect(() => {
     if (isOpen) {
@@ -50,21 +65,21 @@ export default function AddCleaningModal({ isOpen, selectedDate, onClose, onSucc
     try {
       setIsLoadingData(true);
       
-      // Load apartments, cleaners and welcome fee in parallel
-      const [apartmentsResponse, cleanersResponse, feeResponse] = await Promise.all([
-        fetch('/api/apartments'),
+      // Load schedulable properties, cleaners and welcome fee in parallel
+      const [propertiesResponse, cleanersResponse, feeResponse] = await Promise.all([
+        fetch('/api/schedulable-properties'),
         fetch('/api/cleaners'),
         fetch('/api/settings/welcome-pack')
       ]);
 
-      const [apartmentsResult, cleanersResult, feeResult] = await Promise.all([
-        apartmentsResponse.json(),
+      const [propertiesResult, cleanersResult, feeResult] = await Promise.all([
+        propertiesResponse.json(),
         cleanersResponse.json(),
         feeResponse.json()
       ]);
 
-      if (apartmentsResult.success) {
-        setApartments(apartmentsResult.data);
+      if (propertiesResult.success) {
+        setSchedulableProperties(propertiesResult.data);
       }
 
       if (cleanersResult.success) {
@@ -76,7 +91,7 @@ export default function AddCleaningModal({ isOpen, selectedDate, onClose, onSucc
       }
     } catch (error) {
       console.error('Error loading data:', error);
-      toast.error('Failed to load apartments and cleaners');
+      toast.error('Failed to load properties and cleaners');
     } finally {
       setIsLoadingData(false);
     }
@@ -94,16 +109,20 @@ export default function AddCleaningModal({ isOpen, selectedDate, onClose, onSucc
     }
     
     // Clear error when user starts typing
-    if (errors[name as keyof CreateCleaningSessionData]) {
-      setErrors(prev => ({ ...prev, [name]: undefined }));
+    if (errors[name]) {
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[name];
+        return newErrors;
+      });
     }
   };
 
   const validateForm = (): boolean => {
-    const newErrors: Partial<CreateCleaningSessionData> = {};
+    const newErrors: Record<string, string> = {};
 
     if (!formData.apartment_id) {
-      newErrors.apartment_id = 'Apartment is required';
+      newErrors.apartment_id = 'Property is required';
     }
 
     if (!formData.cleaner_id) {
@@ -112,6 +131,11 @@ export default function AddCleaningModal({ isOpen, selectedDate, onClose, onSucc
 
     if (!formData.cleaning_date) {
       newErrors.cleaning_date = 'Cleaning date is required';
+    }
+
+    // Require payment amount for RSA Laundry Room
+    if (isRSALaundryRoom && (!dailyPaymentAmount || dailyPaymentAmount <= 0)) {
+      newErrors.price = 'Payment amount is required for RSA Laundry Room services';
     }
 
     setErrors(newErrors);
@@ -128,34 +152,130 @@ export default function AddCleaningModal({ isOpen, selectedDate, onClose, onSucc
     setIsLoading(true);
     
     try {
-      const response = await fetch('/api/cleaning-sessions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ ...formData, include_welcome_pack: includeWelcomePack }),
-      });
+      if (isRSALaundryRoom) {
+        // Create RSA Laundry Room expense
+        const rsaExpenseData: CreateRSALaundryExpenseData = {
+          cleaner_id: formData.cleaner_id,
+          service_date: formData.cleaning_date,
+          daily_payment_amount: dailyPaymentAmount || 0,
+          service_description: 'RSA Laundry Room service',
+          notes: formData.notes
+        };
 
-      const result = await response.json();
+        const response = await fetch('/api/rsa-laundry-expenses', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(rsaExpenseData),
+        });
 
-      if (result.success) {
-        toast.success('Cleaning session scheduled successfully!');
-        setFormData({ apartment_id: '', cleaner_id: '', cleaning_date: '', notes: '', price: undefined });
-        onSuccess();
-        onClose();
+        const result = await response.json();
+
+        if (result.success) {
+          toast.success('RSA Laundry Room service scheduled successfully!');
+          setFormData({ apartment_id: '', cleaner_id: '', cleaning_date: '', notes: '', price: undefined });
+          setDailyPaymentAmount(undefined);
+          setAdditionalCleaners([]);
+          onSuccess();
+          onClose();
+        } else {
+          toast.error(result.error || 'Failed to schedule RSA Laundry Room service');
+        }
       } else {
-        toast.error(result.error || 'Failed to schedule cleaning session');
+        // Create single cleaning session (with multi-cleaner support)
+        const additionalCleanerId = additionalCleaners.find(id => id) || undefined;
+        
+        // For multi-cleaner sessions, individual fees will be set by the backend
+        // based on the apartment's cleaner_payout amount
+        // The total price is the amount entered in the popup
+        const requestData = {
+          ...formData,
+          cleaner_2_id: additionalCleanerId,
+          is_multi_cleaner: !!additionalCleanerId,
+          include_welcome_pack: includeWelcomePack // Only primary cleaner gets welcome pack
+        };
+
+        const response = await fetch('/api/cleaning-sessions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(requestData),
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          const primaryCleaner = cleaners.find(c => c.id === formData.cleaner_id);
+          const additionalCleaner = additionalCleanerId ? cleaners.find(c => c.id === additionalCleanerId) : null;
+          
+          const message = additionalCleanerId 
+            ? `Multi-cleaner session created successfully with ${primaryCleaner?.name} and ${additionalCleaner?.name}!`
+            : `Cleaning session created successfully with ${primaryCleaner?.name}!`;
+          
+          toast.success(message);
+          setFormData({ apartment_id: '', cleaner_id: '', cleaning_date: '', notes: '', price: undefined });
+          setDailyPaymentAmount(undefined);
+          setAdditionalCleaners([]);
+          onSuccess();
+          onClose();
+        } else {
+          toast.error(result.error || 'Failed to create cleaning session');
+        }
       }
     } catch (error) {
-      console.error('Error creating cleaning session:', error);
-      toast.error('Failed to schedule cleaning session');
+      console.error('Error creating scheduling:', error);
+      toast.error(isRSALaundryRoom ? 'Failed to schedule RSA Laundry Room service' : 'Failed to schedule cleaning session');
     } finally {
       setIsLoading(false);
     }
   };
 
+  // Helper function to get available cleaners (excluding already selected ones)
+  const getAvailableCleaners = (excludeCleanerId?: string) => {
+    const selectedCleanerIds = [formData.cleaner_id, ...additionalCleaners].filter(Boolean);
+    if (excludeCleanerId) {
+      selectedCleanerIds.splice(selectedCleanerIds.indexOf(excludeCleanerId), 1);
+    }
+    return cleaners.filter(cleaner => !selectedCleanerIds.includes(cleaner.id));
+  };
+
+  // Helper function to get cleaners for a specific dropdown (includes currently selected cleaner)
+  const getCleanersForDropdown = (currentCleanerId?: string) => {
+    const selectedCleanerIds = [formData.cleaner_id, ...additionalCleaners].filter(Boolean);
+    // Remove the current cleaner from the exclusion list so it shows in its own dropdown
+    const otherSelectedIds = selectedCleanerIds.filter(id => id !== currentCleanerId);
+    return cleaners.filter(cleaner => !otherSelectedIds.includes(cleaner.id));
+  };
+
+  // Add additional cleaner dropdown
+  const addAdditionalCleaner = () => {
+    if (canAddMoreCleaners) {
+      // Get available cleaners (excluding already selected ones)
+      const availableCleaners = getAvailableCleaners();
+      
+      // Auto-select the first available cleaner, or empty string if none available
+      const nextCleanerId = availableCleaners.length > 0 ? availableCleaners[0].id : '';
+      
+      setAdditionalCleaners(prev => [...prev, nextCleanerId]);
+    }
+  };
+
+  // Remove additional cleaner dropdown
+  const removeAdditionalCleaner = (index: number) => {
+    setAdditionalCleaners(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Handle additional cleaner selection
+  const handleAdditionalCleanerChange = (index: number, cleanerId: string) => {
+    setAdditionalCleaners(prev => prev.map((id, i) => i === index ? cleanerId : id));
+  };
+
   const handleClose = () => {
     setFormData({ apartment_id: '', cleaner_id: '', cleaning_date: '', notes: '', price: undefined });
+    setDailyPaymentAmount(undefined);
+    setAdditionalCleaners([]);
     setErrors({});
     onClose();
   };
@@ -164,9 +284,11 @@ export default function AddCleaningModal({ isOpen, selectedDate, onClose, onSucc
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-900">Schedule Cleaning Session</h2>
+          <h2 className="text-xl font-semibold text-gray-900">
+            {isRSALaundryRoom ? 'Create RSA Laundry Session' : 'Schedule Cleaning Session'}
+          </h2>
           <button
             onClick={handleClose}
             className="p-2 hover:bg-gray-100 rounded-md transition-colors"
@@ -178,13 +300,13 @@ export default function AddCleaningModal({ isOpen, selectedDate, onClose, onSucc
         {isLoadingData ? (
           <div className="p-6 text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading apartments and cleaners...</p>
+            <p className="text-gray-600">Loading properties and cleaners...</p>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="p-6 space-y-4">
             <div>
               <label htmlFor="apartment_id" className="block text-sm font-medium text-gray-700 mb-2">
-                Apartment *
+                Property *
               </label>
               <select
                 id="apartment_id"
@@ -196,10 +318,13 @@ export default function AddCleaningModal({ isOpen, selectedDate, onClose, onSucc
                 }`}
                 disabled={isLoading}
               >
-                <option value="">Select an apartment</option>
-                {apartments.map((apartment) => (
-                  <option key={apartment.id} value={apartment.id}>
-                    Apartment {apartment.apartment_number} - {apartment.owner_name}
+                <option value="">Select a property</option>
+                {schedulableProperties.map((property) => (
+                  <option key={property.id} value={property.id}>
+                    {isRSALaundryAsset(property) 
+                      ? `🏢 ${getPropertyDisplayName(property)} - ${property.owner_name} (Internal)`
+                      : `🏠 ${getPropertyDisplayName(property)} - ${property.owner_name}`
+                    }
                   </option>
                 ))}
               </select>
@@ -208,9 +333,10 @@ export default function AddCleaningModal({ isOpen, selectedDate, onClose, onSucc
               )}
             </div>
 
+            {/* Primary Cleaner */}
             <div>
               <label htmlFor="cleaner_id" className="block text-sm font-medium text-gray-700 mb-2">
-                Cleaner *
+                {isApartment ? 'Primary Cleaner *' : 'Cleaner *'}
               </label>
               <select
                 id="cleaner_id"
@@ -223,7 +349,7 @@ export default function AddCleaningModal({ isOpen, selectedDate, onClose, onSucc
                 disabled={isLoading}
               >
                 <option value="">Select a cleaner</option>
-                {cleaners.map((cleaner) => (
+                {getCleanersForDropdown(formData.cleaner_id).map((cleaner) => (
                   <option key={cleaner.id} value={cleaner.id}>
                     {cleaner.name}
                   </option>
@@ -232,7 +358,102 @@ export default function AddCleaningModal({ isOpen, selectedDate, onClose, onSucc
               {errors.cleaner_id && (
                 <p className="mt-1 text-sm text-red-600">{errors.cleaner_id}</p>
               )}
+              {isApartment && (
+                <p className="mt-1 text-xs text-gray-500">
+                  Primary cleaner for this apartment cleaning session.
+                </p>
+              )}
             </div>
+
+            {/* Additional Cleaners for Apartments */}
+            {isApartment && additionalCleaners.map((cleanerId, index) => (
+              <div key={index} className="relative">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Additional Cleaner {index + 1}
+                </label>
+                <div className="flex gap-2">
+                  <select
+                    value={cleanerId}
+                    onChange={(e) => handleAdditionalCleanerChange(index, e.target.value)}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    disabled={isLoading}
+                  >
+                    <option value="">Select additional cleaner</option>
+                    {getCleanersForDropdown(cleanerId).map((cleaner) => (
+                      <option key={cleaner.id} value={cleaner.id}>
+                        {cleaner.name}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => removeAdditionalCleaner(index)}
+                    className="px-3 py-2 text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                    disabled={isLoading}
+                    title="Remove cleaner"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            ))}
+
+            {/* Selected Cleaners Summary */}
+            {isApartment && (formData.cleaner_id || additionalCleaners.some(id => id)) && (
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
+                <h4 className="text-sm font-medium text-blue-900 mb-2">Selected Cleaners:</h4>
+                <div className="space-y-1">
+                  {formData.cleaner_id && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                      <span className="font-medium text-black">Primary:</span>
+                      <span className="text-blue-700">
+                        {cleaners.find(c => c.id === formData.cleaner_id)?.name}
+                      </span>
+                    </div>
+                  )}
+                  {additionalCleaners.map((cleanerId, index) => (
+                    cleanerId && (
+                      <div key={index} className="flex items-center gap-2 text-sm">
+                        <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                        <span className="font-medium text-black">Additional {index + 1}:</span>
+                        <span className="text-blue-700">
+                          {cleaners.find(c => c.id === cleanerId)?.name}
+                        </span>
+                      </div>
+                    )
+                  ))}
+                </div>
+                <p className="mt-2 text-xs text-blue-600">
+                  Total: {totalCleanersSelected} cleaner{totalCleanersSelected !== 1 ? 's' : ''} selected
+                </p>
+              </div>
+            )}
+
+            {/* Add Another Cleaner Button */}
+            {isApartment && (
+              <div>
+                {canAddMoreCleaners ? (
+                  <button
+                    type="button"
+                    onClick={addAdditionalCleaner}
+                    className="inline-flex items-center gap-2 px-4 py-2 text-sm text-blue-600 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 transition-colors"
+                    disabled={isLoading}
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add Another Cleaner
+                  </button>
+                ) : (
+                  <div className="inline-flex items-center gap-2 px-4 py-2 text-sm text-gray-500 bg-gray-50 border border-gray-200 rounded-md">
+                    <span className="w-4 h-4 flex items-center justify-center text-gray-400">✓</span>
+                    Maximum cleaners reached ({maxCleaners} total)
+                  </div>
+                )}
+                <p className="mt-1 text-xs text-gray-500">
+                  For larger apartments requiring multiple cleaners (max {maxCleaners} total).
+                </p>
+              </div>
+            )}
 
             <div>
               <label htmlFor="cleaning_date" className="block text-sm font-medium text-gray-700 mb-2">
@@ -254,6 +475,7 @@ export default function AddCleaningModal({ isOpen, selectedDate, onClose, onSucc
               )}
             </div>
 
+
             <div>
               <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-2">
                 Notes
@@ -270,42 +492,74 @@ export default function AddCleaningModal({ isOpen, selectedDate, onClose, onSucc
               />
             </div>
 
-            {/* Welcome Pack Option */}
-            <div>
-              <label className="inline-flex items-center space-x-3">
+            {/* Payment Amount for RSA Laundry Room */}
+            {isRSALaundryRoom && (
+              <div>
+                <label htmlFor="dailyPaymentAmount" className="block text-sm font-medium text-gray-700 mb-2">
+                  Daily Payment Amount (R) *
+                </label>
                 <input
-                  type="checkbox"
-                  checked={includeWelcomePack}
-                  onChange={(e) => setIncludeWelcomePack(e.target.checked)}
-                  className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+                  type="number"
+                  id="dailyPaymentAmount"
+                  name="dailyPaymentAmount"
+                  value={dailyPaymentAmount || ''}
+                  onChange={(e) => setDailyPaymentAmount(Number(e.target.value))}
+                  min="0"
+                  step="0.01"
+                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    errors.price ? 'border-red-300' : 'border-gray-300'
+                  }`}
+                  placeholder="200.00"
+                  disabled={isLoading}
                 />
-                <span className="text-sm text-gray-700">Add Welcome pack ({`R${welcomePackFee.toFixed(2)}`})</span>
-              </label>
-              <p className="mt-1 text-xs text-gray-500">A once-off welcome pack fee that can be configured in settings.</p>
-            </div>
+                {errors.price && (
+                  <p className="mt-1 text-sm text-red-600">{errors.price}</p>
+                )}
+                <p className="mt-1 text-xs text-gray-500">Payment amount for the laundry service on this day.</p>
+              </div>
+            )}
 
-            <div>
-              <label htmlFor="price" className="block text-sm font-medium text-gray-700 mb-2">
-                Price (R)
-              </label>
-              <input
-                type="number"
-                id="price"
-                name="price"
-                value={formData.price || ''}
-                onChange={handleInputChange}
-                min="0"
-                step="0.01"
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  errors.price ? 'border-red-300' : 'border-gray-300'
-                }`}
-                placeholder="0.00"
-                disabled={isLoading}
-              />
-              {errors.price && (
-                <p className="mt-1 text-sm text-red-600">{errors.price}</p>
-              )}
-            </div>
+            {/* Welcome Pack Option - only show for non-RSA properties */}
+            {!isRSALaundryRoom && (
+              <div>
+                <label className="inline-flex items-center space-x-3">
+                  <input
+                    type="checkbox"
+                    checked={includeWelcomePack}
+                    onChange={(e) => setIncludeWelcomePack(e.target.checked)}
+                    className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+                  />
+                  <span className="text-sm text-gray-700">Add Welcome pack ({`R${welcomePackFee.toFixed(2)}`})</span>
+                </label>
+                <p className="mt-1 text-xs text-gray-500">A once-off welcome pack fee that can be configured in settings.</p>
+              </div>
+            )}
+
+            {/* Regular Price Field - only show for non-RSA properties */}
+            {!isRSALaundryRoom && (
+              <div>
+                <label htmlFor="price" className="block text-sm font-medium text-gray-700 mb-2">
+                  Price (R)
+                </label>
+                <input
+                  type="number"
+                  id="price"
+                  name="price"
+                  value={formData.price || ''}
+                  onChange={handleInputChange}
+                  min="0"
+                  step="0.01"
+                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    errors.price ? 'border-red-300' : 'border-gray-300'
+                  }`}
+                  placeholder="0.00"
+                  disabled={isLoading}
+                />
+                {errors.price && (
+                  <p className="mt-1 text-sm text-red-600">{errors.price}</p>
+                )}
+              </div>
+            )}
 
             <div className="flex space-x-3 pt-4">
               <button
@@ -321,7 +575,7 @@ export default function AddCleaningModal({ isOpen, selectedDate, onClose, onSucc
                 className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={isLoading}
               >
-                {isLoading ? 'Scheduling...' : 'Schedule Session'}
+                {isLoading ? 'Scheduling...' : (isRSALaundryRoom ? 'Create Session' : 'Schedule Session')}
               </button>
             </div>
           </form>

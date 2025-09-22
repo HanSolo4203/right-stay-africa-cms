@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { FileText, Download, Printer, Calendar, User, X } from 'lucide-react';
+import { FileText, Download, Printer, Calendar, User, X, Users } from 'lucide-react';
 import { CleaningSessionDetailed } from '@/lib/types';
 
 interface InvoiceGeneratorProps {
@@ -145,6 +145,39 @@ export default function InvoiceGenerator({
               font-weight: 600; 
               text-align: right; 
             }
+            .payment-breakdown { 
+              margin: 30px 0; 
+              padding: 20px; 
+              background: #f8fafc; 
+              border-radius: 8px; 
+              border: 1px solid #e5e7eb; 
+            }
+            .payment-breakdown h4 { 
+              color: #1f2937; 
+              font-size: 16px; 
+              margin-bottom: 15px; 
+              padding-bottom: 5px; 
+              border-bottom: 2px solid #3b82f6; 
+            }
+            .breakdown-table { 
+              width: 100%; 
+              border-collapse: collapse; 
+            }
+            .breakdown-table th { 
+              background: #e5e7eb; 
+              color: #374151; 
+              font-weight: 600; 
+              padding: 10px; 
+              text-align: left; 
+              border-bottom: 1px solid #d1d5db; 
+              font-size: 14px; 
+            }
+            .breakdown-table td { 
+              padding: 10px; 
+              border-bottom: 1px solid #e5e7eb; 
+              font-size: 14px; 
+            }
+            .breakdown-table tr:nth-child(even) { background: #f9fafb; }
             .total-section { 
               background: #f8fafc; 
               padding: 20px; 
@@ -215,12 +248,12 @@ export default function InvoiceGenerator({
               <div class="billing-section">
                 <h3>Bill To:</h3>
                 <p><strong>${apartment.owner_name}</strong></p>
-                <p>Apartment ${apartment.apartment_number}</p>
+                <p>${apartment.apartment_number === 'RSA Laundry Room' ? apartment.apartment_number : `Apartment ${apartment.apartment_number}`}</p>
                 <p>Right Stay Africa Property</p>
               </div>
               <div class="billing-section">
                 <h3>Service Details:</h3>
-                <p><strong>Property:</strong> Apartment ${apartment.apartment_number}</p>
+                <p><strong>Property:</strong> ${apartment.apartment_number === 'RSA Laundry Room' ? apartment.apartment_number : `Apartment ${apartment.apartment_number}`}</p>
                 <p><strong>Service Period:</strong> ${formatPeriod()}</p>
                 <p><strong>Total Cleanings:</strong> ${apartment.cleaning_count}</p>
               </div>
@@ -239,13 +272,45 @@ export default function InvoiceGenerator({
                 ${cleaningSessions.map(session => `
                   <tr>
                     <td class="date-col">${formatDate(session.cleaning_date)}</td>
-                    <td class="cleaner-col">${session.cleaner_name}</td>
-                    <td>Cleaning Service</td>
+                    <td class="cleaner-col">${session.is_multi_cleaner && session.cleaner_2_name 
+                      ? `${session.cleaner_1_name || session.cleaner_name} & ${session.cleaner_2_name}`
+                      : session.cleaner_1_name || session.cleaner_name
+                    }</td>
+                    <td>Cleaning Service${session.is_multi_cleaner && session.cleaner_2_name ? ' (Multi-cleaner)' : ''}</td>
                     <td class="amount-col">R${session.price ? session.price.toFixed(2) : '150.00'}</td>
                   </tr>
                 `).join('')}
               </tbody>
             </table>
+
+            ${cleaningSessions.some(session => session.is_multi_cleaner && session.cleaner_2_name) ? `
+            <div class="payment-breakdown">
+              <h4>Payment Breakdown</h4>
+              <table class="breakdown-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Cleaner</th>
+                    <th>Payment Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${cleaningSessions.filter(session => session.is_multi_cleaner && session.cleaner_2_name).map(session => `
+                    <tr>
+                      <td>${formatDate(session.cleaning_date)}</td>
+                      <td>${session.cleaner_1_name || session.cleaner_name}</td>
+                      <td>R${session.cleaner_1_fee ? session.cleaner_1_fee.toFixed(2) : '0.00'}</td>
+                    </tr>
+                    <tr>
+                      <td></td>
+                      <td>${session.cleaner_2_name}</td>
+                      <td>R${session.cleaner_2_fee ? session.cleaner_2_fee.toFixed(2) : '0.00'}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+            ` : ''}
 
             <div class="total-section">
               <div class="total-row">
@@ -314,7 +379,7 @@ export default function InvoiceGenerator({
           <div className="flex items-center space-x-3">
             <FileText className="w-6 h-6 text-blue-600" />
             <h2 className="text-xl font-semibold text-gray-900">
-              Invoice for Apartment {apartment.apartment_number}
+              Invoice for {apartment.apartment_number === 'RSA Laundry Room' ? apartment.apartment_number : `Apartment ${apartment.apartment_number}`}
             </h2>
           </div>
           <button
@@ -368,8 +433,17 @@ export default function InvoiceGenerator({
                               <span>{formatDate(session.cleaning_date)}</span>
                             </div>
                             <div className="flex items-center space-x-2 text-sm text-gray-600 mt-1">
-                              <User className="w-4 h-4 text-gray-400" />
-                              <span>{session.cleaner_name}</span>
+                              {session.is_multi_cleaner && session.cleaner_2_name ? (
+                                <Users className="w-4 h-4 text-blue-600" />
+                              ) : (
+                                <User className="w-4 h-4 text-gray-400" />
+                              )}
+                              <span>
+                                {session.is_multi_cleaner && session.cleaner_2_name 
+                                  ? `${session.cleaner_1_name || session.cleaner_name} & ${session.cleaner_2_name}`
+                                  : session.cleaner_1_name || session.cleaner_name
+                                }
+                              </span>
                             </div>
                           </div>
                           <div className="text-right">

@@ -24,13 +24,55 @@ export const updateCleanerSchema = createCleanerSchema.partial();
 export const createCleaningSessionSchema = z.object({
   apartment_id: z.string().uuid('Invalid apartment ID'),
   cleaner_id: z.string().uuid('Invalid cleaner ID'),
+  cleaner_2_id: z.string().uuid('Invalid second cleaner ID').optional().nullable().or(z.literal('')),
   cleaning_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format (YYYY-MM-DD)'),
   notes: z.string().max(500, 'Notes too long').optional().or(z.literal('')),
   price: z.number().min(0, 'Price must be positive').optional(),
   include_welcome_pack: z.boolean().optional(),
+  // Multi-cleaner fields
+  cleaner_1_fee: z.number().min(0, 'Cleaner 1 fee must be positive').optional(),
+  cleaner_2_fee: z.number().min(0, 'Cleaner 2 fee must be positive').optional().nullable(),
+  is_multi_cleaner: z.boolean().optional(),
+  // Additional fields for internal asset support
+  property_category: z.enum(['apartment', 'internal_asset']).optional(),
+  property_id: z.string().uuid().optional(),
+  welcome_pack_fee: z.number().min(0, 'Welcome pack fee must be positive').optional().nullable(),
 });
 
-export const updateCleaningSessionSchema = createCleaningSessionSchema.partial();
+export const updateCleaningSessionSchema = createCleaningSessionSchema.partial().extend({
+  // Additional fields for updating multi-cleaner sessions
+  cleaner_1_name: z.string().optional(),
+  cleaner_2_name: z.string().optional().nullable(),
+  total_cleaning_fee: z.number().min(0, 'Total cleaning fee must be positive').optional(),
+  cleaner_count: z.number().min(1, 'Cleaner count must be at least 1').max(2, 'Cleaner count cannot exceed 2').optional(),
+}).refine((data) => {
+  // If apartment_id is provided, it must be a valid UUID
+  if (data.apartment_id !== undefined && data.apartment_id !== '') {
+    return z.string().uuid().safeParse(data.apartment_id).success;
+  }
+  return true;
+}, {
+  message: "Invalid apartment ID format",
+  path: ["apartment_id"]
+}).refine((data) => {
+  // If cleaner_id is provided, it must be a valid UUID
+  if (data.cleaner_id !== undefined && data.cleaner_id !== '') {
+    return z.string().uuid().safeParse(data.cleaner_id).success;
+  }
+  return true;
+}, {
+  message: "Invalid cleaner ID format",
+  path: ["cleaner_id"]
+}).refine((data) => {
+  // If cleaner_2_id is provided and not empty, it must be a valid UUID
+  if (data.cleaner_2_id !== undefined && data.cleaner_2_id !== '' && data.cleaner_2_id !== null) {
+    return z.string().uuid().safeParse(data.cleaner_2_id).success;
+  }
+  return true;
+}, {
+  message: "Invalid second cleaner ID format",
+  path: ["cleaner_2_id"]
+});
 
 // Query parameter validation schemas
 export const apartmentQuerySchema = z.object({

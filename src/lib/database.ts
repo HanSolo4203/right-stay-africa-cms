@@ -47,7 +47,13 @@ export const apartmentsApi = {
       .eq('id', id)
       .single();
     
-    if (error) throw error;
+    if (error) {
+      // If no apartment found, return null instead of throwing
+      if (error.code === 'PGRST116') {
+        return null;
+      }
+      throw error;
+    }
     return data;
   },
 
@@ -114,7 +120,13 @@ export const cleanersApi = {
       .eq('id', id)
       .single();
     
-    if (error) throw error;
+    if (error) {
+      // If no cleaner found, return null instead of throwing
+      if (error.code === 'PGRST116') {
+        return null;
+      }
+      throw error;
+    }
     return data;
   },
 
@@ -193,7 +205,13 @@ export const cleaningSessionsApi = {
       .eq('id', id)
       .single();
     
-    if (error) throw error;
+    if (error) {
+      // If no session found, return null instead of throwing
+      if (error.code === 'PGRST116') {
+        return null;
+      }
+      throw error;
+    }
     return data;
   },
 
@@ -226,11 +244,40 @@ export const cleaningSessionsApi = {
   },
 
   // Create new cleaning session
-  async create(session: CreateCleaningSessionData): Promise<CleaningSession> {
+  async create(session: CreateCleaningSessionData & { 
+    property_category?: 'apartment' | 'internal_asset' | 'rsa_asset';
+    property_id?: string;
+    welcome_pack_fee?: number | null;
+    cleaner_1_name?: string;
+    cleaner_2_name?: string | null;
+    is_multi_cleaner?: boolean;
+    cleaner_count?: number;
+  }): Promise<CleaningSession> {
     const client = await getSupabaseClient();
+    
+    // Map the session data to the new structure with multi-cleaner support
+    const sessionData = {
+      apartment_id: session.apartment_id, // Keep for backward compatibility
+      property_category: session.property_category || 'apartment',
+      property_id: session.property_id || session.apartment_id,
+      cleaner_id: session.cleaner_id,
+      cleaner_2_id: session.cleaner_2_id,
+      cleaning_date: session.cleaning_date,
+      notes: session.notes,
+      price: session.price,
+      welcome_pack_fee: session.welcome_pack_fee,
+      // Multi-cleaner fields
+      cleaner_1_name: session.cleaner_1_name,
+      cleaner_2_name: session.cleaner_2_name,
+      cleaner_1_fee: session.cleaner_1_fee,
+      cleaner_2_fee: session.cleaner_2_fee,
+      is_multi_cleaner: session.is_multi_cleaner || false,
+      cleaner_count: session.cleaner_count || 1
+    };
+    
     const { data, error } = await client
       .from(TABLES.CLEANING_SESSIONS)
-      .insert(session)
+      .insert(sessionData)
       .select()
       .single();
     
@@ -241,6 +288,8 @@ export const cleaningSessionsApi = {
   // Update cleaning session
   async update(session: UpdateCleaningSessionData): Promise<CleaningSession> {
     const { id, ...updateData } = session;
+    console.log(`[AUDIT] Updating cleaning session ${id} with data:`, JSON.stringify(updateData, null, 2));
+    
     const client = await getSupabaseClient();
     const { data, error } = await client
       .from(TABLES.CLEANING_SESSIONS)
@@ -249,7 +298,12 @@ export const cleaningSessionsApi = {
       .select()
       .single();
     
-    if (error) throw error;
+    if (error) {
+      console.error(`[AUDIT] Database update error for session ${id}:`, error);
+      throw error;
+    }
+    
+    console.log(`[AUDIT] Successfully updated cleaning session ${id}`);
     return data;
   },
 
