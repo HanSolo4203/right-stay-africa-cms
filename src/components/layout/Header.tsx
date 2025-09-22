@@ -1,6 +1,8 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
+import { useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
@@ -16,6 +18,7 @@ const navigation = [
 export default function Header() {
   const pathname = usePathname();
   const { user, signOut } = useAuth();
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   // Hide header on the login page
   if (pathname === '/login') {
@@ -26,8 +29,13 @@ export default function Header() {
     <header className="bg-white shadow-sm border-b border-gray-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-20">
-          {/* Left spacer to allow centered nav */}
-          <div className="w-32" />
+          {/* Left logo */}
+          <div className="flex items-center w-32">
+            <Link href="/" className="flex items-center space-x-2">
+              <Image src="/logo.png" alt="Right Stay Africa" width={32} height={32} priority />
+              <span className="hidden sm:inline text-sm font-semibold text-gray-900">Right Stay Africa</span>
+            </Link>
+          </div>
 
           {/* Centered Navigation */}
           <div className="hidden md:flex items-center space-x-8 justify-center">
@@ -86,6 +94,9 @@ export default function Header() {
           <div className="md:hidden">
             <button
               type="button"
+              aria-expanded={mobileOpen}
+              aria-label="Toggle menu"
+              onClick={() => setMobileOpen((v) => !v)}
               className="p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-50"
             >
               <span className="sr-only">Open main menu</span>
@@ -108,6 +119,7 @@ export default function Header() {
       </div>
 
       {/* Mobile Navigation */}
+      {mobileOpen && (
       <div className="md:hidden border-t border-gray-200">
         <div className="px-2 pt-2 pb-3 space-y-1">
           {user ? (
@@ -125,6 +137,7 @@ export default function Header() {
                         ? 'bg-blue-50 text-blue-700 border border-blue-200'
                         : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                     )}
+                    onClick={() => setMobileOpen(false)}
                   >
                     <item.icon className="w-5 h-5" />
                     <span>{item.name}</span>
@@ -151,6 +164,7 @@ export default function Header() {
             <Link
               href="/login"
               className="flex items-center space-x-2 px-3 py-2 bg-blue-600 text-white rounded-md text-base font-medium hover:bg-blue-700 transition-colors"
+              onClick={() => setMobileOpen(false)}
             >
               <LogIn className="w-5 h-5" />
               <span>Login</span>
@@ -158,6 +172,7 @@ export default function Header() {
           )}
         </div>
       </div>
+      )}
     </header>
   );
 }
