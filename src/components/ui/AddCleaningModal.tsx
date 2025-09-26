@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { X, Plus, Trash2 } from 'lucide-react';
-import { CreateCleaningSessionData, CreateRSALaundryExpenseData, Cleaner, SchedulableProperty } from '@/lib/types';
+import { CreateCleaningSessionData, CreateRSALaundryExpenseData, Cleaner, SchedulableProperty, WelcomePackItem } from '@/lib/types';
 import { isRSALaundryAsset, getPropertyDisplayName } from '@/lib/property-utils';
 import toast from 'react-hot-toast';
 
@@ -24,11 +24,11 @@ export default function AddCleaningModal({ isOpen, selectedDate, onClose, onSucc
   const [dailyPaymentAmount, setDailyPaymentAmount] = useState<number | undefined>(undefined);
   const [schedulableProperties, setSchedulableProperties] = useState<SchedulableProperty[]>([]);
   const [cleaners, setCleaners] = useState<Cleaner[]>([]);
+  const [welcomePackItems, setWelcomePackItems] = useState<WelcomePackItem[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(true);
-  const [welcomePackFee, setWelcomePackFee] = useState<number>(0);
-  const [includeWelcomePack, setIncludeWelcomePack] = useState<boolean>(false);
+  const [selectedWelcomePackId, setSelectedWelcomePackId] = useState<string>('');
   
   // Multi-cleaner state for apartment properties
   const [additionalCleaners, setAdditionalCleaners] = useState<string[]>([]);
@@ -65,17 +65,17 @@ export default function AddCleaningModal({ isOpen, selectedDate, onClose, onSucc
     try {
       setIsLoadingData(true);
       
-      // Load schedulable properties, cleaners and welcome fee in parallel
-      const [propertiesResponse, cleanersResponse, feeResponse] = await Promise.all([
+      // Load schedulable properties, cleaners and welcome pack items in parallel
+      const [propertiesResponse, cleanersResponse, welcomePackResponse] = await Promise.all([
         fetch('/api/schedulable-properties'),
         fetch('/api/cleaners'),
         fetch('/api/settings/welcome-pack')
       ]);
 
-      const [propertiesResult, cleanersResult, feeResult] = await Promise.all([
+      const [propertiesResult, cleanersResult, welcomePackResult] = await Promise.all([
         propertiesResponse.json(),
         cleanersResponse.json(),
-        feeResponse.json()
+        welcomePackResponse.json()
       ]);
 
       if (propertiesResult.success) {
@@ -86,8 +86,8 @@ export default function AddCleaningModal({ isOpen, selectedDate, onClose, onSucc
         setCleaners(cleanersResult.data);
       }
 
-      if (feeResult?.success) {
-        setWelcomePackFee(Number(feeResult.data.fee));
+      if (welcomePackResult?.success) {
+        setWelcomePackItems(welcomePackResult.data);
       }
     } catch (error) {
       console.error('Error loading data:', error);
@@ -177,6 +177,7 @@ export default function AddCleaningModal({ isOpen, selectedDate, onClose, onSucc
           setFormData({ apartment_id: '', cleaner_id: '', cleaning_date: '', notes: '', price: undefined });
           setDailyPaymentAmount(undefined);
           setAdditionalCleaners([]);
+          setSelectedWelcomePackId('');
           onSuccess();
           onClose();
         } else {
@@ -189,11 +190,13 @@ export default function AddCleaningModal({ isOpen, selectedDate, onClose, onSucc
         // For multi-cleaner sessions, individual fees will be set by the backend
         // based on the apartment's cleaner_payout amount
         // The total price is the amount entered in the popup
+        const selectedWelcomePack = welcomePackItems.find(item => item.id === selectedWelcomePackId);
         const requestData = {
           ...formData,
           cleaner_2_id: additionalCleanerId,
           is_multi_cleaner: !!additionalCleanerId,
-          include_welcome_pack: includeWelcomePack // Only primary cleaner gets welcome pack
+          include_welcome_pack: !!selectedWelcomePackId, // Include welcome pack if one is selected
+          welcome_pack_fee: selectedWelcomePack ? selectedWelcomePack.price : null // Pass the welcome pack price
         };
 
         const response = await fetch('/api/cleaning-sessions', {
@@ -218,6 +221,7 @@ export default function AddCleaningModal({ isOpen, selectedDate, onClose, onSucc
           setFormData({ apartment_id: '', cleaner_id: '', cleaning_date: '', notes: '', price: undefined });
           setDailyPaymentAmount(undefined);
           setAdditionalCleaners([]);
+          setSelectedWelcomePackId('');
           onSuccess();
           onClose();
         } else {
@@ -276,6 +280,7 @@ export default function AddCleaningModal({ isOpen, selectedDate, onClose, onSucc
     setFormData({ apartment_id: '', cleaner_id: '', cleaning_date: '', notes: '', price: undefined });
     setDailyPaymentAmount(undefined);
     setAdditionalCleaners([]);
+    setSelectedWelcomePackId('');
     setErrors({});
     onClose();
   };
@@ -520,18 +525,30 @@ export default function AddCleaningModal({ isOpen, selectedDate, onClose, onSucc
             )}
 
             {/* Welcome Pack Option - only show for non-RSA properties */}
-            {!isRSALaundryRoom && (
+            {!isRSALaundryRoom && welcomePackItems.length > 0 && (
               <div>
-                <label className="inline-flex items-center space-x-3">
-                  <input
-                    type="checkbox"
-                    checked={includeWelcomePack}
-                    onChange={(e) => setIncludeWelcomePack(e.target.checked)}
-                    className="h-4 w-4 text-blue-600 border-gray-300 rounded"
-                  />
-                  <span className="text-sm text-gray-700">Add Welcome pack ({`R${welcomePackFee.toFixed(2)}`})</span>
+                <label htmlFor="welcome_pack" className="block text-sm font-medium text-gray-700 mb-2">
+                  Welcome Pack (Optional)
                 </label>
-                <p className="mt-1 text-xs text-gray-500">A once-off welcome pack fee that can be configured in settings.</p>
+                <select
+                  id="welcome_pack"
+                  value={selectedWelcomePackId}
+                  onChange={(e) => setSelectedWelcomePackId(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  disabled={isLoading}
+                >
+                  <option value="">No welcome pack</option>
+                  {welcomePackItems
+                    .filter(item => item.is_active)
+                    .map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.name} - R{item.price.toFixed(2)}
+                      </option>
+                    ))}
+                </select>
+                <p className="mt-1 text-xs text-gray-500">
+                  Select a welcome pack to add to this cleaning session. Manage welcome packs in Settings.
+                </p>
               </div>
             )}
 

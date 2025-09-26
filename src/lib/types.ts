@@ -210,3 +210,23 @@ export interface UpdateRSALaundryExpenseData extends Partial<CreateRSALaundryExp
   is_paid?: boolean;
   payment_date?: string;
 }
+
+// Welcome Pack Item types
+export interface WelcomePackItem {
+  id: string;
+  name: string;
+  price: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateWelcomePackItemData {
+  name: string;
+  price: number;
+  is_active?: boolean;
+}
+
+export interface UpdateWelcomePackItemData extends Partial<CreateWelcomePackItemData> {
+  id: string;
+}

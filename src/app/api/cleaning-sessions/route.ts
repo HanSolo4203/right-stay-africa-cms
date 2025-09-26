@@ -152,9 +152,8 @@ export async function POST(request: NextRequest) {
     };
     
     // Apply Welcome pack fee separately (do NOT add to price)
-    if (sessionData.include_welcome_pack) {
-      const welcomeFee = await settingsApi.getWelcomePackFee();
-      sessionToCreate.welcome_pack_fee = Number(welcomeFee);
+    if (sessionData.include_welcome_pack && sessionData.welcome_pack_fee) {
+      sessionToCreate.welcome_pack_fee = sessionData.welcome_pack_fee;
     }
     
     // For internal assets, ensure the price is set (daily payment amount)

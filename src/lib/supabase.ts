@@ -22,6 +22,7 @@ export const TABLES = {
   CLEANERS: 'cleaners',
   CLEANING_SESSIONS: 'cleaning_sessions',
   CLEANING_SESSIONS_DETAILED: 'cleaning_sessions_detailed',
+  WELCOME_PACK_ITEMS: 'welcome_pack_items',
 } as const;
 
 // Database views

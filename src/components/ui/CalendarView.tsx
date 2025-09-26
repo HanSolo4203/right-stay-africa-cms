@@ -12,6 +12,7 @@ import AddCleaningModal from './AddCleaningModal';
 import EditCleaningModal from './EditCleaningModal';
 import EditMultipleCleaningsModal from './EditMultipleCleaningsModal';
 import { CalendarSkeleton } from './LoadingSkeleton';
+import { Button } from './button';
 import toast from 'react-hot-toast';
 
 // Setup date-fns localizer to avoid moment dependency
@@ -190,26 +191,30 @@ export default function CalendarView({}: CalendarViewProps) {
       <div className="flex items-center justify-between sm:justify-start">
         <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mr-3 sm:mr-4">{label}</h2>
         <div className="flex items-center space-x-2">
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => onNavigate('PREV')}
-            className="p-2 hover:bg-gray-100 rounded-md transition-colors"
             aria-label="Previous"
           >
             <ChevronLeft className="w-4 h-4" />
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={() => onNavigate('TODAY')}
-            className="px-3 py-1 text-xs sm:text-sm bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors whitespace-nowrap"
+            className="whitespace-nowrap"
           >
             Today
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => onNavigate('NEXT')}
-            className="p-2 hover:bg-gray-100 rounded-md transition-colors"
             aria-label="Next"
           >
             <ChevronRight className="w-4 h-4" />
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -221,27 +226,25 @@ export default function CalendarView({}: CalendarViewProps) {
             { view: Views.WEEK, label: 'Week' },
             { view: Views.DAY, label: 'Day' },
           ].map(({ view, label }) => (
-            <button
+            <Button
               key={view}
+              variant={currentView === view ? "default" : "ghost"}
+              size="sm"
               onClick={() => onView(view)}
-              className={`px-3 py-1 text-xs sm:text-sm rounded transition-colors ${
-                currentView === view
-                  ? 'bg-white text-blue-600 shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
+              className="text-xs sm:text-sm"
             >
               {label}
-            </button>
+            </Button>
           ))}
         </div>
 
-        <button
+        <Button
           onClick={() => setIsAddModalOpen(true)}
-          className="inline-flex justify-center items-center w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+          className="w-full sm:w-auto"
         >
           <Plus className="w-4 h-4 mr-2" />
           Add Session
-        </button>
+        </Button>
       </div>
     </div>
   );

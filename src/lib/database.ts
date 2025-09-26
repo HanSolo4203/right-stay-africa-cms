@@ -8,6 +8,9 @@ import {
   CreateApartmentData,
   UpdateApartmentData,
   CreateCleanerData,
+  WelcomePackItem,
+  CreateWelcomePackItemData,
+  UpdateWelcomePackItemData,
   UpdateCleanerData,
   CreateCleaningSessionData,
   UpdateCleaningSessionData,
@@ -322,7 +325,71 @@ export const cleaningSessionsApi = {
   },
 };
 
-// App settings operations
+// Welcome Pack Items operations
+export const welcomePackApi = {
+  async getAll(): Promise<WelcomePackItem[]> {
+    const client = await getSupabaseClient();
+    const { data, error } = await client
+      .from(TABLES.WELCOME_PACK_ITEMS)
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    return data || [];
+  },
+
+  async getById(id: string): Promise<WelcomePackItem> {
+    const client = await getSupabaseClient();
+    const { data, error } = await client
+      .from(TABLES.WELCOME_PACK_ITEMS)
+      .select('*')
+      .eq('id', id)
+      .single();
+    
+    if (error) throw error;
+    return data;
+  },
+
+  async create(data: CreateWelcomePackItemData): Promise<WelcomePackItem> {
+    const client = await getSupabaseClient();
+    const { data: newItem, error } = await client
+      .from(TABLES.WELCOME_PACK_ITEMS)
+      .insert({
+        ...data,
+        is_active: data.is_active ?? true,
+      })
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return newItem;
+  },
+
+  async update(id: string, data: UpdateWelcomePackItemData): Promise<WelcomePackItem> {
+    const client = await getSupabaseClient();
+    const { data: updatedItem, error } = await client
+      .from(TABLES.WELCOME_PACK_ITEMS)
+      .update(data)
+      .eq('id', id)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return updatedItem;
+  },
+
+  async delete(id: string): Promise<void> {
+    const client = await getSupabaseClient();
+    const { error } = await client
+      .from(TABLES.WELCOME_PACK_ITEMS)
+      .delete()
+      .eq('id', id);
+    
+    if (error) throw error;
+  },
+};
+
+// App settings operations (keeping for backward compatibility)
 export const settingsApi = {
   async getWelcomePackFee(): Promise<number> {
     const client = await getSupabaseClient();

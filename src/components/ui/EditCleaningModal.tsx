@@ -2,10 +2,9 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { X, Plus, Trash2 } from 'lucide-react';
-import { CleaningSessionDetailed, UpdateCleaningSessionData, UpdateRSALaundryExpenseData, Cleaner, SchedulableProperty } from '@/lib/types';
+import { CleaningSessionDetailed, UpdateCleaningSessionData, UpdateRSALaundryExpenseData, Cleaner, SchedulableProperty, WelcomePackItem } from '@/lib/types';
 import { isRSALaundryAsset, getPropertyDisplayName } from '@/lib/property-utils';
 import toast from 'react-hot-toast';
-import WelcomePackToggle from './WelcomePackToggle';
 
 interface EditCleaningModalProps {
   isOpen: boolean;
@@ -29,12 +28,12 @@ export default function EditCleaningModal({ isOpen, session, onClose, onSuccess 
   const [dailyPaymentAmount, setDailyPaymentAmount] = useState<number | undefined>(undefined);
   const [schedulableProperties, setSchedulableProperties] = useState<SchedulableProperty[]>([]);
   const [cleaners, setCleaners] = useState<Cleaner[]>([]);
+  const [welcomePackItems, setWelcomePackItems] = useState<WelcomePackItem[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [isRSAExpense, setIsRSAExpense] = useState(false);
-  const [welcomePackFee, setWelcomePackFee] = useState<number>(0);
-  const [includeWelcomePack, setIncludeWelcomePack] = useState<boolean>(false);
+  const [selectedWelcomePackId, setSelectedWelcomePackId] = useState<string>('');
   
   // Multi-cleaner functionality for apartments
   const [additionalCleaners, setAdditionalCleaners] = useState<string[]>([]);
@@ -68,11 +67,11 @@ export default function EditCleaningModal({ isOpen, session, onClose, onSuccess 
       // Reset additional cleaners at the start
       setAdditionalCleaners([]);
       
-      // Load schedulable properties, cleaners, and welcome pack fee in parallel
+      // Load schedulable properties, cleaners, and welcome pack items in parallel
       const [propertiesResponse, cleanersResponse, welcomePackResponse] = await Promise.all([
         fetch('/api/schedulable-properties'),
         fetch('/api/cleaners'),
-        fetch('/api/analytics?welcomePackFee=1')
+        fetch('/api/settings/welcome-pack')
       ]);
 
       const [propertiesResult, cleanersResult, welcomePackResult] = await Promise.all([
@@ -129,9 +128,19 @@ export default function EditCleaningModal({ isOpen, session, onClose, onSuccess 
         }
       }
 
-      // Load welcome pack fee
+      // Load welcome pack items
       if (welcomePackResult.success) {
-        setWelcomePackFee(welcomePackResult.data.welcome_pack_fee || 0);
+        setWelcomePackItems(welcomePackResult.data);
+        
+        // Set the selected welcome pack based on the session's welcome_pack_fee
+        if (session && session.welcome_pack_fee) {
+          const matchingWelcomePack = welcomePackResult.data.find((item: WelcomePackItem) => 
+            item.price === session.welcome_pack_fee && item.is_active
+          );
+          if (matchingWelcomePack) {
+            setSelectedWelcomePackId(matchingWelcomePack.id);
+          }
+        }
       }
     } catch (error) {
       console.error('Error loading data:', error);
@@ -213,8 +222,7 @@ export default function EditCleaningModal({ isOpen, session, onClose, onSuccess 
         total_cleaning_fee: session.total_cleaning_fee,
       });
 
-      // Set welcome pack state based on existing session data
-      setIncludeWelcomePack(!!session.welcome_pack_fee);
+      // Welcome pack state is set in loadData function when welcome pack items are loaded
       
       // Set daily payment amount for RSA Laundry Room sessions
       if (isRSA && session.price) {
@@ -336,6 +344,7 @@ export default function EditCleaningModal({ isOpen, session, onClose, onSuccess 
         const additionalCleaner = additionalCleanerId ? cleaners.find(c => c.id === additionalCleanerId) : null;
         
         // For multi-cleaner sessions, include individual fees and calculate total
+        const selectedWelcomePack = welcomePackItems.find(item => item.id === selectedWelcomePackId);
         const multiCleanerRequestData = {
           ...formData,
           cleaner_2_id: additionalCleanerId, // This will be null if no additional cleaner
@@ -343,7 +352,8 @@ export default function EditCleaningModal({ isOpen, session, onClose, onSuccess 
           cleaner_2_name: additionalCleaner?.name || null,
           is_multi_cleaner: !!additionalCleanerId,
           cleaner_count: additionalCleanerId ? 2 : 1,
-          include_welcome_pack: includeWelcomePack,
+          include_welcome_pack: !!selectedWelcomePackId,
+          welcome_pack_fee: selectedWelcomePack ? selectedWelcomePack.price : null,
         };
 
         // Only include cleaning fees if they were explicitly provided
@@ -416,10 +426,12 @@ export default function EditCleaningModal({ isOpen, session, onClose, onSuccess 
         }
       } else {
         // Update regular cleaning session (single cleaner)
+        const selectedWelcomePack = welcomePackItems.find(item => item.id === selectedWelcomePackId);
         const requestData = {
           ...formData,
           price: formData.price,
-          include_welcome_pack: includeWelcomePack,
+          include_welcome_pack: !!selectedWelcomePackId,
+          welcome_pack_fee: selectedWelcomePack ? selectedWelcomePack.price : null,
         };
 
         console.log(`[AUDIT] Sending update request for session ${formData.id}:`, JSON.stringify(requestData, null, 2));
@@ -531,7 +543,7 @@ export default function EditCleaningModal({ isOpen, session, onClose, onSuccess 
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <h2 className="text-xl font-semibold text-gray-900">
             {isRSAExpense ? 'Edit RSA Laundry Room Service' : 'Edit Cleaning Session'}
@@ -550,69 +562,72 @@ export default function EditCleaningModal({ isOpen, session, onClose, onSuccess 
             <p className="text-gray-600">Loading session data...</p>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="p-6 space-y-4">
-            <div>
-              <label htmlFor="apartment_id" className="block text-sm font-medium text-gray-700 mb-2">
-                Property *
-              </label>
+          <form onSubmit={handleSubmit} className="p-6 space-y-6">
+            {/* First Row: Property and Primary Cleaner */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <select
-                  id="apartment_id"
-                  name="apartment_id"
-                  value={formData.apartment_id}
-                  onChange={handleInputChange}
-                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    errors.apartment_id ? 'border-red-300' : 'border-gray-300'
-                  }`}
-                  disabled={isLoading}
-                >
-                  <option value="">Select a property</option>
-                  {schedulableProperties.map((property) => (
-                    <option key={property.id} value={property.id}>
-                      {isRSALaundryAsset(property)
-                        ? `${getPropertyDisplayName(property)} - ${property.owner_name} (Internal)`
-                        : `${getPropertyDisplayName(property)} - ${property.owner_name}`}
-                    </option>
-                  ))}
-                </select>
+                <label htmlFor="apartment_id" className="block text-sm font-medium text-gray-700 mb-2">
+                  Property *
+                </label>
+                <div>
+                  <select
+                    id="apartment_id"
+                    name="apartment_id"
+                    value={formData.apartment_id}
+                    onChange={handleInputChange}
+                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      errors.apartment_id ? 'border-red-300' : 'border-gray-300'
+                    }`}
+                    disabled={isLoading}
+                  >
+                    <option value="">Select a property</option>
+                    {schedulableProperties.map((property) => (
+                      <option key={property.id} value={property.id}>
+                        {isRSALaundryAsset(property)
+                          ? `${getPropertyDisplayName(property)} - ${property.owner_name} (Internal)`
+                          : `${getPropertyDisplayName(property)} - ${property.owner_name}`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {errors.apartment_id && (
+                  <p className="mt-1 text-sm text-red-600">{errors.apartment_id}</p>
+                )}
               </div>
-              {errors.apartment_id && (
-                <p className="mt-1 text-sm text-red-600">{errors.apartment_id}</p>
-              )}
-            </div>
 
-            {/* Cleaner Selection */}
-            <div>
-              <label htmlFor="cleaner_id" className="block text-sm font-medium text-gray-700 mb-2">
-                {isApartment ? 'Primary Cleaner *' : 'Cleaner *'}
-              </label>
+              {/* Primary Cleaner Selection */}
               <div>
-                <select
-                  id="cleaner_id"
-                  name="cleaner_id"
-                  value={formData.cleaner_id}
-                  onChange={handleInputChange}
-                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    errors.cleaner_id ? 'border-red-300' : 'border-gray-300'
-                  }`}
-                  disabled={isLoading}
-                >
-                  <option value="">Select a cleaner</option>
-                  {getCleanersForDropdown(formData.cleaner_id).map((cleaner) => (
-                    <option key={cleaner.id} value={cleaner.id}>
-                      {cleaner.name}
-                    </option>
-                  ))}
-                </select>
+                <label htmlFor="cleaner_id" className="block text-sm font-medium text-gray-700 mb-2">
+                  {isApartment ? 'Primary Cleaner *' : 'Cleaner *'}
+                </label>
+                <div>
+                  <select
+                    id="cleaner_id"
+                    name="cleaner_id"
+                    value={formData.cleaner_id}
+                    onChange={handleInputChange}
+                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      errors.cleaner_id ? 'border-red-300' : 'border-gray-300'
+                    }`}
+                    disabled={isLoading}
+                  >
+                    <option value="">Select a cleaner</option>
+                    {getCleanersForDropdown(formData.cleaner_id).map((cleaner) => (
+                      <option key={cleaner.id} value={cleaner.id}>
+                        {cleaner.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {errors.cleaner_id && (
+                  <p className="mt-1 text-sm text-red-600">{errors.cleaner_id}</p>
+                )}
+                {isApartment && (
+                  <p className="mt-1 text-xs text-gray-500">
+                    Primary cleaner for this apartment cleaning session.
+                  </p>
+                )}
               </div>
-              {errors.cleaner_id && (
-                <p className="mt-1 text-sm text-red-600">{errors.cleaner_id}</p>
-              )}
-              {isApartment && (
-                <p className="mt-1 text-xs text-gray-500">
-                  Primary cleaner for this apartment cleaning session.
-                </p>
-              )}
             </div>
 
             {/* Additional Cleaners for Apartments */}
@@ -728,44 +743,46 @@ export default function EditCleaningModal({ isOpen, session, onClose, onSuccess 
               </div>
             )}
 
-            <div>
-              <label htmlFor="cleaning_date" className="block text-sm font-medium text-gray-700 mb-2">
-                Cleaning Date *
-              </label>
+            {/* Second Row: Cleaning Date and Notes */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <input
-                  type="date"
-                  id="cleaning_date"
-                  name="cleaning_date"
-                  value={formData.cleaning_date}
-                  onChange={handleInputChange}
-                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    errors.cleaning_date ? 'border-red-300' : 'border-gray-300'
-                  }`}
-                  disabled={isLoading}
-                />
+                <label htmlFor="cleaning_date" className="block text-sm font-medium text-gray-700 mb-2">
+                  Cleaning Date *
+                </label>
+                <div>
+                  <input
+                    type="date"
+                    id="cleaning_date"
+                    name="cleaning_date"
+                    value={formData.cleaning_date}
+                    onChange={handleInputChange}
+                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      errors.cleaning_date ? 'border-red-300' : 'border-gray-300'
+                    }`}
+                    disabled={isLoading}
+                  />
+                </div>
+                {errors.cleaning_date && (
+                  <p className="mt-1 text-sm text-red-600">{errors.cleaning_date}</p>
+                )}
               </div>
-              {errors.cleaning_date && (
-                <p className="mt-1 text-sm text-red-600">{errors.cleaning_date}</p>
-              )}
-            </div>
 
-
-            <div>
-              <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-2">
-                Notes
-              </label>
               <div>
-                <textarea
-                  id="notes"
-                  name="notes"
-                  value={formData.notes}
-                  onChange={handleInputChange}
-                  rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Add any special instructions or notes..."
-                  disabled={isLoading}
-                />
+                <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-2">
+                  Notes
+                </label>
+                <div>
+                  <textarea
+                    id="notes"
+                    name="notes"
+                    value={formData.notes}
+                    onChange={handleInputChange}
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Add any special instructions or notes..."
+                    disabled={isLoading}
+                  />
+                </div>
               </div>
             </div>
 
@@ -799,39 +816,65 @@ export default function EditCleaningModal({ isOpen, session, onClose, onSuccess 
               </div>
             )}
 
-            {/* Welcome Pack Option - only show for non-RSA properties */}
-      {!(isRSALaundryRoom || isRSAExpense) && (
-        <WelcomePackToggle fee={welcomePackFee} checked={includeWelcomePack} disabled={isLoading} onChange={setIncludeWelcomePack} />
-      )}
+            {/* Third Row: Welcome Pack and Price */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Welcome Pack Option - only show for apartment properties */}
+              {isApartment && welcomePackItems.length > 0 && (
+                <div>
+                  <label htmlFor="welcome_pack" className="block text-sm font-medium text-gray-700 mb-2">
+                    Welcome Pack (Optional)
+                  </label>
+                  <select
+                    id="welcome_pack"
+                    value={selectedWelcomePackId}
+                    onChange={(e) => setSelectedWelcomePackId(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    disabled={isLoading}
+                  >
+                    <option value="">No welcome pack</option>
+                    {welcomePackItems
+                      .filter(item => item.is_active)
+                      .map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {item.name} - R{item.price.toFixed(2)}
+                        </option>
+                      ))}
+                  </select>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Select a welcome pack to add to this cleaning session. Manage welcome packs in Settings.
+                  </p>
+                </div>
+              )}
 
-            {/* Regular Price Field - only show for non-RSA properties */}
-            {!(isRSALaundryRoom || isRSAExpense) && (
-              <div>
-                <label htmlFor="price" className="block text-sm font-medium text-gray-700 mb-2">
-                  Price (R)
-                </label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">R</span>
-                <input
-                  type="number"
-                  id="price"
-                  name="price"
-                  value={formData.price || ''}
-                  onChange={handleInputChange}
-                  min="0"
-                  step="0.01"
-                  className={`w-full pl-8 pr-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    errors.price ? 'border-red-300' : 'border-gray-300'
-                  }`}
-                  placeholder="0.00"
-                  disabled={isLoading}
-                />
-              </div>
-                {errors.price && (
-                  <p className="mt-1 text-sm text-red-600">{errors.price}</p>
-                )}
-              </div>
-            )}
+              {/* Regular Price Field - only show for apartment properties */}
+              {isApartment && (
+                <div>
+                  <label htmlFor="price" className="block text-sm font-medium text-gray-700 mb-2">
+                    Price (R)
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">R</span>
+                    <input
+                      type="number"
+                      id="price"
+                      name="price"
+                      value={formData.price || ''}
+                      onChange={handleInputChange}
+                      min="0"
+                      step="0.01"
+                      className={`w-full pl-8 pr-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                        errors.price ? 'border-red-300' : 'border-gray-300'
+                      }`}
+                      placeholder="0.00"
+                      disabled={isLoading}
+                    />
+                  </div>
+                  {errors.price && (
+                    <p className="mt-1 text-sm text-red-600">{errors.price}</p>
+                  )}
+                </div>
+              )}
+            </div>
 
             {/* Individual Cleaner Payment Fields for Multi-Cleaner Sessions */}
             {isApartment && totalCleanersSelected > 1 && (

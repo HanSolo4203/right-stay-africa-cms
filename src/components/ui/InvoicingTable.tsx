@@ -106,24 +106,45 @@ export default function InvoicingTable({ data, month, year }: InvoicingTableProp
               {/* Welcome Pack Summary */}
               {(() => {
                 const sessions = cleaningDetails[`${apartment.apartment_number}-${month || year || 'all'}`];
-                const usedCount = sessions.filter(s => s.welcome_pack_fee && Number(s.welcome_pack_fee) > 0).length;
-                const totalWelcomeAmount = sessions.reduce((sum, s) => {
+                const usedItems = sessions.filter(s => s.welcome_pack_fee && Number(s.welcome_pack_fee) > 0);
+                const usedCount = usedItems.length;
+                const totalWelcomeAmount = usedItems.reduce((sum, s) => {
                   const fee = Number(s.welcome_pack_fee);
-                  if (!isNaN(fee) && fee > 0) return sum + fee;
-                  return sum;
+                  return !isNaN(fee) && fee > 0 ? sum + fee : sum;
                 }, 0);
                 return (
                   <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm font-medium text-yellow-900">Welcome Packs Used</p>
-                        <p className="text-xs text-yellow-700">Count and total for the selected period</p>
                       </div>
                       <div className="text-right">
                         <p className="text-xl font-bold text-yellow-900">{usedCount}</p>
-                        <p className="text-sm font-semibold text-yellow-800">R{totalWelcomeAmount.toFixed(2)}</p>
                       </div>
                     </div>
+                    {usedItems.length > 0 && (
+                      <div className="mt-3 space-y-2">
+                        {usedItems.map(item => (
+                          <div key={item.id} className="flex items-center justify-between text-sm bg-white/60 border border-yellow-200 rounded-md px-3 py-2">
+                            <div className="flex items-center space-x-2 text-yellow-900">
+                              <Calendar className="w-4 h-4 text-yellow-600" />
+                              <span>
+                                {new Date(item.cleaning_date).toLocaleDateString('en-US', {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  year: 'numeric'
+                                })}
+                              </span>
+                            </div>
+                            <div className="font-semibold text-yellow-900">R{Number(item.welcome_pack_fee).toFixed(2)}</div>
+                          </div>
+                        ))}
+                        <div className="flex items-center justify-between text-sm font-semibold text-yellow-900 border-t border-yellow-200 pt-2 mt-2">
+                          <span>Total for apartment</span>
+                          <span>R{totalWelcomeAmount.toFixed(2)}</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })()}
@@ -439,13 +460,16 @@ export default function InvoicingTable({ data, month, year }: InvoicingTableProp
       <div className="md:hidden">
         <div className="divide-y divide-gray-200">
           {filteredData.map((apartment) => (
-            <div key={apartment.apartment_id} className="py-3">
+            <div
+              key={apartment.apartment_id}
+              className={`py-3 ${expandedApartment === apartment.apartment_number ? 'bg-blue-50 border border-blue-200 rounded-md' : ''}`}
+            >
               <button
                 onClick={() => toggleApartmentDetails(apartment.apartment_number)}
-                className="w-full flex items-center justify-between text-left"
+                className={`w-full flex items-center justify-between text-left ${expandedApartment === apartment.apartment_number ? 'text-blue-800' : ''}`}
               >
                 <div>
-                  <div className="text-sm font-semibold text-gray-900">Apartment {apartment.apartment_number}</div>
+                  <div className={`text-sm font-semibold ${expandedApartment === apartment.apartment_number ? 'text-blue-900' : 'text-gray-900'}`}>Apartment {apartment.apartment_number}</div>
                   <div className="mt-1 flex items-center gap-4 text-xs text-gray-600">
                     <span>Cleanings: <span className="font-medium text-gray-900">{apartment.cleaning_count}</span></span>
                     <span>Amount: <span className="font-medium text-gray-900">R{apartment.total_amount.toLocaleString()}</span></span>
@@ -504,11 +528,11 @@ export default function InvoicingTable({ data, month, year }: InvoicingTableProp
           <tbody className="bg-white divide-y divide-gray-200">
             {filteredData.map((apartment) => (
               <React.Fragment key={apartment.apartment_id}>
-                <tr className="hover:bg-gray-50">
+                <tr className={`${expandedApartment === apartment.apartment_number ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
                   <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                     <button
                       onClick={() => toggleApartmentDetails(apartment.apartment_number)}
-                      className="flex items-center space-x-2 hover:text-blue-600 transition-colors"
+                      className={`flex items-center space-x-2 transition-colors ${expandedApartment === apartment.apartment_number ? 'text-blue-800' : 'hover:text-blue-600'}`}
                     >
                       {expandedApartment === apartment.apartment_number ? (
                         <ChevronDown className="w-4 h-4" />
@@ -518,13 +542,13 @@ export default function InvoicingTable({ data, month, year }: InvoicingTableProp
                       <span>Apartment {apartment.apartment_number}</span>
                     </button>
                   </td>
-                  <td className="hidden md:table-cell px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                  <td className={`hidden md:table-cell px-6 py-4 whitespace-nowrap text-sm ${expandedApartment === apartment.apartment_number ? 'text-blue-900' : 'text-gray-600'}`}>
                     {apartment.owner_name}
                   </td>
-                  <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                  <td className={`px-4 md:px-6 py-4 whitespace-nowrap text-sm ${expandedApartment === apartment.apartment_number ? 'text-blue-900' : 'text-gray-600'}`}>
                     {apartment.cleaning_count}
                   </td>
-                  <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                  <td className={`px-4 md:px-6 py-4 whitespace-nowrap text-sm font-medium ${expandedApartment === apartment.apartment_number ? 'text-blue-900' : 'text-gray-900'}`}>
                     R{apartment.total_amount.toLocaleString()}
                   </td>
                   <td className="hidden md:table-cell px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -614,26 +638,45 @@ export default function InvoicingTable({ data, month, year }: InvoicingTableProp
                             {/* Welcome Pack Summary */}
                             {(() => {
                               const sessions = cleaningDetails[`${apartment.apartment_number}-${month || year || 'all'}`];
-                              // Only count sessions that actually have a welcome pack fee set in the database
-                              const usedCount = sessions.filter(s => s.welcome_pack_fee && Number(s.welcome_pack_fee) > 0).length;
-                              const totalWelcomeAmount = sessions.reduce((sum, s) => {
+                              const usedItems = sessions.filter(s => s.welcome_pack_fee && Number(s.welcome_pack_fee) > 0);
+                              const usedCount = usedItems.length;
+                              const totalWelcomeAmount = usedItems.reduce((sum, s) => {
                                 const fee = Number(s.welcome_pack_fee);
-                                // Only add the fee if it's actually set in the database
-                                if (!isNaN(fee) && fee > 0) return sum + fee;
-                                return sum; // Don't add anything if no fee is set
+                                return !isNaN(fee) && fee > 0 ? sum + fee : sum;
                               }, 0);
                               return (
                                 <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                                   <div className="flex items-center justify-between">
                                     <div>
                                       <p className="text-sm font-medium text-yellow-900">Welcome Packs Used</p>
-                                      <p className="text-xs text-yellow-700">Count and total for the selected period</p>
                                     </div>
                                     <div className="text-right">
                                       <p className="text-xl font-bold text-yellow-900">{usedCount}</p>
-                                      <p className="text-sm font-semibold text-yellow-800">R{totalWelcomeAmount.toFixed(2)}</p>
                                     </div>
                                   </div>
+                                  {usedItems.length > 0 && (
+                                    <div className="mt-3 space-y-2">
+                                      {usedItems.map(item => (
+                                        <div key={item.id} className="flex items-center justify-between text-sm bg-white/60 border border-yellow-200 rounded-md px-3 py-2">
+                                          <div className="flex items-center space-x-2 text-yellow-900">
+                                            <Calendar className="w-4 h-4 text-yellow-600" />
+                                            <span>
+                                              {new Date(item.cleaning_date).toLocaleDateString('en-US', {
+                                                month: 'short',
+                                                day: 'numeric',
+                                                year: 'numeric'
+                                              })}
+                                            </span>
+                                          </div>
+                                          <div className="font-semibold text-yellow-900">R{Number(item.welcome_pack_fee).toFixed(2)}</div>
+                                        </div>
+                                      ))}
+                                      <div className="flex items-center justify-between text-sm font-semibold text-yellow-900 border-t border-yellow-200 pt-2 mt-2">
+                                        <span>Total for apartment</span>
+                                        <span>R{totalWelcomeAmount.toFixed(2)}</span>
+                                      </div>
+                                    </div>
+                                  )}
                                 </div>
                               );
                             })()}
