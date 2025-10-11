@@ -54,21 +54,71 @@ export async function POST(request: NextRequest) {
 
     let imported = 0;
     let skipped = 0;
+    let duplicates = 0;
     const errors: string[] = [];
 
-    // Process each row
+    // Step 1: Extract all booking references from CSV
+    console.log('Step 1: Extracting booking references from CSV...');
+    const csvBookingReferences: string[] = [];
+    const validRows: Array<{ row: CSVRow; rowNumber: number; bookingData: BookingData }> = [];
+    
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
       const rowNumber = i + 2; // +2 for header row and 0-indexing
 
       try {
-        // Extract and validate booking data
         const bookingData = extractBookingData(row, rowNumber);
         
         if (!bookingData) {
           skipped++;
           continue;
         }
+        
+        csvBookingReferences.push(bookingData.booking_reference);
+        validRows.push({ row, rowNumber, bookingData });
+      } catch (error) {
+        errors.push(`Row ${rowNumber}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        skipped++;
+      }
+    }
+
+    console.log(`Found ${csvBookingReferences.length} valid booking references in CSV`);
+
+    // Step 2: Batch check which booking references already exist in database
+    console.log('Step 2: Checking for existing bookings in database...');
+    const { data: existingBookings, error: checkError } = await supabase
+      .from('bookings')
+      .select('booking_reference')
+      .in('booking_reference', csvBookingReferences);
+
+    if (checkError) {
+      console.error('Error checking existing bookings:', checkError);
+      return NextResponse.json(
+        { success: false, error: 'Failed to check existing bookings' },
+        { status: 500 }
+      );
+    }
+
+    const existingReferences = new Set(
+      (existingBookings || []).map(b => b.booking_reference)
+    );
+    
+    console.log(`Found ${existingReferences.size} existing bookings in database`);
+
+    // Step 3: Filter out existing bookings and only process new ones
+    const newBookingsToImport = validRows.filter(({ bookingData }) => {
+      if (existingReferences.has(bookingData.booking_reference)) {
+        duplicates++;
+        return false;
+      }
+      return true;
+    });
+
+    console.log(`Proceeding to import ${newBookingsToImport.length} new bookings`);
+
+    // Step 4: Process only new bookings
+    for (const { rowNumber, bookingData } of newBookingsToImport) {
+      try {
 
         // Get property details from cached_properties using uplisting_id
         const { data: cachedProperty, error: propError } = await supabase
@@ -140,18 +190,6 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
-        // Check if booking reference already exists
-        const { data: existingBooking } = await supabase
-          .from('bookings')
-          .select('id')
-          .eq('booking_reference', bookingData.booking_reference)
-          .single();
-
-        if (existingBooking) {
-          skipped++;
-          continue; // Skip duplicate
-        }
-
         // Get or create guest
         const guestId = await getOrCreateGuest(
           supabase,
@@ -213,8 +251,10 @@ export async function POST(request: NextRequest) {
       success: true,
       imported,
       skipped,
+      duplicates,
+      total: rows.length,
       errors: errors.slice(0, 10), // Limit to first 10 errors
-      message: `Successfully imported ${imported} bookings. ${skipped} skipped.`
+      message: `Successfully imported ${imported} new bookings. Found ${duplicates} duplicates (skipped). ${skipped} rows had errors.`
     });
 
   } catch (error) {

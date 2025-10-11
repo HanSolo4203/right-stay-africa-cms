@@ -20,6 +20,8 @@ interface ImportResult {
   imported: number;
   errors: string[];
   skipped: number;
+  duplicates?: number;
+  total?: number;
   message?: string;
 }
 
@@ -124,9 +126,13 @@ export default function CSVImportModal({ open, onOpenChange, onImportComplete }:
           imported: data.imported || 0,
           errors: data.errors || [],
           skipped: data.skipped || 0,
+          duplicates: data.duplicates || 0,
+          total: data.total || 0,
           message: data.message,
         });
-        toast.success(`Successfully imported ${data.imported} bookings`);
+        
+        const duplicateMsg = data.duplicates ? ` (${data.duplicates} duplicates skipped)` : '';
+        toast.success(`Successfully imported ${data.imported} new bookings${duplicateMsg}`);
         
         // Wait a moment then close and refresh
         setTimeout(() => {
@@ -369,9 +375,15 @@ export default function CSVImportModal({ open, onOpenChange, onImportComplete }:
                       <div className="space-y-2">
                         <p className="font-medium">Import Successful!</p>
                         <div className="text-sm space-y-1">
-                          <p>✓ Imported: {result.imported} bookings</p>
+                          {result.total && result.total > 0 && (
+                            <p className="text-gray-600">📊 Total CSV rows: {result.total}</p>
+                          )}
+                          <p className="text-green-600">✓ New bookings imported: {result.imported}</p>
+                          {result.duplicates !== undefined && result.duplicates > 0 && (
+                            <p className="text-blue-600">🔄 Duplicates skipped: {result.duplicates}</p>
+                          )}
                           {result.skipped > 0 && (
-                            <p className="text-yellow-600">⚠ Skipped: {result.skipped} (duplicates or invalid)</p>
+                            <p className="text-yellow-600">⚠ Invalid rows: {result.skipped}</p>
                           )}
                         </div>
                       </div>
