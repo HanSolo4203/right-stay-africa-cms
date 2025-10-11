@@ -227,6 +227,4 @@ export interface CreateWelcomePackItemData {
   is_active?: boolean;
 }
 
-export interface UpdateWelcomePackItemData extends Partial<CreateWelcomePackItemData> {
-  id: string;
-}
+export type UpdateWelcomePackItemData = Partial<CreateWelcomePackItemData>;

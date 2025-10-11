@@ -11,7 +11,6 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showLoadingAnimation, setShowLoadingAnimation] = useState(false);
-  const [loggedInEmail, setLoggedInEmail] = useState<string>('');
 
   const handleLoadingComplete = () => {
     // Redirect to calendar after loading animation completes
@@ -55,8 +54,6 @@ export default function LoginPage() {
       if (response.ok) {
         console.log('[LOGIN PAGE] Login successful, showing loading animation...');
         toast.success('Login successful!');
-        // Store the logged in email and show loading animation
-        setLoggedInEmail(email);
         setShowLoadingAnimation(true);
       } else {
         console.error('[LOGIN PAGE] Login failed:', data.error);
@@ -77,7 +74,7 @@ export default function LoginPage() {
 
   // Show loading animation if login was successful
   if (showLoadingAnimation) {
-    return <LoginLoadingAnimation onComplete={handleLoadingComplete} userEmail={loggedInEmail} />;
+    return <LoginLoadingAnimation onComplete={handleLoadingComplete} />;
   }
 
   return (

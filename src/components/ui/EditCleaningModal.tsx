@@ -876,8 +876,8 @@ export default function EditCleaningModal({ isOpen, session, onClose, onSuccess 
               )}
             </div>
 
-            {/* Individual Cleaner Payment Fields for Multi-Cleaner Sessions */}
-            {isApartment && totalCleanersSelected > 1 && (
+            {/* Individual Cleaner Payment Fields for All Apartment Sessions */}
+            {isApartment && totalCleanersSelected > 0 && (
               <div className="space-y-4 p-4 bg-gray-50 border border-gray-200 rounded-md">
                 <h4 className="text-sm font-medium text-gray-900 mb-3">Individual Cleaner Payments</h4>
                 

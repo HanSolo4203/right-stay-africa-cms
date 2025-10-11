@@ -1,0 +1,5 @@
+property_id,booking_reference,guest_name,guest_email,guest_phone,check_in_date,check_out_date,accommodation_total,discount_amount,extra_charges,cleaning_fee,booking_taxes,channel_commission,commission_tax,payment_processing_fee,channel_name,booking_status,notes
+126709,AIR-2025-001,John Smith,john@example.com,+27821234567,2025-01-15,2025-01-18,1500.00,0.00,0.00,250.00,150.00,45.00,6.75,37.50,Airbnb,completed,
+129921,BOOK-2025-002,Sarah Johnson,sarah@example.com,+27831234567,2025-01-20,2025-01-25,2500.00,100.00,50.00,250.00,250.00,375.00,56.25,62.50,Booking.com,completed,
+126709,DIR-2025-003,Mike Chen,mike@example.com,,2025-02-01,2025-02-03,900.00,0.00,0.00,250.00,90.00,0.00,0.00,22.50,Direct,confirmed,
+

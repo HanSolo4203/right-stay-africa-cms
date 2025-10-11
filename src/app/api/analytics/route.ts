@@ -99,12 +99,23 @@ export async function GET(request: NextRequest) {
 
     // Calculate summary metrics
     const totalCleanings = filteredSessions.length;
-    const activeApartments = properties.length;
+    
+    // Helper function to check if apartment number is a Uplisting ID (6+ digits)
+    const isUplistingId = (apartmentNumber: string): boolean => {
+      return /^[0-9]{6,}$/.test(apartmentNumber);
+    };
+    
+    // Filter properties to exclude Uplisting apartments for accurate counts
+    const filteredProperties = properties.filter((property: { property_name: string; property_category: string }) => 
+      property.property_category === 'internal_asset' || !isUplistingId(property.property_name)
+    );
+    
+    const activeApartments = filteredProperties.length;
     const activeCleaners = cleaners.length;
     const averageCleaningsPerApartment = activeApartments > 0 ? (totalCleanings / activeApartments).toFixed(1) : '0';
 
-    // Cleanings by property
-    const cleaningsByApartment = properties.map((property: { id: string; property_name: string; owner_name: string }) => {
+    // Cleanings by property - filter out Uplisting apartments
+    const cleaningsByApartment = filteredProperties.map((property: { id: string; property_name: string; owner_name: string }) => {
       const propertyCleanings = filteredSessions.filter(session => 
         session.apartment_number === property.property_name
       );
@@ -174,7 +185,7 @@ export async function GET(request: NextRequest) {
         if (session.cleaner_1_fee != null) {
           return sum + Number(session.cleaner_1_fee);
         }
-        const property = properties.find((p: { property_name: string; cleaner_payout?: number }) => p.property_name === session.apartment_number);
+        const property = filteredProperties.find((p: { property_name: string; cleaner_payout?: number }) => p.property_name === session.apartment_number);
         const payout = property && property.cleaner_payout != null ? Number(property.cleaner_payout) : 0;
         return sum + payout;
       }, 0);
@@ -184,7 +195,7 @@ export async function GET(request: NextRequest) {
         if (session.cleaner_2_fee != null) {
           return sum + Number(session.cleaner_2_fee);
         }
-        const property = properties.find((p: { property_name: string; cleaner_payout?: number }) => p.property_name === session.apartment_number);
+        const property = filteredProperties.find((p: { property_name: string; cleaner_payout?: number }) => p.property_name === session.apartment_number);
         const payout = property && property.cleaner_payout != null ? Number(property.cleaner_payout) : 0;
         return sum + payout;
       }, 0);
@@ -277,7 +288,7 @@ export async function GET(request: NextRequest) {
         sessionPayout = Number(session.cleaner_1_fee);
       } else {
         // Fallback to property cleaner_payout
-        const property = properties.find((p: { property_name: string; cleaner_payout?: number }) => p.property_name === session.apartment_number);
+        const property = filteredProperties.find((p: { property_name: string; cleaner_payout?: number }) => p.property_name === session.apartment_number);
         const payout = property && property.cleaner_payout != null ? Number(property.cleaner_payout) : 0;
         sessionPayout = payout;
       }

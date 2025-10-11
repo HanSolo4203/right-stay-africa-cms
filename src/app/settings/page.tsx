@@ -29,7 +29,7 @@ function SettingsContent() {
       } else {
         toast.error('Failed to load welcome pack items');
       }
-    } catch (error) {
+    } catch {
       toast.error('Failed to load welcome pack items');
     } finally {
       setIsLoadingWelcomePack(false);
@@ -58,7 +58,7 @@ function SettingsContent() {
       } else {
         toast.error(result.error || 'Failed to add welcome pack item');
       }
-    } catch (error) {
+    } catch {
       toast.error('Failed to add welcome pack item');
     } finally {
       setIsLoadingWelcomePack(false);
@@ -89,7 +89,7 @@ function SettingsContent() {
       } else {
         toast.error(result.error || 'Failed to update welcome pack item');
       }
-    } catch (error) {
+    } catch {
       toast.error('Failed to update welcome pack item');
     } finally {
       setIsLoadingWelcomePack(false);
@@ -116,7 +116,7 @@ function SettingsContent() {
       } else {
         toast.error(result.error || 'Failed to delete welcome pack item');
       }
-    } catch (error) {
+    } catch {
       toast.error('Failed to delete welcome pack item');
     } finally {
       setIsLoadingWelcomePack(false);

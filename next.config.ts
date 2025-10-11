@@ -7,7 +7,7 @@ const nextConfig = {
     root: __dirname,
   },
   // Suppress source map warnings for external libraries
-  webpack: (config: any, { dev }: { dev: boolean }) => {
+  webpack: (config: { ignoreWarnings?: RegExp[] }, { dev }: { dev: boolean }) => {
     if (dev) {
       // Suppress source map warnings for external libraries
       config.ignoreWarnings = [

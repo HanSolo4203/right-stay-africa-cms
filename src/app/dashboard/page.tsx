@@ -9,6 +9,7 @@ import CleanerEarningsReport from '@/components/ui/CleanerEarningsReport';
 // import MonthlyTrendsChart from '@/components/ui/MonthlyTrendsChart';
 import InvoicingTable from '@/components/ui/InvoicingTable';
 import RSALaundryStats from '@/components/ui/RSALaundryStats';
+import UpcomingCleaningsTable from '@/components/ui/UpcomingCleaningsTable';
 import AuthWrapper from '@/components/AuthWrapper';
 import { Toaster } from 'react-hot-toast';
 
@@ -104,6 +105,7 @@ function DashboardContent() {
   const [selectedYear, setSelectedYear] = useState<string | undefined>(undefined);
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'analytics' | 'upcoming'>('analytics');
 
   const loadAnalyticsData = async (month?: string, year?: string) => {
     try {
@@ -169,21 +171,52 @@ function DashboardContent() {
       <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-4 sm:py-6 lg:py-8">
         {/* Header */}
         <div className="mb-6 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Analytics Dashboard</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Dashboard</h1>
           <p className="text-gray-600 mt-2 text-sm sm:text-base">
             Comprehensive insights into your cleaning operations
           </p>
         </div>
 
-        {/* Month/Year Selector */}
+        {/* Tab Navigation */}
         <div className="mb-6 sm:mb-8">
-          <MonthSelector 
-            selectedMonth={selectedMonth} 
-            onMonthChange={handleMonthChange}
-            selectedYear={selectedYear}
-            onYearChange={handleYearChange}
-          />
+          <div className="border-b border-gray-200">
+            <nav className="-mb-px flex space-x-8">
+              <button
+                onClick={() => setActiveTab('analytics')}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'analytics'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Analytics
+              </button>
+              <button
+                onClick={() => setActiveTab('upcoming')}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'upcoming'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Upcoming Cleanings
+              </button>
+            </nav>
+          </div>
         </div>
+
+        {/* Tab Content */}
+        {activeTab === 'analytics' && (
+          <>
+            {/* Month/Year Selector */}
+            <div className="mb-6 sm:mb-8">
+              <MonthSelector 
+                selectedMonth={selectedMonth} 
+                onMonthChange={handleMonthChange}
+                selectedYear={selectedYear}
+                onYearChange={handleYearChange}
+              />
+            </div>
 
         {/* Invoicing Table - Moved to top as first section */}
         {analyticsData && (
@@ -267,6 +300,15 @@ function DashboardContent() {
                 <p className="text-sm text-purple-600">cleanings this month</p>
               </div>
             </div>
+          </div>
+        )}
+          </>
+        )}
+
+        {/* Upcoming Cleanings Tab */}
+        {activeTab === 'upcoming' && (
+          <div className="mb-6 sm:mb-8">
+            <UpcomingCleaningsTable />
           </div>
         )}
       </div>

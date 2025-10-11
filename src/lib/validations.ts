@@ -97,6 +97,7 @@ export const cleaningSessionQuerySchema = z.object({
   end_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   limit: z.string().transform(Number).optional(),
   offset: z.string().transform(Number).optional(),
+  upcoming: z.string().optional(), // Filter for upcoming cleanings (next 7 days)
 });
 
 export const analyticsQuerySchema = z.object({

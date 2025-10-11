@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { cleaningSessionsApi, apartmentsApi, cleanersApi, settingsApi } from '@/lib/database';
+import { cleaningSessionsApi, apartmentsApi, cleanersApi } from '@/lib/database';
 import { 
   createCleaningSessionSchema, 
   cleaningSessionQuerySchema
@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
       return validation.error;
     }
     
-    const { apartment_id, apartment, cleaner_id, month, year, start_date, end_date, limit = 50, offset = 0 } = validation.data;
+    const { apartment_id, apartment, cleaner_id, month, year, start_date, end_date, limit = 50, offset = 0, upcoming } = validation.data;
     
     // Get all sessions
     const sessions = await cleaningSessionsApi.getAll();
@@ -67,6 +67,20 @@ export async function GET(request: NextRequest) {
     
     if (end_date) {
       filteredSessions = filteredSessions.filter(session => session.cleaning_date <= end_date);
+    }
+    
+    // Handle upcoming filter - get next 7 days of cleanings
+    if (upcoming === 'true') {
+      const today = new Date();
+      const nextWeek = new Date();
+      nextWeek.setDate(today.getDate() + 7);
+      
+      const todayStr = today.toISOString().split('T')[0];
+      const nextWeekStr = nextWeek.toISOString().split('T')[0];
+      
+      filteredSessions = filteredSessions.filter(session => 
+        session.cleaning_date >= todayStr && session.cleaning_date <= nextWeekStr
+      );
     }
     
     // Apply pagination

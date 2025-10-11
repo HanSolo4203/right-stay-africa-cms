@@ -3,12 +3,12 @@ import { welcomePackApi } from '@/lib/database';
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const body = await request.json();
     const { name, price, is_active } = body;
-    const { id } = params;
+    const { id } = await params;
     
     if (typeof name !== 'string' || name.trim().length === 0) {
       return NextResponse.json({ success: false, error: 'Name is required' }, { status: 400 });
@@ -33,10 +33,10 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
     
     await welcomePackApi.delete(id);
     
