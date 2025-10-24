@@ -2,9 +2,7 @@ import { NextRequest } from 'next/server';
 import { stockTakesApi } from '@/lib/database';
 import { z } from 'zod';
 import {
-  successResponse,
   successPaginatedResponse,
-  errorResponse,
   handleApiError,
   validateRequest
 } from '@/lib/api-utils';

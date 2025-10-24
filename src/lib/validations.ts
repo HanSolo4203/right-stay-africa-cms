@@ -108,9 +108,7 @@ export const analyticsQuerySchema = z.object({
 // Inventory validation schemas
 export const createInventoryItemSchema = z.object({
   name: z.string().min(1, 'Name is required').max(100, 'Name too long'),
-  item_type: z.enum(['detergent', 'welcome_pack'], {
-    errorMap: () => ({ message: 'Item type must be either detergent or welcome_pack' })
-  }),
+  item_type: z.enum(['detergent', 'welcome_pack']),
   current_stock: z.number().min(0, 'Current stock must be non-negative'),
   unit_of_measure: z.string().min(1, 'Unit of measure is required').max(20, 'Unit of measure too long'),
   min_stock_level: z.number().min(0, 'Min stock level must be non-negative').optional().nullable(),

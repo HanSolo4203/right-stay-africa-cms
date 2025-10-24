@@ -1,5 +1,5 @@
 import { supabase, TABLES, VIEWS, SETTINGS } from './supabase';
-import { createServerComponentClient, createServiceRoleClient } from './supabase-server';
+import { createServerComponentClient } from './supabase-server';
 import {
   Apartment,
   Cleaner,
@@ -49,15 +49,6 @@ const getSupabaseClient = async () => {
   }
 };
 
-// Helper function to get service role client for admin operations
-const getServiceRoleClient = () => {
-  try {
-    return createServiceRoleClient();
-  } catch (error) {
-    console.warn('Failed to create service role client, falling back to regular client:', error);
-    return supabase;
-  }
-};
 
 // Apartments CRUD operations
 export const apartmentsApi = {
@@ -1253,12 +1244,12 @@ export const welcomePackReportsApi = {
     
     // Calculate totals
     const totalDistributions = distributions?.length || 0;
-    const totalCost = distributions?.reduce((sum: number, dist: any) => sum + (dist.total_cost || 0), 0) || 0;
+    const totalCost = distributions?.reduce((sum: number, dist: { total_cost?: number }) => sum + (dist.total_cost || 0), 0) || 0;
     
     // Aggregate items consumed
     const itemsConsumed: { [key: string]: { quantity_issued: number; total_cost: number } } = {};
     
-    distributions?.forEach(dist => {
+    distributions?.forEach((dist: { items?: { inventory_item?: { name: string }; quantity_issued: number; unit_cost: number }[] }) => {
       dist.items?.forEach((item: { inventory_item?: { name: string }; quantity_issued: number; unit_cost: number }) => {
         const itemName = item.inventory_item?.name || 'Unknown Item';
         if (!itemsConsumed[itemName]) {
@@ -1313,7 +1304,7 @@ export const welcomePackReportsApi = {
       total_cost: 0, // Would calculate based on unit cost
     })) || [];
     
-    const totalCost = itemBreakdown.reduce((sum, item) => sum + item.total_cost, 0);
+    const totalCost = itemBreakdown.reduce((sum: number, item: { total_cost: number }) => sum + item.total_cost, 0);
     
     return {
       configuration_id: configurationId,

@@ -7,7 +7,6 @@ import {
 import {
   successResponse,
   successPaginatedResponse,
-  errorResponse,
   handleApiError,
   validateRequest
 } from '@/lib/api-utils';

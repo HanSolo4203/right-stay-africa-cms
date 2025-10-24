@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { StockTakeWithItem } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Calendar, TrendingDown, TrendingUp, Package } from 'lucide-react';
+import { TrendingDown, TrendingUp, Package } from 'lucide-react';
 
 interface StockTakeHistoryProps {
   items: { id: string; name: string; item_type: string }[];
@@ -24,7 +24,7 @@ export default function StockTakeHistory({ items, getStockTakeHistory, refreshTr
     endDate: '2025-12-31'    // End at end of 2025 to capture all data
   });
   
-  const fetchStockTakes = async () => {
+  const fetchStockTakes = useCallback(async () => {
     setLoading(true);
     try {
       const history = await getStockTakeHistory(
@@ -39,11 +39,11 @@ export default function StockTakeHistory({ items, getStockTakeHistory, refreshTr
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters.itemId, filters.startDate, filters.endDate, getStockTakeHistory]);
   
   useEffect(() => {
     fetchStockTakes();
-  }, [filters, refreshTrigger]);
+  }, [filters, refreshTrigger, fetchStockTakes]);
   
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-ZA', {

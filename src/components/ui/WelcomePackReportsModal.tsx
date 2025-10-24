@@ -7,7 +7,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   Dialog,
@@ -16,7 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { BarChart3, Download, Calendar, TrendingUp, Package } from 'lucide-react';
+import { BarChart3, Download, TrendingUp, Package } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { WelcomePackConsumptionReport, WelcomePackCostAnalysis } from '@/lib/types';
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { ChevronDown, ChevronUp, History, Plus, Minus, User, Calendar, DollarSign } from 'lucide-react';
+import { ChevronDown, ChevronUp, History, Plus, Minus, User, Calendar } from 'lucide-react';
 
 interface HistoryItem {
   id: string;

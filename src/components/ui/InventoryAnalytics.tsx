@@ -9,7 +9,7 @@ interface InventoryAnalyticsProps {
   lowStockItems: InventoryItem[];
 }
 
-export default function InventoryAnalytics({ detergents, welcomePacks, lowStockItems }: InventoryAnalyticsProps) {
+export default function InventoryAnalytics({ detergents, welcomePacks }: InventoryAnalyticsProps) {
   // Calculate analytics for detergents
   const detergentStats = {
     totalItems: detergents.length,
@@ -66,19 +66,6 @@ export default function InventoryAnalytics({ detergents, welcomePacks, lowStockI
     totalValue: detergentStats.totalValue + welcomePackStats.totalValue
   };
 
-  const getStockStatusColor = (item: InventoryItem) => {
-    if (item.current_stock === 0) return 'text-red-600';
-    if (item.min_stock_level && item.current_stock <= item.min_stock_level) return 'text-yellow-600';
-    if (item.min_stock_level && item.current_stock > item.min_stock_level * 2) return 'text-green-600';
-    return 'text-gray-600';
-  };
-
-  const getStockStatusIcon = (item: InventoryItem) => {
-    if (item.current_stock === 0) return <AlertTriangle className="h-4 w-4" />;
-    if (item.min_stock_level && item.current_stock <= item.min_stock_level) return <TrendingDown className="h-4 w-4" />;
-    if (item.min_stock_level && item.current_stock > item.min_stock_level * 2) return <TrendingUp className="h-4 w-4" />;
-    return <Package className="h-4 w-4" />;
-  };
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">

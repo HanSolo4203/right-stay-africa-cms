@@ -14,7 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { AlertTriangle, TrendingDown, TrendingUp } from 'lucide-react';
+import { TrendingDown, TrendingUp } from 'lucide-react';
 
 interface StockTakeModalProps {
   item: InventoryItem;
@@ -66,7 +66,6 @@ export default function StockTakeModal({
 
   const usageAmount = item.current_stock - newStock;
   const isUsage = usageAmount > 0;
-  const isAddition = usageAmount < 0;
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>

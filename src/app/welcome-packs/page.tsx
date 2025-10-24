@@ -11,7 +11,6 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { 
   Package, 
   Settings, 
-  History, 
   AlertTriangle, 
   BarChart3,
   Plus,
@@ -35,13 +34,12 @@ export default function WelcomePacksPage() {
     error,
     fetchConfigurations,
     fetchDistributions,
-    fetchAlerts,
     deleteConfiguration,
     deleteDistribution,
     updateAlert,
   } = useWelcomePack();
 
-  const { welcomePacks, lowStockItems } = useInventory();
+  const { lowStockItems } = useInventory();
 
   const [selectedTab, setSelectedTab] = useState('overview');
   const [showConfigModal, setShowConfigModal] = useState(false);
@@ -55,7 +53,7 @@ export default function WelcomePacksPage() {
       try {
         await deleteConfiguration(id);
         toast.success('Configuration deleted successfully');
-      } catch (error) {
+      } catch {
         toast.error('Failed to delete configuration');
       }
     }
@@ -66,7 +64,7 @@ export default function WelcomePacksPage() {
       try {
         await deleteDistribution(id);
         toast.success('Distribution deleted successfully');
-      } catch (error) {
+      } catch {
         toast.error('Failed to delete distribution');
       }
     }
@@ -80,7 +78,7 @@ export default function WelcomePacksPage() {
         resolved_by: 'Current User', // Would get from auth context
       });
       toast.success('Alert resolved');
-    } catch (error) {
+    } catch {
       toast.error('Failed to resolve alert');
     }
   };

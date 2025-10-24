@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   WelcomePackConfiguration,
   CreateWelcomePackConfigurationData,
@@ -81,7 +81,7 @@ export function useWelcomePack(): UseWelcomePackReturn {
   const unresolvedAlerts = alerts.filter(alert => !alert.is_resolved);
 
   // Configuration methods
-  const fetchConfigurations = async () => {
+  const fetchConfigurations = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -101,9 +101,9 @@ export function useWelcomePack(): UseWelcomePackReturn {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const fetchDefaultConfiguration = async () => {
+  const fetchDefaultConfiguration = useCallback(async () => {
     try {
       setError(null);
       
@@ -120,7 +120,7 @@ export function useWelcomePack(): UseWelcomePackReturn {
       setError(errorMessage);
       console.error('Error fetching default configuration:', err);
     }
-  };
+  }, []);
 
   const createConfiguration = async (data: CreateWelcomePackConfigurationData): Promise<WelcomePackConfiguration> => {
     try {
@@ -298,7 +298,7 @@ export function useWelcomePack(): UseWelcomePackReturn {
   };
 
   // Distribution methods
-  const fetchDistributions = async (startDate?: string, endDate?: string) => {
+  const fetchDistributions = useCallback(async (startDate?: string, endDate?: string) => {
     try {
       setLoading(true);
       setError(null);
@@ -323,7 +323,7 @@ export function useWelcomePack(): UseWelcomePackReturn {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   const createDistribution = async (data: CreateWelcomePackDistributionData): Promise<WelcomePackDistribution> => {
     try {
@@ -501,7 +501,7 @@ export function useWelcomePack(): UseWelcomePackReturn {
   };
 
   // Alert methods
-  const fetchAlerts = async (unresolved?: boolean) => {
+  const fetchAlerts = useCallback(async (unresolved?: boolean) => {
     try {
       setLoading(true);
       setError(null);
@@ -526,7 +526,7 @@ export function useWelcomePack(): UseWelcomePackReturn {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   const createAlert = async (data: CreateWelcomePackAlertData): Promise<WelcomePackAlert> => {
     try {
@@ -649,19 +649,19 @@ export function useWelcomePack(): UseWelcomePackReturn {
   };
 
   // Refetch all data
-  const refetch = async () => {
+  const refetch = useCallback(async () => {
     await Promise.all([
       fetchConfigurations(),
       fetchDefaultConfiguration(),
       fetchDistributions(),
       fetchAlerts(),
     ]);
-  };
+  }, [fetchConfigurations, fetchDefaultConfiguration, fetchDistributions, fetchAlerts]);
 
   // Initial fetch
   useEffect(() => {
     refetch();
-  }, []);
+  }, [refetch]);
 
   return {
     configurations,

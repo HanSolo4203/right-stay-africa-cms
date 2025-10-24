@@ -22,7 +22,6 @@ import { toast } from 'react-hot-toast';
 import {
   CreateWelcomePackDistributionData,
   UpdateWelcomePackDistributionData,
-  WelcomePackDistribution,
 } from '@/lib/types';
 
 interface WelcomePackDistributionModalProps {
@@ -54,7 +53,6 @@ export function WelcomePackDistributionModal({
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
 
   const isEditing = !!distributionId;
 

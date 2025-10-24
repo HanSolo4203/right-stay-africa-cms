@@ -3,7 +3,6 @@ import { stockTakesApi } from '@/lib/database';
 import { z } from 'zod';
 import {
   successResponse,
-  errorResponse,
   handleApiError,
   validateRequest
 } from '@/lib/api-utils';

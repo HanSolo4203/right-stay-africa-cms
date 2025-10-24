@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { InventoryItem, UsageAnalytics } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -27,7 +27,7 @@ export default function DetergentUsageAnalytics({
   });
   
   // Fetch usage data for the selected period
-  const fetchUsageData = async () => {
+  const fetchUsageData = useCallback(async () => {
     if (detergents.length === 0) return;
     
     setLoading(true);
@@ -70,11 +70,11 @@ export default function DetergentUsageAnalytics({
     } finally {
       setLoading(false);
     }
-  };
+  }, [detergents, dateRange.start, dateRange.end, getUsageAnalytics]);
   
   useEffect(() => {
     fetchUsageData();
-  }, [detergents, dateRange, refreshTrigger]);
+  }, [detergents, dateRange, refreshTrigger, fetchUsageData]);
   
   const getDaysRemainingColor = (days: number) => {
     if (days === Infinity) return 'text-gray-600';
