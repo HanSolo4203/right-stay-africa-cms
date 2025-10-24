@@ -1,5 +1,5 @@
 import { supabase, TABLES, VIEWS, SETTINGS } from './supabase';
-import { createServerComponentClient } from './supabase-server';
+import { createServerComponentClient, createServiceRoleClient } from './supabase-server';
 import {
   Apartment,
   Cleaner,
@@ -15,6 +15,28 @@ import {
   CreateCleaningSessionData,
   UpdateCleaningSessionData,
   DashboardStats,
+  InventoryItem,
+  CreateInventoryItemData,
+  UpdateInventoryItemData,
+  StockTake,
+  StockTakeWithItem,
+  WelcomePackConfiguration,
+  CreateWelcomePackConfigurationData,
+  UpdateWelcomePackConfigurationData,
+  WelcomePackConfigurationItem,
+  CreateWelcomePackConfigurationItemData,
+  UpdateWelcomePackConfigurationItemData,
+  WelcomePackDistribution,
+  CreateWelcomePackDistributionData,
+  UpdateWelcomePackDistributionData,
+  WelcomePackDistributionItem,
+  CreateWelcomePackDistributionItemData,
+  UpdateWelcomePackDistributionItemData,
+  WelcomePackAlert,
+  CreateWelcomePackAlertData,
+  UpdateWelcomePackAlertData,
+  WelcomePackConsumptionReport,
+  WelcomePackCostAnalysis,
 } from './types';
 
 // Helper function to get authenticated Supabase client
@@ -23,6 +45,16 @@ const getSupabaseClient = async () => {
     return await createServerComponentClient();
   } catch (error) {
     console.warn('Failed to create server client, falling back to client:', error);
+    return supabase;
+  }
+};
+
+// Helper function to get service role client for admin operations
+const getServiceRoleClient = () => {
+  try {
+    return createServiceRoleClient();
+  } catch (error) {
+    console.warn('Failed to create service role client, falling back to regular client:', error);
     return supabase;
   }
 };
@@ -408,6 +440,887 @@ export const settingsApi = {
       .from(SETTINGS.APP_SETTINGS)
       .upsert({ key: 'welcome_pack_fee', value: fee, updated_at: new Date().toISOString() }, { onConflict: 'key' });
     if (error) throw error;
+  },
+};
+
+// Inventory Items CRUD operations
+export const inventoryItemsApi = {
+  // Get all inventory items
+  async getAll(): Promise<InventoryItem[]> {
+    const client = await getSupabaseClient();
+    const { data, error } = await client
+      .from(TABLES.INVENTORY_ITEMS)
+      .select('*')
+      .eq('is_active', true)
+      .order('item_type', { ascending: true })
+      .order('name');
+    
+    if (error) throw error;
+    return data || [];
+  },
+
+  // Get inventory items by type
+  async getByType(type: 'detergent' | 'welcome_pack'): Promise<InventoryItem[]> {
+    const client = await getSupabaseClient();
+    const { data, error } = await client
+      .from(TABLES.INVENTORY_ITEMS)
+      .select('*')
+      .eq('item_type', type)
+      .eq('is_active', true)
+      .order('name');
+    
+    if (error) throw error;
+    return data || [];
+  },
+
+  // Get inventory item by ID
+  async getById(id: string): Promise<InventoryItem | null> {
+    const client = await getSupabaseClient();
+    const { data, error } = await client
+      .from(TABLES.INVENTORY_ITEMS)
+      .select('*')
+      .eq('id', id)
+      .single();
+    
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return null;
+      }
+      throw error;
+    }
+    return data;
+  },
+
+  // Create new inventory item
+  async create(item: CreateInventoryItemData): Promise<InventoryItem> {
+    const client = await getSupabaseClient();
+    const { data, error } = await client
+      .from(TABLES.INVENTORY_ITEMS)
+      .insert({
+        ...item,
+        is_active: item.is_active ?? true,
+      })
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return data;
+  },
+
+  // Update inventory item
+  async update(item: UpdateInventoryItemData): Promise<InventoryItem> {
+    const { id, ...updateData } = item;
+    const client = await getSupabaseClient();
+    const { data, error } = await client
+      .from(TABLES.INVENTORY_ITEMS)
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return data;
+  },
+
+  // Delete inventory item (soft delete by setting is_active to false)
+  async delete(id: string): Promise<void> {
+    const client = await getSupabaseClient();
+    const { error } = await client
+      .from(TABLES.INVENTORY_ITEMS)
+      .update({ is_active: false })
+      .eq('id', id);
+    
+    if (error) throw error;
+  },
+
+  // Get low stock items
+  async getLowStock(): Promise<InventoryItem[]> {
+    const client = await getSupabaseClient();
+    const { data, error } = await client
+      .from(TABLES.INVENTORY_ITEMS)
+      .select('*')
+      .eq('is_active', true)
+      .not('min_stock_level', 'is', null)
+      .filter('current_stock', 'lte', 'min_stock_level')
+      .order('item_type')
+      .order('name');
+    
+    if (error) throw error;
+    return data || [];
+  },
+
+  // Add stock to existing inventory item
+  async addStock(id: string, stockData: { quantity: number; price: number }, createdBy?: string): Promise<InventoryItem> {
+    const client = await getSupabaseClient();
+    
+    // First get the current item to calculate new values
+    const { data: currentItem, error: fetchError } = await client
+      .from(TABLES.INVENTORY_ITEMS)
+      .select('*')
+      .eq('id', id)
+      .single();
+    
+    if (fetchError) throw fetchError;
+    if (!currentItem) {
+      throw new Error('Inventory item not found');
+    }
+    
+    // Calculate new stock level and accumulate purchase tracking
+    const newStockLevel = currentItem.current_stock + stockData.quantity;
+    
+    // Accumulate purchase price and quantity (add to existing values)
+    const accumulatedPurchasePrice = (currentItem.purchase_price || 0) + stockData.price;
+    const accumulatedPurchaseQuantity = (currentItem.purchase_quantity || 0) + stockData.quantity;
+    
+    // Update the item with new stock level and accumulated purchase information
+    const { data, error } = await client
+      .from(TABLES.INVENTORY_ITEMS)
+      .update({
+        current_stock: newStockLevel,
+        purchase_price: accumulatedPurchasePrice,
+        purchase_quantity: accumulatedPurchaseQuantity,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select()
+      .single();
+    
+    if (error) throw error;
+
+    // Create a stock take record for the addition
+    try {
+      await client
+        .from('stock_takes')
+        .insert({
+          item_id: id,
+          previous_stock: currentItem.current_stock,
+          new_stock: newStockLevel,
+          adjustment_amount: stockData.quantity, // positive for additions
+          take_date: new Date().toISOString(),
+          notes: `Stock addition: +${stockData.quantity} units for R${stockData.price.toFixed(2)}`,
+          created_by: createdBy || 'system'
+        });
+    } catch (stockTakeError) {
+      // Log error but don't fail the main operation
+      console.warn('Failed to create stock take record for addition:', stockTakeError);
+    }
+    
+    return data;
+  },
+
+  // Perform stock take - update stock and record the adjustment
+  async performStockTake(
+    id: string, 
+    newStock: number, 
+    notes?: string,
+    createdBy?: string
+  ): Promise<{ item: InventoryItem; stockTake: StockTake }> {
+    const client = await getSupabaseClient();
+    
+    // Get current item
+    const currentItem = await this.getById(id);
+    if (!currentItem) {
+      throw new Error('Inventory item not found');
+    }
+    
+    const previousStock = currentItem.current_stock;
+    const adjustmentAmount = newStock - previousStock;
+    
+    // Update item stock
+    const { data: updatedItem, error: updateError } = await client
+      .from(TABLES.INVENTORY_ITEMS)
+      .update({ 
+        current_stock: newStock,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select()
+      .single();
+    
+    if (updateError) throw updateError;
+    
+    // Try to record stock take, but don't fail if table doesn't exist
+    let stockTake: StockTake;
+    try {
+      const { data: stockTakeData, error: stockTakeError } = await client
+        .from('stock_takes')
+        .insert({
+          item_id: id,
+          previous_stock: previousStock,
+          new_stock: newStock,
+          adjustment_amount: adjustmentAmount,
+          notes,
+          created_by: createdBy || 'system'
+        })
+        .select()
+        .single();
+      
+      if (stockTakeError) {
+        console.warn('Could not record stock take (table may not exist):', stockTakeError);
+        // Create a mock stock take object for consistency
+        stockTake = {
+          id: 'temp-' + Date.now(),
+          item_id: id,
+          previous_stock: previousStock,
+          new_stock: newStock,
+          adjustment_amount: adjustmentAmount,
+          take_date: new Date().toISOString(),
+          notes,
+          created_by: createdBy || 'system',
+          created_at: new Date().toISOString()
+        };
+      } else {
+        stockTake = stockTakeData;
+      }
+    } catch (error) {
+      console.warn('Error recording stock take:', error);
+      // Create a mock stock take object for consistency
+      stockTake = {
+        id: 'temp-' + Date.now(),
+        item_id: id,
+        previous_stock: previousStock,
+        new_stock: newStock,
+        adjustment_amount: adjustmentAmount,
+        take_date: new Date().toISOString(),
+        notes,
+        created_by: createdBy || 'system',
+        created_at: new Date().toISOString()
+      };
+    }
+    
+    return { item: updatedItem, stockTake };
+  },
+};
+
+// Stock Takes CRUD operations
+export const stockTakesApi = {
+  // Get stock take history
+  async getHistory(
+    itemId?: string,
+    startDate?: string,
+    endDate?: string,
+    limit = 50,
+    offset = 0
+  ): Promise<StockTakeWithItem[]> {
+    try {
+      const client = await getSupabaseClient();
+      let query = client
+        .from('stock_takes')
+        .select(`
+          *,
+          inventory_items!inner(name, item_type, unit_of_measure)
+        `)
+        .order('take_date', { ascending: false });
+      
+      if (itemId) query = query.eq('item_id', itemId);
+      if (startDate) query = query.gte('take_date', startDate);
+      if (endDate) query = query.lte('take_date', endDate);
+      
+      const { data, error } = await query
+        .range(offset, offset + limit - 1);
+      
+      if (error) {
+        // If table doesn't exist, return empty array
+        if (error.code === '42P01') {
+          console.warn('Stock takes table not found, returning empty history');
+          return [];
+        }
+        throw error;
+      }
+      return data || [];
+    } catch (error) {
+      console.warn('Error fetching stock take history:', error);
+      return [];
+    }
+  },
+
+  // Get stock take by ID
+  async getById(id: string): Promise<StockTakeWithItem | null> {
+    const client = await getSupabaseClient();
+    const { data, error } = await client
+      .from('stock_takes')
+      .select(`
+        *,
+        inventory_items!inner(name, item_type, unit_of_measure)
+      `)
+      .eq('id', id)
+      .single();
+    
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return null;
+      }
+      throw error;
+    }
+    return data;
+  },
+
+  // Get usage analytics for a specific item
+  async getUsageAnalytics(
+    itemId: string,
+    startDate: string,
+    endDate: string
+  ): Promise<{
+    totalUsage: number;
+    totalAdditions: number;
+    usageRate: number;
+    stockTakes: StockTakeWithItem[];
+  }> {
+    try {
+      const stockTakes = await this.getHistory(itemId, startDate, endDate, 1000, 0);
+      
+      const totalUsage = stockTakes
+        .filter(take => take.adjustment_amount < 0)
+        .reduce((sum, take) => sum + Math.abs(take.adjustment_amount), 0);
+      
+      const totalAdditions = stockTakes
+        .filter(take => take.adjustment_amount > 0)
+        .reduce((sum, take) => sum + take.adjustment_amount, 0);
+      
+      const daysDiff = Math.max(1, (new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24));
+      const usageRate = totalUsage / daysDiff;
+      
+      return {
+        totalUsage,
+        totalAdditions,
+        usageRate,
+        stockTakes
+      };
+    } catch (error) {
+      // If the stock_takes table doesn't exist yet, return empty analytics
+      console.warn('Stock takes table not found, returning empty analytics:', error);
+      return {
+        totalUsage: 0,
+        totalAdditions: 0,
+        usageRate: 0,
+        stockTakes: []
+      };
+    }
+  },
+};
+
+// Welcome Pack Configurations CRUD operations
+export const welcomePackConfigurationsApi = {
+  // Get all configurations
+  async getAll(): Promise<WelcomePackConfiguration[]> {
+    const client = await getSupabaseClient();
+    const { data, error } = await client
+      .from(TABLES.WELCOME_PACK_CONFIGURATIONS)
+      .select('*')
+      .order('is_default', { ascending: false })
+      .order('name');
+    
+    if (error) throw error;
+    return data || [];
+  },
+
+  // Get configuration by ID
+  async getById(id: string): Promise<WelcomePackConfiguration | null> {
+    const client = await getSupabaseClient();
+    const { data, error } = await client
+      .from(TABLES.WELCOME_PACK_CONFIGURATIONS)
+      .select('*')
+      .eq('id', id)
+      .single();
+    
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return null;
+      }
+      throw error;
+    }
+    return data;
+  },
+
+  // Get default configuration
+  async getDefault(): Promise<WelcomePackConfiguration | null> {
+    const client = await getSupabaseClient();
+    const { data, error } = await client
+      .from(TABLES.WELCOME_PACK_CONFIGURATIONS)
+      .select('*')
+      .eq('is_default', true)
+      .eq('is_active', true)
+      .single();
+    
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return null;
+      }
+      throw error;
+    }
+    return data;
+  },
+
+  // Create new configuration
+  async create(config: CreateWelcomePackConfigurationData): Promise<WelcomePackConfiguration> {
+    const client = await getSupabaseClient();
+    const { data, error } = await client
+      .from(TABLES.WELCOME_PACK_CONFIGURATIONS)
+      .insert({
+        ...config,
+        is_default: config.is_default ?? false,
+        is_active: config.is_active ?? true,
+      })
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return data;
+  },
+
+  // Update configuration
+  async update(config: UpdateWelcomePackConfigurationData): Promise<WelcomePackConfiguration> {
+    const { id, ...updateData } = config;
+    const client = await getSupabaseClient();
+    const { data, error } = await client
+      .from(TABLES.WELCOME_PACK_CONFIGURATIONS)
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return data;
+  },
+
+  // Delete configuration
+  async delete(id: string): Promise<void> {
+    const client = await getSupabaseClient();
+    const { error } = await client
+      .from(TABLES.WELCOME_PACK_CONFIGURATIONS)
+      .delete()
+      .eq('id', id);
+    
+    if (error) throw error;
+  },
+};
+
+// Welcome Pack Configuration Items CRUD operations
+export const welcomePackConfigurationItemsApi = {
+  // Get items for a configuration
+  async getByConfigurationId(configurationId: string): Promise<WelcomePackConfigurationItem[]> {
+    const client = await getSupabaseClient();
+    const { data, error } = await client
+      .from(TABLES.WELCOME_PACK_CONFIGURATION_ITEMS)
+      .select(`
+        *,
+        inventory_item:inventory_items(*)
+      `)
+      .eq('configuration_id', configurationId)
+      .order('created_at');
+    
+    if (error) throw error;
+    return data || [];
+  },
+
+  // Create configuration item
+  async create(item: CreateWelcomePackConfigurationItemData): Promise<WelcomePackConfigurationItem> {
+    const client = await getSupabaseClient();
+    const { data, error } = await client
+      .from(TABLES.WELCOME_PACK_CONFIGURATION_ITEMS)
+      .insert({
+        ...item,
+        is_optional: item.is_optional ?? false,
+      })
+      .select(`
+        *,
+        inventory_item:inventory_items(*)
+      `)
+      .single();
+    
+    if (error) throw error;
+    return data;
+  },
+
+  // Update configuration item
+  async update(item: UpdateWelcomePackConfigurationItemData): Promise<WelcomePackConfigurationItem> {
+    const { id, ...updateData } = item;
+    const client = await getSupabaseClient();
+    const { data, error } = await client
+      .from(TABLES.WELCOME_PACK_CONFIGURATION_ITEMS)
+      .update(updateData)
+      .eq('id', id)
+      .select(`
+        *,
+        inventory_item:inventory_items(*)
+      `)
+      .single();
+    
+    if (error) throw error;
+    return data;
+  },
+
+  // Delete configuration item
+  async delete(id: string): Promise<void> {
+    const client = await getSupabaseClient();
+    const { error } = await client
+      .from(TABLES.WELCOME_PACK_CONFIGURATION_ITEMS)
+      .delete()
+      .eq('id', id);
+    
+    if (error) throw error;
+  },
+};
+
+// Welcome Pack Distributions CRUD operations
+export const welcomePackDistributionsApi = {
+  // Get all distributions
+  async getAll(): Promise<WelcomePackDistribution[]> {
+    const client = await getSupabaseClient();
+    const { data, error } = await client
+      .from(TABLES.WELCOME_PACK_DISTRIBUTIONS)
+      .select(`
+        *,
+        configuration:welcome_pack_configurations(*),
+        apartment:apartments(*),
+        booking:bookings(*),
+        items:welcome_pack_distribution_items(
+          *,
+          inventory_item:inventory_items(*)
+        )
+      `)
+      .order('distribution_date', { ascending: false });
+    
+    if (error) throw error;
+    return data || [];
+  },
+
+  // Get distribution by ID
+  async getById(id: string): Promise<WelcomePackDistribution | null> {
+    const client = await getSupabaseClient();
+    const { data, error } = await client
+      .from(TABLES.WELCOME_PACK_DISTRIBUTIONS)
+      .select(`
+        *,
+        configuration:welcome_pack_configurations(*),
+        apartment:apartments(*),
+        booking:bookings(*),
+        items:welcome_pack_distribution_items(
+          *,
+          inventory_item:inventory_items(*)
+        )
+      `)
+      .eq('id', id)
+      .single();
+    
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return null;
+      }
+      throw error;
+    }
+    return data;
+  },
+
+  // Get distributions by date range
+  async getByDateRange(startDate: string, endDate: string): Promise<WelcomePackDistribution[]> {
+    const client = await getSupabaseClient();
+    const { data, error } = await client
+      .from(TABLES.WELCOME_PACK_DISTRIBUTIONS)
+      .select(`
+        *,
+        configuration:welcome_pack_configurations(*),
+        apartment:apartments(*),
+        booking:bookings(*),
+        items:welcome_pack_distribution_items(
+          *,
+          inventory_item:inventory_items(*)
+        )
+      `)
+      .gte('distribution_date', startDate)
+      .lte('distribution_date', endDate)
+      .order('distribution_date', { ascending: false });
+    
+    if (error) throw error;
+    return data || [];
+  },
+
+  // Create new distribution
+  async create(distribution: CreateWelcomePackDistributionData): Promise<WelcomePackDistribution> {
+    const client = await getSupabaseClient();
+    const { data, error } = await client
+      .from(TABLES.WELCOME_PACK_DISTRIBUTIONS)
+      .insert({
+        ...distribution,
+        distribution_date: distribution.distribution_date || new Date().toISOString().split('T')[0],
+        status: distribution.status || 'prepared',
+      })
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return data;
+  },
+
+  // Update distribution
+  async update(distribution: UpdateWelcomePackDistributionData): Promise<WelcomePackDistribution> {
+    const { id, ...updateData } = distribution;
+    const client = await getSupabaseClient();
+    const { data, error } = await client
+      .from(TABLES.WELCOME_PACK_DISTRIBUTIONS)
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return data;
+  },
+
+  // Delete distribution
+  async delete(id: string): Promise<void> {
+    const client = await getSupabaseClient();
+    const { error } = await client
+      .from(TABLES.WELCOME_PACK_DISTRIBUTIONS)
+      .delete()
+      .eq('id', id);
+    
+    if (error) throw error;
+  },
+};
+
+// Welcome Pack Distribution Items CRUD operations
+export const welcomePackDistributionItemsApi = {
+  // Get items for a distribution
+  async getByDistributionId(distributionId: string): Promise<WelcomePackDistributionItem[]> {
+    const client = await getSupabaseClient();
+    const { data, error } = await client
+      .from(TABLES.WELCOME_PACK_DISTRIBUTION_ITEMS)
+      .select(`
+        *,
+        inventory_item:inventory_items(*)
+      `)
+      .eq('distribution_id', distributionId)
+      .order('created_at');
+    
+    if (error) throw error;
+    return data || [];
+  },
+
+  // Create distribution item
+  async create(item: CreateWelcomePackDistributionItemData): Promise<WelcomePackDistributionItem> {
+    const client = await getSupabaseClient();
+    const { data, error } = await client
+      .from(TABLES.WELCOME_PACK_DISTRIBUTION_ITEMS)
+      .insert({
+        ...item,
+        quantity_declined: item.quantity_declined || 0,
+      })
+      .select(`
+        *,
+        inventory_item:inventory_items(*)
+      `)
+      .single();
+    
+    if (error) throw error;
+    return data;
+  },
+
+  // Update distribution item
+  async update(item: UpdateWelcomePackDistributionItemData): Promise<WelcomePackDistributionItem> {
+    const { id, ...updateData } = item;
+    const client = await getSupabaseClient();
+    const { data, error } = await client
+      .from(TABLES.WELCOME_PACK_DISTRIBUTION_ITEMS)
+      .update(updateData)
+      .eq('id', id)
+      .select(`
+        *,
+        inventory_item:inventory_items(*)
+      `)
+      .single();
+    
+    if (error) throw error;
+    return data;
+  },
+
+  // Delete distribution item
+  async delete(id: string): Promise<void> {
+    const client = await getSupabaseClient();
+    const { error } = await client
+      .from(TABLES.WELCOME_PACK_DISTRIBUTION_ITEMS)
+      .delete()
+      .eq('id', id);
+    
+    if (error) throw error;
+  },
+};
+
+// Welcome Pack Alerts CRUD operations
+export const welcomePackAlertsApi = {
+  // Get all alerts
+  async getAll(): Promise<WelcomePackAlert[]> {
+    const client = await getSupabaseClient();
+    const { data, error } = await client
+      .from(TABLES.WELCOME_PACK_ALERTS)
+      .select(`
+        *,
+        inventory_item:inventory_items(*)
+      `)
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    return data || [];
+  },
+
+  // Get unresolved alerts
+  async getUnresolved(): Promise<WelcomePackAlert[]> {
+    const client = await getSupabaseClient();
+    const { data, error } = await client
+      .from(TABLES.WELCOME_PACK_ALERTS)
+      .select(`
+        *,
+        inventory_item:inventory_items(*)
+      `)
+      .eq('is_resolved', false)
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    return data || [];
+  },
+
+  // Create alert
+  async create(alert: CreateWelcomePackAlertData): Promise<WelcomePackAlert> {
+    const client = await getSupabaseClient();
+    const { data, error } = await client
+      .from(TABLES.WELCOME_PACK_ALERTS)
+      .insert(alert)
+      .select(`
+        *,
+        inventory_item:inventory_items(*)
+      `)
+      .single();
+    
+    if (error) throw error;
+    return data;
+  },
+
+  // Update alert
+  async update(alert: UpdateWelcomePackAlertData): Promise<WelcomePackAlert> {
+    const { id, ...updateData } = alert;
+    const client = await getSupabaseClient();
+    const { data, error } = await client
+      .from(TABLES.WELCOME_PACK_ALERTS)
+      .update({
+        ...updateData,
+        resolved_at: updateData.is_resolved ? new Date().toISOString() : undefined,
+      })
+      .eq('id', id)
+      .select(`
+        *,
+        inventory_item:inventory_items(*)
+      `)
+      .single();
+    
+    if (error) throw error;
+    return data;
+  },
+
+  // Delete alert
+  async delete(id: string): Promise<void> {
+    const client = await getSupabaseClient();
+    const { error } = await client
+      .from(TABLES.WELCOME_PACK_ALERTS)
+      .delete()
+      .eq('id', id);
+    
+    if (error) throw error;
+  },
+};
+
+// Welcome Pack Reports
+export const welcomePackReportsApi = {
+  // Get consumption report
+  async getConsumptionReport(startDate: string, endDate: string): Promise<WelcomePackConsumptionReport> {
+    const client = await getSupabaseClient();
+    
+    // Get distributions in date range
+    const { data: distributions, error: distError } = await client
+      .from(TABLES.WELCOME_PACK_DISTRIBUTIONS)
+      .select(`
+        id,
+        distribution_date,
+        total_cost,
+        items:welcome_pack_distribution_items(
+          quantity_issued,
+          inventory_item:inventory_items(name)
+        )
+      `)
+      .gte('distribution_date', startDate)
+      .lte('distribution_date', endDate);
+    
+    if (distError) throw distError;
+    
+    // Calculate totals
+    const totalDistributions = distributions?.length || 0;
+    const totalCost = distributions?.reduce((sum: number, dist: any) => sum + (dist.total_cost || 0), 0) || 0;
+    
+    // Aggregate items consumed
+    const itemsConsumed: { [key: string]: { quantity_issued: number; total_cost: number } } = {};
+    
+    distributions?.forEach(dist => {
+      dist.items?.forEach((item: { inventory_item?: { name: string }; quantity_issued: number; unit_cost: number }) => {
+        const itemName = item.inventory_item?.name || 'Unknown Item';
+        if (!itemsConsumed[itemName]) {
+          itemsConsumed[itemName] = { quantity_issued: 0, total_cost: 0 };
+        }
+        itemsConsumed[itemName].quantity_issued += item.quantity_issued || 0;
+        // Note: We'd need to calculate cost per item, this is simplified
+      });
+    });
+    
+    return {
+      period: `${startDate} to ${endDate}`,
+      total_distributions: totalDistributions,
+      total_cost: totalCost,
+      items_consumed: Object.entries(itemsConsumed).map(([name, data]) => ({
+        item_name: name,
+        quantity_issued: data.quantity_issued,
+        total_cost: data.total_cost,
+      })),
+    };
+  },
+
+  // Get cost analysis for a configuration
+  async getCostAnalysis(configurationId: string): Promise<WelcomePackCostAnalysis> {
+    const client = await getSupabaseClient();
+    
+    // Get configuration
+    const { data: config, error: configError } = await client
+      .from(TABLES.WELCOME_PACK_CONFIGURATIONS)
+      .select('*')
+      .eq('id', configurationId)
+      .single();
+    
+    if (configError) throw configError;
+    
+    // Get configuration items with inventory details
+    const { data: configItems, error: itemsError } = await client
+      .from(TABLES.WELCOME_PACK_CONFIGURATION_ITEMS)
+      .select(`
+        quantity,
+        inventory_item:inventory_items(name, current_stock)
+      `)
+      .eq('configuration_id', configurationId);
+    
+    if (itemsError) throw itemsError;
+    
+    // Calculate costs (simplified - would need actual pricing logic)
+    const itemBreakdown = configItems?.map((item: { inventory_item?: { name: string }; quantity: number }) => ({
+      item_name: item.inventory_item?.name || 'Unknown',
+      quantity: item.quantity,
+      unit_cost: 0, // Would need to get from inventory pricing
+      total_cost: 0, // Would calculate based on unit cost
+    })) || [];
+    
+    const totalCost = itemBreakdown.reduce((sum, item) => sum + item.total_cost, 0);
+    
+    return {
+      configuration_id: configurationId,
+      configuration_name: config.name,
+      total_cost: totalCost,
+      item_breakdown: itemBreakdown,
+    };
   },
 };
 

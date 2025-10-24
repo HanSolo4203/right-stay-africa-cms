@@ -228,3 +228,242 @@ export interface CreateWelcomePackItemData {
 }
 
 export type UpdateWelcomePackItemData = Partial<CreateWelcomePackItemData>;
+
+// Inventory Item types
+export interface InventoryItem {
+  id: string;
+  name: string;
+  item_type: 'detergent' | 'welcome_pack';
+  current_stock: number;
+  unit_of_measure: string;
+  min_stock_level?: number;
+  purchase_price?: number;
+  purchase_quantity?: number;
+  notes?: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateInventoryItemData {
+  name: string;
+  item_type: 'detergent' | 'welcome_pack';
+  current_stock: number;
+  unit_of_measure: string;
+  min_stock_level?: number;
+  purchase_price?: number;
+  purchase_quantity?: number;
+  notes?: string;
+  is_active?: boolean;
+}
+
+export interface UpdateInventoryItemData extends Partial<CreateInventoryItemData> {
+  id: string;
+}
+
+// Stock Take types
+export interface StockTake {
+  id: string;
+  item_id: string;
+  previous_stock: number;
+  new_stock: number;
+  adjustment_amount: number;
+  take_date: string;
+  notes?: string;
+  created_by?: string;
+  created_at: string;
+}
+
+export interface CreateStockTakeData {
+  item_id: string;
+  new_stock: number;
+  notes?: string;
+}
+
+export interface StockTakeWithItem extends StockTake {
+  inventory_items: {
+    name: string;
+    item_type: string;
+    unit_of_measure: string;
+  };
+}
+
+export interface UsageAnalytics {
+  item: InventoryItem;
+  totalUsage: number;
+  remainingStock: number;
+  usageRate: number;
+  daysRemaining: number;
+}
+
+// Welcome Pack Configuration types
+export interface WelcomePackConfiguration {
+  id: string;
+  name: string;
+  description?: string;
+  is_default: boolean;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateWelcomePackConfigurationData {
+  name: string;
+  description?: string;
+  is_default?: boolean;
+  is_active?: boolean;
+}
+
+export interface UpdateWelcomePackConfigurationData extends Partial<CreateWelcomePackConfigurationData> {
+  id: string;
+}
+
+// Welcome Pack Configuration Item types
+export interface WelcomePackConfigurationItem {
+  id: string;
+  configuration_id: string;
+  inventory_item_id: string;
+  quantity: number;
+  is_optional: boolean;
+  created_at: string;
+  updated_at: string;
+  // Joined data
+  inventory_item?: InventoryItem;
+}
+
+export interface CreateWelcomePackConfigurationItemData {
+  configuration_id: string;
+  inventory_item_id: string;
+  quantity: number;
+  is_optional?: boolean;
+}
+
+export interface UpdateWelcomePackConfigurationItemData extends Partial<CreateWelcomePackConfigurationItemData> {
+  id: string;
+}
+
+// Welcome Pack Distribution types
+export interface WelcomePackDistribution {
+  id: string;
+  booking_id?: string;
+  apartment_id?: string;
+  configuration_id: string;
+  guest_name?: string;
+  guest_contact?: string;
+  distribution_date: string;
+  prepared_by_staff?: string;
+  total_cost?: number;
+  notes?: string;
+  status: 'prepared' | 'delivered' | 'declined' | 'partial';
+  created_at: string;
+  updated_at: string;
+  // Joined data
+  configuration?: WelcomePackConfiguration;
+  apartment?: Apartment;
+  booking?: { id: string; reference: string; guest_name: string; check_in: string; check_out: string }; // Booking type
+  items?: WelcomePackDistributionItem[];
+}
+
+export interface CreateWelcomePackDistributionData {
+  booking_id?: string;
+  apartment_id?: string;
+  configuration_id: string;
+  guest_name?: string;
+  guest_contact?: string;
+  distribution_date?: string;
+  prepared_by_staff?: string;
+  notes?: string;
+  status?: 'prepared' | 'delivered' | 'declined' | 'partial';
+}
+
+export interface UpdateWelcomePackDistributionData extends Partial<CreateWelcomePackDistributionData> {
+  id: string;
+}
+
+// Welcome Pack Distribution Item types
+export interface WelcomePackDistributionItem {
+  id: string;
+  distribution_id: string;
+  inventory_item_id: string;
+  quantity_issued: number;
+  quantity_declined: number;
+  unit_cost?: number;
+  total_cost?: number;
+  notes?: string;
+  created_at: string;
+  // Joined data
+  inventory_item?: InventoryItem;
+}
+
+export interface CreateWelcomePackDistributionItemData {
+  distribution_id: string;
+  inventory_item_id: string;
+  quantity_issued: number;
+  quantity_declined?: number;
+  unit_cost?: number;
+  total_cost?: number;
+  notes?: string;
+}
+
+export interface UpdateWelcomePackDistributionItemData extends Partial<CreateWelcomePackDistributionItemData> {
+  id: string;
+}
+
+// Welcome Pack Alert types
+export interface WelcomePackAlert {
+  id: string;
+  inventory_item_id: string;
+  alert_type: 'low_stock' | 'out_of_stock' | 'expiring_soon';
+  threshold_value?: number;
+  current_stock?: number;
+  message: string;
+  is_resolved: boolean;
+  resolved_at?: string;
+  resolved_by?: string;
+  created_at: string;
+  // Joined data
+  inventory_item?: InventoryItem;
+}
+
+export interface CreateWelcomePackAlertData {
+  inventory_item_id: string;
+  alert_type: 'low_stock' | 'out_of_stock' | 'expiring_soon';
+  threshold_value?: number;
+  current_stock?: number;
+  message: string;
+}
+
+export interface UpdateWelcomePackAlertData extends Partial<CreateWelcomePackAlertData> {
+  id: string;
+  is_resolved?: boolean;
+  resolved_by?: string;
+}
+
+// Welcome Pack Report types
+export interface WelcomePackConsumptionReport {
+  period: string;
+  total_distributions: number;
+  total_cost: number;
+  items_consumed: Array<{
+    item_name: string;
+    quantity_issued: number;
+    total_cost: number;
+  }>;
+  daily_breakdown?: Array<{
+    date: string;
+    distributions: number;
+    cost: number;
+  }>;
+}
+
+export interface WelcomePackCostAnalysis {
+  configuration_id: string;
+  configuration_name: string;
+  total_cost: number;
+  item_breakdown: Array<{
+    item_name: string;
+    quantity: number;
+    unit_cost: number;
+    total_cost: number;
+  }>;
+}

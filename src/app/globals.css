@@ -294,6 +294,86 @@ input[type="number"] {
   user-select: text;
 }
 
+/* Calendar cell scrolling functionality - target individual date cells only */
+.rbc-month-view .rbc-date-cell {
+  overflow: hidden !important;
+  transition: all 0.3s ease-in-out;
+  position: relative;
+  max-height: 120px;
+}
+
+/* Enable scrolling only when hovering over individual date cells */
+.rbc-month-view .rbc-date-cell:hover {
+  overflow-y: auto !important;
+  max-height: 250px !important;
+  z-index: 20;
+  box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.1);
+  background: rgba(255, 255, 255, 0.9);
+}
+
+/* Target the events container within each date cell */
+.rbc-month-view .rbc-date-cell .rbc-events-container {
+  overflow: hidden;
+  max-height: 100px;
+}
+
+.rbc-month-view .rbc-date-cell:hover .rbc-events-container {
+  overflow-y: auto;
+  max-height: 200px;
+}
+
+/* Smooth scrolling for individual date cells */
+.rbc-month-view .rbc-date-cell::-webkit-scrollbar {
+  width: 4px;
+}
+
+.rbc-month-view .rbc-date-cell::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 2px;
+}
+
+.rbc-month-view .rbc-date-cell::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 2px;
+}
+
+.rbc-month-view .rbc-date-cell::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+/* Ensure events within cells maintain proper spacing */
+.rbc-month-view .rbc-date-cell .rbc-event {
+  margin-bottom: 1px;
+  flex-shrink: 0;
+}
+
+/* Prevent row-level scrolling */
+.rbc-month-view .rbc-row {
+  overflow: visible;
+}
+
+.rbc-month-view .rbc-row-content {
+  overflow: visible;
+}
+
+.rbc-month-view .rbc-row-segment {
+  overflow: visible;
+}
+
+/* Ensure the calendar container allows for overflow */
+.rbc-calendar {
+  overflow: visible;
+}
+
+.rbc-month-view {
+  overflow: visible;
+}
+
+/* Debug: Add subtle border to individual date cells on hover */
+.rbc-month-view .rbc-date-cell:hover {
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
 :root {
   --radius: 0.625rem;
   --background: oklch(1 0 0);

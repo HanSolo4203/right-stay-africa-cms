@@ -10,6 +10,7 @@ import CleanerEarningsReport from '@/components/ui/CleanerEarningsReport';
 import InvoicingTable from '@/components/ui/InvoicingTable';
 import RSALaundryStats from '@/components/ui/RSALaundryStats';
 import UpcomingCleaningsTable from '@/components/ui/UpcomingCleaningsTable';
+import DashboardInventoryAnalytics from '@/components/ui/DashboardInventoryAnalytics';
 import AuthWrapper from '@/components/AuthWrapper';
 import { Toaster } from 'react-hot-toast';
 
@@ -234,6 +235,10 @@ function DashboardContent() {
           <RSALaundryStats selectedMonth={selectedMonth} />
         </div>
 
+        {/* Inventory Stock Analytics */}
+        <div className="mb-6 sm:mb-8">
+          <DashboardInventoryAnalytics />
+        </div>
 
         {/* Summary Cards (centered) */}
         {analyticsData && (

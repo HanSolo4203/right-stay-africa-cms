@@ -23,6 +23,13 @@ export const TABLES = {
   CLEANING_SESSIONS: 'cleaning_sessions',
   CLEANING_SESSIONS_DETAILED: 'cleaning_sessions_detailed',
   WELCOME_PACK_ITEMS: 'welcome_pack_items',
+  INVENTORY_ITEMS: 'inventory_items',
+  WELCOME_PACK_CONFIGURATIONS: 'welcome_pack_configurations',
+  WELCOME_PACK_CONFIGURATION_ITEMS: 'welcome_pack_configuration_items',
+  WELCOME_PACK_DISTRIBUTIONS: 'welcome_pack_distributions',
+  WELCOME_PACK_DISTRIBUTION_ITEMS: 'welcome_pack_distribution_items',
+  WELCOME_PACK_ALERTS: 'welcome_pack_alerts',
+  BOOKINGS: 'bookings',
 } as const;
 
 // Database views

@@ -1,6 +1,5 @@
 'use client';
 
-import React from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie } from 'recharts';
 import { DollarSign, TrendingUp, Users, FileText, Download } from 'lucide-react';
 

@@ -508,7 +508,17 @@ export default function AddCleaningModal({ isOpen, selectedDate, onClose, onSucc
                   id="dailyPaymentAmount"
                   name="dailyPaymentAmount"
                   value={dailyPaymentAmount || ''}
-                  onChange={(e) => setDailyPaymentAmount(Number(e.target.value))}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (value === '') {
+                      setDailyPaymentAmount(undefined);
+                    } else {
+                      const numValue = Number(value);
+                      if (!isNaN(numValue)) {
+                        setDailyPaymentAmount(numValue);
+                      }
+                    }
+                  }}
                   min="0"
                   step="0.01"
                   className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
