@@ -37,6 +37,12 @@ import {
   UpdateWelcomePackAlertData,
   WelcomePackConsumptionReport,
   WelcomePackCostAnalysis,
+  Invoice,
+  CreateInvoiceData,
+  UpdateInvoiceData,
+  BankAccountDetail,
+  CreateBankAccountDetailData,
+  UpdateBankAccountDetailData,
 } from './types';
 
 // Helper function to get authenticated Supabase client
@@ -1365,5 +1371,385 @@ export const dashboardApi = {
       sessions_this_month: sessionsThisMonth || 0,
       upcoming_sessions: upcomingSessions || 0,
     };
+  },
+};
+
+// Invoices CRUD operations
+export const invoicesApi = {
+  // Get all invoices
+  async getAll(): Promise<Invoice[]> {
+    const client = await getSupabaseClient();
+    const { data, error } = await client
+      .from(TABLES.INVOICES)
+      .select(`
+        *,
+        booking:bookings(*),
+        guest:guests(*),
+        apartment:apartments(*),
+        bank_account:bank_account_details(*)
+      `)
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    return data || [];
+  },
+
+  // Get invoice by ID
+  async getById(id: string): Promise<Invoice | null> {
+    const client = await getSupabaseClient();
+    const { data, error } = await client
+      .from(TABLES.INVOICES)
+      .select(`
+        *,
+        booking:bookings(*),
+        guest:guests(*),
+        apartment:apartments(*),
+        bank_account:bank_account_details(*)
+      `)
+      .eq('id', id)
+      .single();
+    
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return null;
+      }
+      throw error;
+    }
+    return data;
+  },
+
+  // Get invoices by status
+  async getByStatus(status: string): Promise<Invoice[]> {
+    const client = await getSupabaseClient();
+    const { data, error } = await client
+      .from(TABLES.INVOICES)
+      .select(`
+        *,
+        booking:bookings(*),
+        guest:guests(*),
+        apartment:apartments(*),
+        bank_account:bank_account_details(*)
+      `)
+      .eq('status', status)
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    return data || [];
+  },
+
+  // Get overdue invoices
+  async getOverdue(): Promise<Invoice[]> {
+    const client = await getSupabaseClient();
+    const today = new Date().toISOString().split('T')[0];
+    const { data, error } = await client
+      .from(TABLES.INVOICES)
+      .select(`
+        *,
+        booking:bookings(*),
+        guest:guests(*),
+        apartment:apartments(*),
+        bank_account:bank_account_details(*)
+      `)
+      .lt('due_date', today)
+      .in('status', ['sent', 'draft'])
+      .order('due_date', { ascending: true });
+    
+    if (error) throw error;
+    return data || [];
+  },
+
+  // Create new invoice
+  async create(invoice: CreateInvoiceData): Promise<Invoice> {
+    const client = await getSupabaseClient();
+    
+    // Generate invoice number
+    const { data: invoiceNumber, error: numberError } = await client
+      .rpc('generate_invoice_number');
+    
+    if (numberError) throw numberError;
+    
+    // If no bank_account_id is provided, use the default one
+    let bankAccountId = invoice.bank_account_id;
+    if (!bankAccountId) {
+      const defaultAccount = await bankAccountDetailsApi.getDefault();
+      if (defaultAccount) {
+        bankAccountId = defaultAccount.id;
+      }
+    }
+    
+    const { data, error } = await client
+      .from(TABLES.INVOICES)
+      .insert({
+        ...invoice,
+        bank_account_id: bankAccountId,
+        invoice_number: invoiceNumber,
+        total_amount: invoice.subtotal + (invoice.tax_amount || 0) - (invoice.discount_amount || 0),
+      })
+      .select(`
+        *,
+        booking:bookings(*),
+        guest:guests(*),
+        apartment:apartments(*),
+        bank_account:bank_account_details(*)
+      `)
+      .single();
+    
+    if (error) throw error;
+    return data;
+  },
+
+  // Update invoice
+  async update(invoice: UpdateInvoiceData): Promise<Invoice> {
+    const { id, ...updateData } = invoice;
+    const client = await getSupabaseClient();
+    
+    // Recalculate total if financial fields are updated
+    if (updateData.subtotal || updateData.tax_amount || updateData.discount_amount) {
+      const currentInvoice = await this.getById(id);
+      if (currentInvoice) {
+        const subtotal = updateData.subtotal ?? currentInvoice.subtotal;
+        const taxAmount = updateData.tax_amount ?? currentInvoice.tax_amount ?? 0;
+        const discountAmount = updateData.discount_amount ?? currentInvoice.discount_amount ?? 0;
+        (updateData as Invoice).total_amount = subtotal + taxAmount - discountAmount;
+      }
+    }
+    
+    const { data, error } = await client
+      .from(TABLES.INVOICES)
+      .update(updateData)
+      .eq('id', id)
+      .select(`
+        *,
+        booking:bookings(*),
+        guest:guests(*),
+        apartment:apartments(*),
+        bank_account:bank_account_details(*)
+      `)
+      .single();
+    
+    if (error) throw error;
+    return data;
+  },
+
+  // Mark invoice as sent
+  async markAsSent(id: string): Promise<Invoice> {
+    const client = await getSupabaseClient();
+    const { data, error } = await client
+      .from(TABLES.INVOICES)
+      .update({ 
+        status: 'sent',
+        sent_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select(`
+        *,
+        booking:bookings(*),
+        guest:guests(*),
+        apartment:apartments(*),
+        bank_account:bank_account_details(*)
+      `)
+      .single();
+    
+    if (error) throw error;
+    return data;
+  },
+
+  // Mark invoice as paid
+  async markAsPaid(id: string, amountPaid?: number): Promise<Invoice> {
+    const client = await getSupabaseClient();
+    
+    // If amount_paid is provided, use it; otherwise mark as fully paid
+    const updateData: Partial<Invoice> = {
+      status: 'paid',
+      paid_at: new Date().toISOString()
+    };
+    
+    if (amountPaid !== undefined) {
+      updateData.amount_paid = amountPaid;
+    }
+    
+    const { data, error } = await client
+      .from(TABLES.INVOICES)
+      .update(updateData)
+      .eq('id', id)
+      .select(`
+        *,
+        booking:bookings(*),
+        guest:guests(*),
+        apartment:apartments(*),
+        bank_account:bank_account_details(*)
+      `)
+      .single();
+    
+    if (error) throw error;
+    return data;
+  },
+
+  // Delete invoice
+  async delete(id: string): Promise<void> {
+    const client = await getSupabaseClient();
+    const { error } = await client
+      .from(TABLES.INVOICES)
+      .delete()
+      .eq('id', id);
+    
+    if (error) throw error;
+  },
+
+  // Get invoice statistics
+  async getStats(): Promise<{
+    total: number;
+    draft: number;
+    sent: number;
+    paid: number;
+    overdue: number;
+    totalAmount: number;
+    paidAmount: number;
+    outstandingAmount: number;
+  }> {
+    const client = await getSupabaseClient();
+    
+    // Get all invoices
+    const { data: invoices, error } = await client
+      .from(TABLES.INVOICES)
+      .select('status, total_amount, amount_paid');
+    
+    if (error) throw error;
+    
+    const stats = {
+      total: 0,
+      draft: 0,
+      sent: 0,
+      paid: 0,
+      overdue: 0,
+      totalAmount: 0,
+      paidAmount: 0,
+      outstandingAmount: 0,
+    };
+    
+    invoices?.forEach((invoice: Invoice) => {
+      stats.total++;
+      stats[invoice.status as keyof typeof stats]++;
+      stats.totalAmount += invoice.total_amount || 0;
+      stats.paidAmount += invoice.amount_paid || 0;
+    });
+    
+    stats.outstandingAmount = stats.totalAmount - stats.paidAmount;
+    
+    return stats;
+  },
+};
+
+// Bank Account Details CRUD operations
+export const bankAccountDetailsApi = {
+  // Get all bank account details
+  async getAll(): Promise<BankAccountDetail[]> {
+    const client = await getSupabaseClient();
+    const { data, error } = await client
+      .from(TABLES.BANK_ACCOUNT_DETAILS)
+      .select('*')
+      .eq('is_active', true)
+      .order('is_default', { ascending: false })
+      .order('account_name');
+    
+    if (error) throw error;
+    return data || [];
+  },
+
+  // Get bank account detail by ID
+  async getById(id: string): Promise<BankAccountDetail | null> {
+    const client = await getSupabaseClient();
+    const { data, error } = await client
+      .from(TABLES.BANK_ACCOUNT_DETAILS)
+      .select('*')
+      .eq('id', id)
+      .single();
+    
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return null;
+      }
+      throw error;
+    }
+    return data;
+  },
+
+  // Get default bank account
+  async getDefault(): Promise<BankAccountDetail | null> {
+    const client = await getSupabaseClient();
+    const { data, error } = await client
+      .from(TABLES.BANK_ACCOUNT_DETAILS)
+      .select('*')
+      .eq('is_default', true)
+      .eq('is_active', true)
+      .single();
+    
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return null;
+      }
+      throw error;
+    }
+    return data;
+  },
+
+  // Create new bank account detail
+  async create(bankAccount: CreateBankAccountDetailData): Promise<BankAccountDetail> {
+    const client = await getSupabaseClient();
+    
+    // If this is set as default, unset other defaults
+    if (bankAccount.is_default) {
+      await client
+        .from(TABLES.BANK_ACCOUNT_DETAILS)
+        .update({ is_default: false })
+        .eq('is_default', true);
+    }
+    
+    const { data, error } = await client
+      .from(TABLES.BANK_ACCOUNT_DETAILS)
+      .insert(bankAccount)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return data;
+  },
+
+  // Update bank account detail
+  async update(id: string, bankAccount: UpdateBankAccountDetailData): Promise<BankAccountDetail> {
+    const client = await getSupabaseClient();
+    
+    // If this is set as default, unset other defaults
+    if (bankAccount.is_default) {
+      await client
+        .from(TABLES.BANK_ACCOUNT_DETAILS)
+        .update({ is_default: false })
+        .neq('id', id)
+        .eq('is_default', true);
+    }
+    
+    const { data, error } = await client
+      .from(TABLES.BANK_ACCOUNT_DETAILS)
+      .update({
+        ...bankAccount,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', id)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return data;
+  },
+
+  // Delete bank account detail
+  async delete(id: string): Promise<void> {
+    const client = await getSupabaseClient();
+    const { error } = await client
+      .from(TABLES.BANK_ACCOUNT_DETAILS)
+      .delete()
+      .eq('id', id);
+    
+    if (error) throw error;
   },
 };

@@ -24,6 +24,7 @@ export default function InvoicingTable({ data, month, year }: InvoicingTableProp
   const [expandedApartment, setExpandedApartment] = useState<string | null>(null);
   const [cleaningDetails, setCleaningDetails] = useState<Record<string, CleaningSessionDetailed[]>>({});
   const [loadingDetails, setLoadingDetails] = useState<string | null>(null);
+  const [apartments, setApartments] = useState<Array<{id: string; apartment_number: string; owner_name: string}>>([]);
   const [invoiceApartment, setInvoiceApartment] = useState<{
     apartment: {
       apartment_number: string;
@@ -35,6 +36,22 @@ export default function InvoicingTable({ data, month, year }: InvoicingTableProp
     sessions: CleaningSessionDetailed[];
   } | null>(null);
   // const [welcomePackFee] = useState<number>(0);
+
+  // Load apartments on component mount
+  useEffect(() => {
+    const fetchApartments = async () => {
+      try {
+        const response = await fetch('/api/apartments');
+        if (response.ok) {
+          const data = await response.json();
+          setApartments(data.data || []);
+        }
+      } catch (error) {
+        console.error('Error fetching apartments:', error);
+      }
+    };
+    fetchApartments();
+  }, []);
 
   // Function to clear cached data (useful for refreshing after updates)
   const clearCache = () => {
@@ -268,6 +285,56 @@ export default function InvoicingTable({ data, month, year }: InvoicingTableProp
     } else {
       setSortBy(column);
       setSortOrder('asc');
+    }
+  };
+
+  // Handle apartment change in invoice generator
+  const handleApartmentChange = async (apartmentId: string) => {
+    const selectedApartment = apartments.find(apt => apt.id === apartmentId);
+    if (!selectedApartment) return;
+
+    // Find the apartment data from the main data array
+    const apartmentData = data.find(apt => apt.apartment_id === apartmentId);
+    if (!apartmentData) return;
+
+    const cacheKey = `${apartmentData.apartment_number}-${month || year || 'all'}`;
+    
+    // If we already have the cleaning details, use them
+    if (cleaningDetails[cacheKey]) {
+      setInvoiceApartment({
+        apartment: apartmentData,
+        sessions: cleaningDetails[cacheKey]
+      });
+      return;
+    }
+
+    // Otherwise, fetch the details first
+    setLoadingDetails(apartmentData.apartment_number);
+    try {
+      let url = `/api/cleaning-sessions?apartment=${apartmentData.apartment_number}`;
+      if (month) {
+        url += `&month=${month}`;
+      } else if (year) {
+        url += `&year=${year}`;
+      }
+      
+      const response = await fetch(url);
+      const result = await response.json();
+      
+      if (result.success) {
+        setCleaningDetails(prev => ({
+          ...prev,
+          [cacheKey]: result.data
+        }));
+        setInvoiceApartment({
+          apartment: apartmentData,
+          sessions: result.data
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching cleaning details:', error);
+    } finally {
+      setLoadingDetails(null);
     }
   };
 
@@ -761,9 +828,11 @@ export default function InvoicingTable({ data, month, year }: InvoicingTableProp
         <InvoiceGenerator
           apartment={invoiceApartment.apartment}
           cleaningSessions={invoiceApartment.sessions}
+          apartments={apartments}
           month={month}
           year={year}
           onClose={() => setInvoiceApartment(null)}
+          onApartmentChange={handleApartmentChange}
         />
       )}
     </div>

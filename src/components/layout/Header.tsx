@@ -2,11 +2,11 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
-import { LogOut, User, LogIn, Calendar, BarChart3, Settings, FileText, DollarSign, BookOpen, ChevronDown, TrendingUp, Package } from 'lucide-react';
+import { LogOut, User, LogIn, Calendar, BarChart3, Settings, FileText, DollarSign, BookOpen, ChevronDown, TrendingUp, Package, Receipt } from 'lucide-react';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: BarChart3 },
@@ -19,6 +19,7 @@ const navigation = [
     submenu: [
       { name: 'Bookings', href: '/bookings', icon: BookOpen },
       { name: 'Owner Statements', href: '/finance/owner-statements', icon: DollarSign },
+      { name: 'Invoicing', href: '/finance/invoicing', icon: Receipt },
       { name: 'Analytics', href: '/finance/analytics', icon: TrendingUp },
     ]
   },
@@ -30,6 +31,32 @@ export default function Header() {
   const { user, signOut } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [financeOpen, setFinanceOpen] = useState(false);
+  const [financeTimeout, setFinanceTimeout] = useState<NodeJS.Timeout | null>(null);
+
+  // Helper functions for finance dropdown with delay
+  const handleFinanceMouseEnter = () => {
+    if (financeTimeout) {
+      clearTimeout(financeTimeout);
+      setFinanceTimeout(null);
+    }
+    setFinanceOpen(true);
+  };
+
+  const handleFinanceMouseLeave = () => {
+    const timeout = setTimeout(() => {
+      setFinanceOpen(false);
+    }, 150); // 150ms delay before closing
+    setFinanceTimeout(timeout);
+  };
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (financeTimeout) {
+        clearTimeout(financeTimeout);
+      }
+    };
+  }, [financeTimeout]);
 
   // Hide header on the login page
   if (pathname === '/login') {
@@ -38,7 +65,7 @@ export default function Header() {
 
   return (
     <header className="bg-white shadow-sm border-b border-gray-200">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="w-full px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-20">
           {/* Left logo */}
           <div className="flex items-center w-32">
@@ -71,8 +98,8 @@ export default function Header() {
                         <div 
                           key={item.name} 
                           className="relative"
-                          onMouseEnter={() => setFinanceOpen(true)}
-                          onMouseLeave={() => setFinanceOpen(false)}
+                          onMouseEnter={handleFinanceMouseEnter}
+                          onMouseLeave={handleFinanceMouseLeave}
                         >
                           <button
                             onClick={() => setFinanceOpen(!financeOpen)}
@@ -89,7 +116,9 @@ export default function Header() {
                           </button>
                           {financeOpen && (
                             <div 
-                              className="absolute left-0 mt-1 w-48 bg-white rounded-md shadow-lg border border-gray-200 z-50 py-1"
+                              className="absolute left-0 top-full w-48 bg-white rounded-md shadow-lg border border-gray-200 z-50 py-1"
+                              onMouseEnter={handleFinanceMouseEnter}
+                              onMouseLeave={handleFinanceMouseLeave}
                             >
                               {item.submenu.map((subItem) => {
                                 const subIsActive = pathname === subItem.href;

@@ -30,6 +30,8 @@ export const TABLES = {
   WELCOME_PACK_DISTRIBUTION_ITEMS: 'welcome_pack_distribution_items',
   WELCOME_PACK_ALERTS: 'welcome_pack_alerts',
   BOOKINGS: 'bookings',
+  INVOICES: 'invoices',
+  BANK_ACCOUNT_DETAILS: 'bank_account_details',
 } as const;
 
 // Database views

@@ -111,12 +111,12 @@ export default function InventoryInvoicePage() {
   const totalItems = totalDetergents + totalWelcomePacks;
 
   const detergentsValue = detergents.reduce((sum, item) => {
-    const itemValue = (item.purchase_price || 0) * (item.current_stock || 0);
+    const itemValue = (item.current_stock || 0) * ((item.purchase_price || 0) / (item.purchase_quantity || 1));
     return sum + itemValue;
   }, 0);
 
   const welcomePacksValue = welcomePacks.reduce((sum, item) => {
-    const itemValue = (item.purchase_price || 0) * (item.current_stock || 0);
+    const itemValue = (item.current_stock || 0) * ((item.purchase_price || 0) / (item.purchase_quantity || 1));
     return sum + itemValue;
   }, 0);
 
@@ -229,8 +229,10 @@ export default function InventoryInvoicePage() {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {detergents.map((item) => {
-                  const unitPrice = item.purchase_price || 0;
-                  const totalValue = unitPrice * (item.current_stock || 0);
+                  // Calculate unit price as total value divided by current stock
+                  // Total value = current_stock * (purchase_price / purchase_quantity)
+                  const totalValue = (item.current_stock || 0) * ((item.purchase_price || 0) / (item.purchase_quantity || 1));
+                  const unitPrice = (item.current_stock || 0) > 0 ? totalValue / (item.current_stock || 0) : 0;
                   const isLowStock = item.min_stock_level && (item.current_stock || 0) <= item.min_stock_level;
                   
                   return (

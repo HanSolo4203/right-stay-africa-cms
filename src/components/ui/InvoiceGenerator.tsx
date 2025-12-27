@@ -1,8 +1,15 @@
 'use client';
 
 import { useState } from 'react';
-import { FileText, Download, Printer, Calendar, User, X, Users } from 'lucide-react';
+import { FileText, Download, Printer, Calendar, User, X, Users, Building } from 'lucide-react';
 import { CleaningSessionDetailed } from '@/lib/types';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
+interface Apartment {
+  id: string;
+  apartment_number: string;
+  owner_name: string;
+}
 
 interface InvoiceGeneratorProps {
   apartment: {
@@ -13,17 +20,21 @@ interface InvoiceGeneratorProps {
     apartment_id: string;
   };
   cleaningSessions: CleaningSessionDetailed[];
+  apartments: Apartment[];
   month?: string;
   year?: string;
   onClose: () => void;
+  onApartmentChange?: (apartmentId: string) => void;
 }
 
 export default function InvoiceGenerator({ 
   apartment, 
   cleaningSessions, 
+  apartments,
   month, 
   year, 
-  onClose 
+  onClose,
+  onApartmentChange
 }: InvoiceGeneratorProps) {
   const [isGenerating, setIsGenerating] = useState(false);
 
@@ -392,6 +403,29 @@ export default function InvoiceGenerator({
 
         <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
           <div className="space-y-6">
+            {/* Apartment Selection */}
+            <div className="bg-white p-4 rounded-lg border border-gray-200">
+              <div className="flex items-center space-x-3 mb-4">
+                <Building className="w-5 h-5 text-blue-600" />
+                <h3 className="text-lg font-semibold text-gray-900">Select Apartment</h3>
+              </div>
+              <Select 
+                value={apartment.apartment_id} 
+                onValueChange={(value) => onApartmentChange?.(value)}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select an apartment" />
+                </SelectTrigger>
+                <SelectContent>
+                  {apartments.map((apt) => (
+                    <SelectItem key={apt.id} value={apt.id}>
+                      {apt.apartment_number} - {apt.owner_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             {/* Invoice Preview */}
             <div className="bg-gray-50 p-4 rounded-lg">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

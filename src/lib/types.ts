@@ -1,3 +1,18 @@
+export interface Booking {
+  id: string;
+  reference: string;
+  guest_name: string;
+  check_in: string;
+  check_out: string;
+}
+
+export interface Guest {
+  id: string;
+  name: string;
+  email?: string;
+  phone?: string;
+}
+
 export interface Apartment {
   id: string;
   apartment_number: string;
@@ -466,4 +481,125 @@ export interface WelcomePackCostAnalysis {
     unit_cost: number;
     total_cost: number;
   }>;
+}
+
+// Invoice types
+export interface InvoiceLineItem {
+  description: string;
+  quantity: number;
+  rate: number;
+  amount: number;
+}
+
+export interface Invoice {
+  id: string;
+  invoice_number: string;
+  booking_id?: string;
+  guest_id: string;
+  apartment_id: string;
+  invoice_date: string;
+  due_date: string;
+  status: 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled';
+  invoice_title?: string;
+  client_name: string;
+  client_prefix?: string;
+  client_email?: string;
+  client_phone?: string;
+  client_address?: string;
+  subject_description?: string;
+  subtotal: number;
+  tax_amount?: number;
+  discount_amount?: number;
+  total_amount: number;
+  amount_paid?: number;
+  balance_due: number;
+  line_items: InvoiceLineItem[];
+  notes?: string;
+  terms?: string;
+  bank_account_id?: string;
+  created_at: string;
+  updated_at: string;
+  sent_at?: string;
+  paid_at?: string;
+  // Related data
+  booking?: Booking;
+  guest?: Guest;
+  apartment?: Apartment;
+  bank_account?: BankAccountDetail;
+}
+
+export interface CreateInvoiceData {
+  booking_id?: string;
+  guest_id: string;
+  apartment_id: string;
+  invoice_date: string;
+  due_date: string;
+  invoice_title?: string;
+  client_name: string;
+  client_prefix?: string;
+  client_email?: string;
+  client_phone?: string;
+  client_address?: string;
+  subtotal: number;
+  tax_amount?: number;
+  discount_amount?: number;
+  line_items: InvoiceLineItem[];
+  notes?: string;
+  terms?: string;
+  bank_account_id?: string;
+}
+
+export interface UpdateInvoiceData {
+  id: string;
+  invoice_date?: string;
+  due_date?: string;
+  status?: 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled';
+  invoice_title?: string;
+  client_name?: string;
+  client_prefix?: string;
+  client_email?: string;
+  client_phone?: string;
+  client_address?: string;
+  subject_description?: string;
+  subtotal?: number;
+  tax_amount?: number;
+  discount_amount?: number;
+  amount_paid?: number;
+  line_items?: InvoiceLineItem[];
+  notes?: string;
+  terms?: string;
+  bank_account_id?: string;
+}
+
+export interface BankAccountDetail {
+  id: string;
+  account_name: string;
+  beneficiary_name: string;
+  account_number: string;
+  branch_code: string;
+  bank_name: string;
+  is_default: boolean;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateBankAccountDetailData {
+  account_name: string;
+  beneficiary_name: string;
+  account_number: string;
+  branch_code: string;
+  bank_name: string;
+  is_default?: boolean;
+  is_active?: boolean;
+}
+
+export interface UpdateBankAccountDetailData {
+  account_name?: string;
+  beneficiary_name?: string;
+  account_number?: string;
+  branch_code?: string;
+  bank_name?: string;
+  is_default?: boolean;
+  is_active?: boolean;
 }

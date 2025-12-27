@@ -32,6 +32,7 @@ export default function AddStockModal({
   });
   const [errors, setErrors] = useState<{ [key in keyof AddStockData]?: string }>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [itemTypeFilter, setItemTypeFilter] = useState<'all' | 'detergent' | 'welcome_pack'>('all');
 
   // Reset form when modal opens
   useEffect(() => {
@@ -42,6 +43,7 @@ export default function AddStockModal({
         price: 0
       });
       setErrors({});
+      setItemTypeFilter('all');
     }
   }, [isOpen]);
 
@@ -97,6 +99,12 @@ export default function AddStockModal({
     }
   };
 
+  // Filter items based on selected type
+  const filteredItems = items.filter(item => {
+    if (itemTypeFilter === 'all') return true;
+    return item.item_type === itemTypeFilter;
+  });
+
   const selectedItem = items.find(item => item.id === formData.item_id);
 
   if (!isOpen) return null;
@@ -123,6 +131,28 @@ export default function AddStockModal({
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {/* Item Type Filter */}
+          <div>
+            <label htmlFor="item_type_filter" className="block text-sm font-medium text-gray-700 mb-2">
+              Filter by Item Type
+            </label>
+            <select
+              id="item_type_filter"
+              value={itemTypeFilter}
+              onChange={(e) => {
+                setItemTypeFilter(e.target.value as 'all' | 'detergent' | 'welcome_pack');
+                // Clear selected item when filter changes
+                handleInputChange('item_id', '');
+              }}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled={isSubmitting}
+            >
+              <option value="all">All Items</option>
+              <option value="detergent">Detergents Only</option>
+              <option value="welcome_pack">Welcome Packs Only</option>
+            </select>
+          </div>
+
           {/* Item Selection */}
           <div>
             <label htmlFor="item_id" className="block text-sm font-medium text-gray-700 mb-2">
@@ -138,7 +168,7 @@ export default function AddStockModal({
               disabled={isSubmitting}
             >
               <option value="">Choose an item...</option>
-              {items.map((item) => (
+              {filteredItems.map((item) => (
                 <option key={item.id} value={item.id}>
                   {item.name} ({item.item_type === 'detergent' ? 'Detergent' : 'Welcome Pack'}) - Current: {item.current_stock} {item.unit_of_measure}
                 </option>
@@ -146,6 +176,11 @@ export default function AddStockModal({
             </select>
             {errors.item_id && (
               <p className="mt-1 text-sm text-red-600">{errors.item_id}</p>
+            )}
+            {filteredItems.length === 0 && (
+              <p className="mt-1 text-sm text-gray-500">
+                No {itemTypeFilter === 'all' ? '' : itemTypeFilter === 'detergent' ? 'detergent ' : 'welcome pack '}items found.
+              </p>
             )}
           </div>
 
