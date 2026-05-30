@@ -1,7 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig = {
-  /* config options here */
+  images: {
+    qualities: [75, 100],
+  },
   turbopack: {
     // Set the Turbopack root to this workspace to silence inferred root warnings
     root: __dirname,

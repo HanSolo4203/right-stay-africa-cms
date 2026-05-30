@@ -6,24 +6,40 @@ import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
-import { LogOut, User, LogIn, Calendar, BarChart3, Settings, FileText, DollarSign, BookOpen, ChevronDown, TrendingUp, Package, Receipt } from 'lucide-react';
+import { LogOut, User, LogIn, Calendar, BarChart3, Settings, FileText, DollarSign, BookOpen, ChevronDown, TrendingUp, Package, Receipt, Link2, Sparkles, Users } from 'lucide-react';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: BarChart3 },
   { name: 'Calendar', href: '/calendar', icon: Calendar },
+  { name: 'Bookings', href: '/bookings', icon: BookOpen },
+  { name: 'Cleaning', href: '/cleaning', icon: Sparkles },
+  {
+    name: 'Operations',
+    icon: Users,
+    submenu: [
+      { name: 'Cleaner Payouts', href: '/settings/cleaners', icon: DollarSign },
+    ],
+  },
   { name: 'Reports', href: '/reports/monthly-expenses', icon: FileText },
   { name: 'Inventory', href: '/inventory', icon: Package },
   { 
     name: 'Finance', 
     icon: DollarSign,
     submenu: [
-      { name: 'Bookings', href: '/bookings', icon: BookOpen },
       { name: 'Owner Statements', href: '/finance/owner-statements', icon: DollarSign },
       { name: 'Invoicing', href: '/finance/invoicing', icon: Receipt },
       { name: 'Analytics', href: '/finance/analytics', icon: TrendingUp },
     ]
   },
-  { name: 'Settings', href: '/settings', icon: Settings },
+  {
+    name: 'Settings',
+    icon: Settings,
+    submenu: [
+      { name: 'General', href: '/settings', icon: Settings },
+      { name: 'Uplisting', href: '/settings/uplisting', icon: Link2 },
+      { name: 'Cleaner Payouts', href: '/settings/cleaners', icon: DollarSign },
+    ],
+  },
 ];
 
 export default function Header() {
@@ -32,8 +48,11 @@ export default function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [financeOpen, setFinanceOpen] = useState(false);
   const [financeTimeout, setFinanceTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsTimeout, setSettingsTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [operationsOpen, setOperationsOpen] = useState(false);
+  const [operationsTimeout, setOperationsTimeout] = useState<NodeJS.Timeout | null>(null);
 
-  // Helper functions for finance dropdown with delay
   const handleFinanceMouseEnter = () => {
     if (financeTimeout) {
       clearTimeout(financeTimeout);
@@ -45,8 +64,62 @@ export default function Header() {
   const handleFinanceMouseLeave = () => {
     const timeout = setTimeout(() => {
       setFinanceOpen(false);
-    }, 150); // 150ms delay before closing
+    }, 150);
     setFinanceTimeout(timeout);
+  };
+
+  const handleSettingsMouseEnter = () => {
+    if (settingsTimeout) {
+      clearTimeout(settingsTimeout);
+      setSettingsTimeout(null);
+    }
+    setSettingsOpen(true);
+  };
+
+  const handleSettingsMouseLeave = () => {
+    const timeout = setTimeout(() => {
+      setSettingsOpen(false);
+    }, 150);
+    setSettingsTimeout(timeout);
+  };
+
+  const handleOperationsMouseEnter = () => {
+    if (operationsTimeout) {
+      clearTimeout(operationsTimeout);
+      setOperationsTimeout(null);
+    }
+    setOperationsOpen(true);
+  };
+
+  const handleOperationsMouseLeave = () => {
+    const timeout = setTimeout(() => {
+      setOperationsOpen(false);
+    }, 150);
+    setOperationsTimeout(timeout);
+  };
+
+  const submenuHandlers: Record<
+    string,
+    { isOpen: boolean; setOpen: (v: boolean) => void; onEnter: () => void; onLeave: () => void }
+  > = {
+    Finance: {
+      isOpen: financeOpen,
+      setOpen: setFinanceOpen,
+      onEnter: handleFinanceMouseEnter,
+      onLeave: handleFinanceMouseLeave,
+    },
+    Settings: {
+      isOpen: settingsOpen,
+      setOpen: setSettingsOpen,
+      onEnter: handleSettingsMouseEnter,
+      onLeave: handleSettingsMouseLeave,
+    },
+    Operations: {
+      isOpen: operationsOpen,
+      setOpen: setOperationsOpen,
+      onEnter: handleOperationsMouseEnter,
+      onLeave: handleOperationsMouseLeave,
+    },
   };
 
   // Cleanup timeout on unmount
@@ -55,8 +128,14 @@ export default function Header() {
       if (financeTimeout) {
         clearTimeout(financeTimeout);
       }
+      if (settingsTimeout) {
+        clearTimeout(settingsTimeout);
+      }
+      if (operationsTimeout) {
+        clearTimeout(operationsTimeout);
+      }
     };
-  }, [financeTimeout]);
+  }, [financeTimeout, settingsTimeout, operationsTimeout]);
 
   // Hide header on the login page
   if (pathname === '/login') {
@@ -92,17 +171,23 @@ export default function Header() {
               <nav className="flex space-x-8">
                 {navigation.map((item) => {
                     if (item.submenu) {
-                      // Dropdown for Finance
-                      const isActive = item.submenu.some(sub => pathname === sub.href);
+                      const menu = submenuHandlers[item.name] ?? submenuHandlers.Settings;
+                      const { isOpen, setOpen, onEnter, onLeave } = menu;
+                      const isActive = item.submenu.some(
+                        (sub) =>
+                          pathname === sub.href ||
+                          (sub.href !== '/settings' && pathname.startsWith(`${sub.href}/`))
+                      );
+
                       return (
-                        <div 
-                          key={item.name} 
+                        <div
+                          key={item.name}
                           className="relative"
-                          onMouseEnter={handleFinanceMouseEnter}
-                          onMouseLeave={handleFinanceMouseLeave}
+                          onMouseEnter={onEnter}
+                          onMouseLeave={onLeave}
                         >
                           <button
-                            onClick={() => setFinanceOpen(!financeOpen)}
+                            onClick={() => setOpen(!isOpen)}
                             className={cn(
                               'flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors',
                               isActive
@@ -114,14 +199,17 @@ export default function Header() {
                             <span>{item.name}</span>
                             <ChevronDown className="w-3 h-3" />
                           </button>
-                          {financeOpen && (
-                            <div 
+                          {isOpen && (
+                            <div
                               className="absolute left-0 top-full w-48 bg-white rounded-md shadow-lg border border-gray-200 z-50 py-1"
-                              onMouseEnter={handleFinanceMouseEnter}
-                              onMouseLeave={handleFinanceMouseLeave}
+                              onMouseEnter={onEnter}
+                              onMouseLeave={onLeave}
                             >
                               {item.submenu.map((subItem) => {
-                                const subIsActive = pathname === subItem.href;
+                                const subIsActive =
+                                  pathname === subItem.href ||
+                                  (subItem.href !== '/settings' &&
+                                    pathname.startsWith(`${subItem.href}/`));
                                 return (
                                   <Link
                                     key={subItem.name}
@@ -132,7 +220,7 @@ export default function Header() {
                                         ? 'bg-blue-50 text-blue-700'
                                         : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                                     )}
-                                    onClick={() => setFinanceOpen(false)}
+                                    onClick={() => setOpen(false)}
                                   >
                                     <subItem.icon className="w-4 h-4" />
                                     <span>{subItem.name}</span>
@@ -231,7 +319,6 @@ export default function Header() {
               {/* Navigation Links */}
               {navigation.map((item) => {
                   if (item.submenu) {
-                    // Submenu for Finance in mobile
                     return (
                       <div key={item.name}>
                         <div className="flex items-center space-x-2 px-3 py-2 text-base font-medium text-gray-600">
@@ -240,7 +327,10 @@ export default function Header() {
                         </div>
                         <div className="ml-6 space-y-1">
                           {item.submenu.map((subItem) => {
-                            const subIsActive = pathname === subItem.href;
+                            const subIsActive =
+                              pathname === subItem.href ||
+                              (subItem.href !== '/settings' &&
+                                pathname.startsWith(`${subItem.href}/`));
                             return (
                               <Link
                                 key={subItem.name}

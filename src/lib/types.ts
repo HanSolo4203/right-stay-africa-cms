@@ -1,9 +1,15 @@
+export type BookingSource = 'manual' | 'uplisting_api' | 'uplisting_webhook';
+
 export interface Booking {
   id: string;
   reference: string;
   guest_name: string;
   check_in: string;
   check_out: string;
+  uplisting_booking_id?: string;
+  uplisting_listing_id?: string;
+  source?: BookingSource;
+  raw_payload?: Record<string, unknown>;
 }
 
 export interface Guest {
@@ -19,10 +25,43 @@ export interface Apartment {
   owner_name: string;
   owner_email?: string;
   address?: string;
+  uplisting_id?: string;
+  uplisting_name?: string;
   // Amount paid to cleaner for a cleaning at this apartment (not customer price)
   cleaner_payout?: number;
   created_at: string;
   updated_at: string;
+}
+
+export interface UplistingListing {
+  id: string;
+  name: string;
+  internal_name: string;
+}
+
+export interface UplistingBooking {
+  id: string;
+  listing_id: string;
+  guest_name: string | null;
+  guest_email: string | null;
+  guest_phone: string | null;
+  check_in: string;
+  check_out: string;
+  status: string;
+  accommodation_total: number | null;
+  cleaning_fee: number | null;
+  channel_commission: number | null;
+  taxes: number | null;
+  total_payout: number | null;
+  channel: string | null;
+  booking_reference: string | null;
+  created_at: string | null;
+}
+
+export interface SyncResult {
+  synced: number;
+  skipped?: number;
+  errors: string[];
 }
 
 export interface RSALaundryAsset {
@@ -602,4 +641,61 @@ export interface UpdateBankAccountDetailData {
   bank_name?: string;
   is_default?: boolean;
   is_active?: boolean;
+}
+
+export type CleaningTaskStatus = 'pending' | 'in_progress' | 'completed' | 'skipped';
+export type CleaningTaskType = 'checkout_clean' | 'midstay_clean';
+
+export interface CleaningTask {
+  id: string;
+  booking_id: string;
+  apartment_id: string;
+  task_type: CleaningTaskType;
+  scheduled_date: string;
+  status: CleaningTaskStatus;
+  notes?: string | null;
+  assigned_cleaner_id?: string | null;
+  cleaner_payout?: number | null;
+  auto_assigned?: boolean;
+  completed_at?: string | null;
+  created_at: string;
+  updated_at: string;
+  apartment_name?: string;
+  cleaner_name?: string;
+  guest_name?: string;
+  check_in_date?: string;
+  check_out_date?: string;
+  booking_reference?: string;
+}
+
+export interface CleanerAssignment {
+  id: string;
+  apartment_id: string;
+  cleaner_id: string;
+  is_primary: boolean;
+  created_at?: string;
+  apartment_name?: string;
+  cleaner_name?: string;
+}
+
+export interface CleanerPayoutRate {
+  id: string;
+  cleaner_id: string;
+  apartment_id: string;
+  checkout_clean_rate: number;
+  midstay_clean_rate: number;
+  currency: string;
+  created_at?: string;
+  updated_at?: string;
+  cleaner_name?: string;
+  apartment_name?: string;
+}
+
+export interface CleanerPayoutSummary {
+  cleaner_id: string;
+  cleaner_name: string;
+  checkout_count: number;
+  midstay_count: number;
+  total_payout: number;
+  tasks: CleaningTask[];
 }

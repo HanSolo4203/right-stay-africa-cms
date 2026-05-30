@@ -1,7 +1,9 @@
 import { createBrowserClient } from '@supabase/ssr';
+import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 // Single client instance for client-side operations
 let supabaseClient: ReturnType<typeof createBrowserClient> | null = null;
@@ -15,6 +17,26 @@ export const createClientComponentClient = () => {
 
 // For backward compatibility, export the client instance
 export const supabase = createClientComponentClient();
+
+/**
+ * Service-role Supabase client (bypasses RLS).
+ * Uses `SUPABASE_SERVICE_ROLE_KEY` — not the anon key.
+ *
+ * **Server-only:** use in API routes and server-side code only.
+ * Never import this function from client components.
+ */
+export function createServiceClient() {
+  if (!supabaseServiceRoleKey) {
+    throw new Error('SUPABASE_SERVICE_ROLE_KEY is not defined');
+  }
+
+  return createClient(supabaseUrl, supabaseServiceRoleKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  });
+}
 
 // Database table names
 export const TABLES = {

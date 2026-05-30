@@ -64,17 +64,39 @@ cd right-stay-africa-cms
 npm install
 ```
 
-3. Set up environment variables:
-```bash
-cp .env.local.example .env.local
-```
+3. Set up environment variables by creating `.env.local` in the project root:
 
-Edit `.env.local` with your Supabase credentials:
 ```env
+# Supabase (client-side)
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+
+# Supabase (server-side only — bypasses RLS; never expose to the browser)
 SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+
+# Uplisting integration (Settings → Connect → API Key)
+UPLISTING_API_KEY=           # UUID-shaped key; trim whitespace; restart dev server after changes
+UPLISTING_WEBHOOK_SECRET=    # Secret for validating Uplisting webhook signatures
+SYNC_SECRET=                 # Secret header value to protect the manual sync endpoint
+NEXT_PUBLIC_SYNC_SECRET=     # Same value as SYNC_SECRET (used by the Uplisting settings page)
 ```
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `NEXT_PUBLIC_SUPABASE_URL` | Yes | Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Supabase anon/public key (safe for client components) |
+| `SUPABASE_SERVICE_ROLE_KEY` | Yes | Service-role key for API routes and server-side jobs |
+| `UPLISTING_API_KEY` | For Uplisting sync | API key from Uplisting **Settings → Connect → API Key**. Auth is `Basic` + Base64(key), not Bearer. |
+| `UPLISTING_WEBHOOK_SECRET` | For webhooks | Shared secret used to verify incoming Uplisting webhook signatures |
+| `SYNC_SECRET` | For manual sync | Value sent in the `x-sync-secret` header when calling `POST /api/uplisting/sync` |
+| `NEXT_PUBLIC_SYNC_SECRET` | For settings UI | Client-side copy of `SYNC_SECRET` for the Sync Now button on `/settings/uplisting` |
+
+### Uplisting API notes
+
+- **Base URL:** `https://connect.uplisting.io` (not `api.uplisting.io`). Optional override: `UPLISTING_API_URL`.
+- **Auth:** `Authorization: Basic ${Buffer.from(apiKey).toString('base64')}` — the raw key only, not `username:password`.
+- **Properties:** `GET /properties` (JSON:API `data[]` with `attributes.name`, `attributes.nickname`).
+- **Bookings:** Connect may return 404 on `GET /bookings`; this app then relies on **webhooks** (`booking.created`, `booking.updated`, `booking.cancelled`) for booking sync. Bulk booking pull may require Uplisting V2/partner API access.
 
 4. Run the development server:
 ```bash
