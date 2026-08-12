@@ -30,7 +30,8 @@ function mapTaskRow(row: Record<string, unknown>): CleaningTask {
 
   return {
     id: row.id as string,
-    booking_id: row.booking_id as string,
+    booking_id: (row.booking_id as string | null) ?? null,
+    is_manual: Boolean(row.is_manual),
     apartment_id: row.apartment_id as string,
     task_type: row.task_type as CleaningTask['task_type'],
     scheduled_date: row.scheduled_date as string,

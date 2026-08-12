@@ -263,6 +263,13 @@ function UplistingSettingsContent() {
               <p className="text-gray-600 mt-2">
                 Sync listings and bookings from Uplisting and monitor linked properties
               </p>
+              <p className="text-xs text-gray-500 mt-2">
+                Generate Cleaning Tasks uses mid-stay rules from{' '}
+                <Link href="/settings/cleaners" className="text-blue-600 hover:underline">
+                  Cleaner Management → Schedule
+                </Link>
+                . Manual calendar edits are kept.
+              </p>
             </div>
             <div className="flex flex-col sm:flex-row gap-2">
               <button

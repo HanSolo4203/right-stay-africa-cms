@@ -1,5 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceRoleClient } from '@/lib/supabase-server';
+import {
+  assignmentFieldsForTask,
+  buildTasksForBooking,
+  getMidstaySettings,
+  getPrimaryCleanerAssignment,
+  type PrimaryCleanerAssignment,
+} from '@/lib/cleaning-schedule';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,36 +19,6 @@ interface BookingRow {
 
 function todayDateString(): string {
   return new Date().toISOString().slice(0, 10);
-}
-
-function nightsBetween(checkIn: string, checkOut: string): number {
-  const inMs = new Date(`${checkIn}T00:00:00`).getTime();
-  const outMs = new Date(`${checkOut}T00:00:00`).getTime();
-  return Math.round((outMs - inMs) / (24 * 60 * 60 * 1000));
-}
-
-function addDays(dateStr: string, days: number): string {
-  const date = new Date(`${dateStr}T00:00:00`);
-  date.setDate(date.getDate() + days);
-  return date.toISOString().slice(0, 10);
-}
-
-function buildTasksForBooking(booking: BookingRow): {
-  task_type: 'checkout_clean' | 'midstay_clean';
-  scheduled_date: string;
-}[] {
-  const tasks: { task_type: 'checkout_clean' | 'midstay_clean'; scheduled_date: string }[] = [
-    { task_type: 'checkout_clean', scheduled_date: booking.check_out_date },
-  ];
-
-  if (nightsBetween(booking.check_in_date, booking.check_out_date) > 5) {
-    tasks.push({
-      task_type: 'midstay_clean',
-      scheduled_date: addDays(booking.check_in_date, 5),
-    });
-  }
-
-  return tasks;
 }
 
 export async function POST(request: NextRequest) {
@@ -59,6 +36,17 @@ export async function POST(request: NextRequest) {
   let skipped = 0;
   const errors: string[] = [];
 
+  let settings;
+  try {
+    settings = await getMidstaySettings(supabase);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to load schedule settings';
+    return NextResponse.json(
+      { error: message, generated: 0, skipped: 0, errors: [] },
+      { status: 500 }
+    );
+  }
+
   const { data: bookings, error: fetchError } = await supabase
     .from('bookings')
     .select('id, apartment_id, check_in_date, check_out_date')
@@ -70,6 +58,8 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+
+  const assignmentByApartment = new Map<string, PrimaryCleanerAssignment>();
 
   for (const booking of (bookings ?? []) as BookingRow[]) {
     if (booking.check_out_date < today) {
@@ -85,25 +75,56 @@ export async function POST(request: NextRequest) {
     const { error: deleteError } = await supabase
       .from('cleaning_tasks')
       .delete()
-      .eq('booking_id', booking.id);
+      .eq('booking_id', booking.id)
+      .eq('is_manual', false)
+      .in('status', ['pending', 'in_progress']);
 
     if (deleteError) {
-      errors.push(`Booking ${booking.id}: failed to delete existing tasks — ${deleteError.message}`);
+      errors.push(
+        `Booking ${booking.id}: failed to delete existing auto tasks — ${deleteError.message}`
+      );
       continue;
     }
 
-    const taskRows = buildTasksForBooking(booking).map((task) => ({
-      booking_id: booking.id,
-      apartment_id: booking.apartment_id,
-      task_type: task.task_type,
-      scheduled_date: task.scheduled_date,
-    }));
+    const { data: remaining, error: remainingError } = await supabase
+      .from('cleaning_tasks')
+      .select('scheduled_date')
+      .eq('booking_id', booking.id);
 
-    const { error: insertError } = await supabase.from('cleaning_tasks').insert(taskRows);
-
-    if (insertError) {
-      errors.push(`Booking ${booking.id}: failed to insert tasks — ${insertError.message}`);
+    if (remainingError) {
+      errors.push(
+        `Booking ${booking.id}: failed to load remaining tasks — ${remainingError.message}`
+      );
       continue;
+    }
+
+    const existingDates = new Set(
+      (remaining ?? []).map((row) => row.scheduled_date as string)
+    );
+
+    let assignment = assignmentByApartment.get(booking.apartment_id);
+    if (!assignment) {
+      assignment = await getPrimaryCleanerAssignment(supabase, booking.apartment_id);
+      assignmentByApartment.set(booking.apartment_id, assignment);
+    }
+
+    const taskRows = buildTasksForBooking(booking, settings)
+      .filter((task) => !existingDates.has(task.scheduled_date))
+      .map((task) => ({
+        booking_id: booking.id,
+        apartment_id: booking.apartment_id,
+        task_type: task.task_type,
+        scheduled_date: task.scheduled_date,
+        is_manual: false,
+        ...assignmentFieldsForTask(task.task_type, assignment),
+      }));
+
+    if (taskRows.length > 0) {
+      const { error: insertError } = await supabase.from('cleaning_tasks').insert(taskRows);
+      if (insertError) {
+        errors.push(`Booking ${booking.id}: failed to insert tasks — ${insertError.message}`);
+        continue;
+      }
     }
 
     generated += 1;

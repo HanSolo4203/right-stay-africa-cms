@@ -648,7 +648,7 @@ export type CleaningTaskType = 'checkout_clean' | 'midstay_clean';
 
 export interface CleaningTask {
   id: string;
-  booking_id: string;
+  booking_id: string | null;
   apartment_id: string;
   task_type: CleaningTaskType;
   scheduled_date: string;
@@ -657,6 +657,7 @@ export interface CleaningTask {
   assigned_cleaner_id?: string | null;
   cleaner_payout?: number | null;
   auto_assigned?: boolean;
+  is_manual?: boolean;
   completed_at?: string | null;
   created_at: string;
   updated_at: string;

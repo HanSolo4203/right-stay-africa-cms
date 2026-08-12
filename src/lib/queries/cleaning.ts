@@ -5,7 +5,7 @@ export type CleaningTaskType = 'checkout_clean' | 'midstay_clean';
 
 export interface CleaningTaskWithDetails {
   id: string;
-  booking_id: string;
+  booking_id: string | null;
   apartment_id: string;
   task_type: CleaningTaskType;
   scheduled_date: string;
@@ -14,6 +14,7 @@ export interface CleaningTaskWithDetails {
   assigned_cleaner_id: string | null;
   cleaner_payout: number | null;
   auto_assigned: boolean;
+  is_manual: boolean;
   cleaner_name: string | null;
   completed_at: string | null;
   created_at: string;
@@ -21,10 +22,10 @@ export interface CleaningTaskWithDetails {
   apartment_name: string;
   uplisting_name: string | null;
   guest_name: string | null;
-  check_in_date: string;
-  check_out_date: string;
+  check_in_date: string | null;
+  check_out_date: string | null;
   nights: number;
-  booking_reference: string;
+  booking_reference: string | null;
 }
 
 export interface CleaningTaskFilters {
@@ -53,7 +54,7 @@ export interface BackToBackProperty {
   checkin_booking_reference: string;
 }
 
-const CLEANING_TASK_SELECT = `
+export const CLEANING_TASK_SELECT = `
   id,
   booking_id,
   apartment_id,
@@ -64,6 +65,7 @@ const CLEANING_TASK_SELECT = `
   assigned_cleaner_id,
   cleaner_payout,
   auto_assigned,
+  is_manual,
   completed_at,
   created_at,
   updated_at,
@@ -74,7 +76,7 @@ const CLEANING_TASK_SELECT = `
     apartment_number,
     uplisting_name
   ),
-  bookings!inner (
+  bookings (
     check_in_date,
     check_out_date,
     nights,
@@ -85,7 +87,7 @@ const CLEANING_TASK_SELECT = `
   )
 `;
 
-function mapRow(row: Record<string, unknown>): CleaningTaskWithDetails {
+export function mapCleaningTaskRow(row: Record<string, unknown>): CleaningTaskWithDetails {
   const apartments = row.apartments as {
     apartment_number: string;
     uplisting_name: string | null;
@@ -118,7 +120,7 @@ function mapRow(row: Record<string, unknown>): CleaningTaskWithDetails {
 
   return {
     id: row.id as string,
-    booking_id: row.booking_id as string,
+    booking_id: (row.booking_id as string | null) ?? null,
     apartment_id: row.apartment_id as string,
     task_type: row.task_type as CleaningTaskType,
     scheduled_date: row.scheduled_date as string,
@@ -127,6 +129,7 @@ function mapRow(row: Record<string, unknown>): CleaningTaskWithDetails {
     assigned_cleaner_id: (row.assigned_cleaner_id as string | null) ?? null,
     cleaner_payout: row.cleaner_payout != null ? Number(row.cleaner_payout) : null,
     auto_assigned: Boolean(row.auto_assigned),
+    is_manual: Boolean(row.is_manual),
     cleaner_name: cleaner?.name ?? null,
     completed_at: (row.completed_at as string | null) ?? null,
     created_at: row.created_at as string,
@@ -134,10 +137,10 @@ function mapRow(row: Record<string, unknown>): CleaningTaskWithDetails {
     apartment_name: apartmentNumber,
     uplisting_name: uplistingName,
     guest_name: guest?.name ?? null,
-    check_in_date: bookings?.check_in_date ?? '',
-    check_out_date: bookings?.check_out_date ?? '',
+    check_in_date: bookings?.check_in_date ?? null,
+    check_out_date: bookings?.check_out_date ?? null,
     nights: bookings?.nights ?? 0,
-    booking_reference: bookings?.booking_reference ?? '',
+    booking_reference: bookings?.booking_reference ?? null,
   };
 }
 
@@ -179,7 +182,7 @@ export async function getCleaningTasksWithDetails(
     throw new Error(error.message);
   }
 
-  const mapped = (data ?? []).map((row) => mapRow(row as Record<string, unknown>));
+  const mapped = (data ?? []).map((row) => mapCleaningTaskRow(row as Record<string, unknown>));
 
   return mapped.sort((a, b) => {
     const dateCmp = a.scheduled_date.localeCompare(b.scheduled_date);

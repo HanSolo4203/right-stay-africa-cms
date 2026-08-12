@@ -89,23 +89,58 @@ CREATE POLICY "Allow service role full access to cleaning_tasks"
 
 CREATE OR REPLACE FUNCTION generate_cleaning_tasks()
 RETURNS TRIGGER AS $$
+DECLARE
+  min_nights integer;
+  interval_nights integer;
+  stay_nights integer;
+  offset_days integer;
+  task_date date;
 BEGIN
-  -- Delete existing auto-generated tasks for this booking
-  DELETE FROM cleaning_tasks WHERE booking_id = NEW.id;
+  DELETE FROM cleaning_tasks
+  WHERE booking_id = NEW.id
+    AND COALESCE(is_manual, false) = false
+    AND status NOT IN ('completed', 'skipped');
 
-  -- Only generate if booking is not cancelled
-  IF NEW.booking_status != 'cancelled' THEN
+  IF NEW.booking_status = 'cancelled' OR NEW.apartment_id IS NULL THEN
+    RETURN NEW;
+  END IF;
 
-    -- Always create a checkout clean on the check_out_date
-    INSERT INTO cleaning_tasks (booking_id, apartment_id, task_type, scheduled_date)
-    VALUES (NEW.id, NEW.apartment_id, 'checkout_clean', NEW.check_out_date);
+  SELECT COALESCE(
+    (SELECT value::integer FROM app_settings WHERE key = 'midstay_min_nights'),
+    5
+  ) INTO min_nights;
+  SELECT COALESCE(
+    (SELECT value::integer FROM app_settings WHERE key = 'midstay_interval_nights'),
+    5
+  ) INTO interval_nights;
 
-    -- If stay is longer than 5 nights, create mid-stay clean on day 5
-    IF (NEW.check_out_date - NEW.check_in_date) > 5 THEN
-      INSERT INTO cleaning_tasks (booking_id, apartment_id, task_type, scheduled_date)
-      VALUES (NEW.id, NEW.apartment_id, 'midstay_clean', NEW.check_in_date + INTERVAL '5 days');
-    END IF;
+  IF interval_nights < 1 THEN
+    interval_nights := 5;
+  END IF;
 
+  stay_nights := NEW.check_out_date - NEW.check_in_date;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM cleaning_tasks
+    WHERE booking_id = NEW.id AND scheduled_date = NEW.check_out_date
+  ) THEN
+    INSERT INTO cleaning_tasks (booking_id, apartment_id, task_type, scheduled_date, is_manual)
+    VALUES (NEW.id, NEW.apartment_id, 'checkout_clean', NEW.check_out_date, false);
+  END IF;
+
+  IF stay_nights > min_nights THEN
+    offset_days := interval_nights;
+    WHILE offset_days < stay_nights LOOP
+      task_date := NEW.check_in_date + offset_days;
+      IF NOT EXISTS (
+        SELECT 1 FROM cleaning_tasks
+        WHERE booking_id = NEW.id AND scheduled_date = task_date
+      ) THEN
+        INSERT INTO cleaning_tasks (booking_id, apartment_id, task_type, scheduled_date, is_manual)
+        VALUES (NEW.id, NEW.apartment_id, 'midstay_clean', task_date, false);
+      END IF;
+      offset_days := offset_days + interval_nights;
+    END LOOP;
   END IF;
 
   RETURN NEW;

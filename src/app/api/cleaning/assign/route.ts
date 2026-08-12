@@ -6,6 +6,7 @@ import {
   serverErrorResponse,
   validationErrorResponse,
 } from '@/lib/api-utils';
+import { resolveCleanerPayout } from '@/lib/cleaning-schedule';
 import { z } from 'zod';
 
 const assignSchema = z.object({
@@ -13,26 +14,6 @@ const assignSchema = z.object({
   cleaner_id: z.string().uuid(),
   cleaner_payout: z.number().optional(),
 });
-
-async function resolvePayout(
-  supabase: ReturnType<typeof createServiceRoleClient>,
-  cleanerId: string,
-  apartmentId: string,
-  taskType: string
-): Promise<number | null> {
-  const { data: rate } = await supabase
-    .from('cleaner_payout_rates')
-    .select('checkout_clean_rate, midstay_clean_rate')
-    .eq('cleaner_id', cleanerId)
-    .eq('apartment_id', apartmentId)
-    .maybeSingle();
-
-  if (!rate) return null;
-
-  return taskType === 'checkout_clean'
-    ? Number(rate.checkout_clean_rate)
-    : Number(rate.midstay_clean_rate);
-}
 
 export async function POST(request: NextRequest) {
   try {
@@ -59,7 +40,7 @@ export async function POST(request: NextRequest) {
     const payout =
       payoutOverride !== undefined
         ? payoutOverride
-        : await resolvePayout(supabase, cleaner_id, task.apartment_id, task.task_type);
+        : await resolveCleanerPayout(supabase, cleaner_id, task.apartment_id, task.task_type);
 
     const { data, error } = await supabase
       .from('cleaning_tasks')

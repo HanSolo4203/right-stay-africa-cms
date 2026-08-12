@@ -645,7 +645,7 @@ function CleaningContent() {
                                       {getPropertyDisplayName(task)}
                                     </div>
                                     <div className="text-xs text-gray-500">
-                                      {task.booking_reference}
+                                      {task.booking_reference ?? 'No booking'}
                                     </div>
                                   </td>
                                   <td className="px-4 py-3">
@@ -655,7 +655,7 @@ function CleaningContent() {
                                     {task.guest_name ?? '—'}
                                   </td>
                                   <td className="px-4 py-3 text-center text-sm text-gray-900">
-                                    {task.nights}
+                                    {task.nights || '—'}
                                   </td>
                                   <td className="px-4 py-3">
                                     {task.assigned_cleaner_id && task.cleaner_name ? (

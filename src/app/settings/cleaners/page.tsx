@@ -5,6 +5,7 @@ import Link from 'next/link';
 import {
   ArrowLeft,
   Building2,
+  CalendarDays,
   DollarSign,
   RefreshCw,
   Save,
@@ -49,6 +50,9 @@ function CleanerSettingsContent() {
   const [rates, setRates] = useState<CleanerPayoutRate[]>([]);
   const [savingAssignment, setSavingAssignment] = useState<string | null>(null);
   const [savingRate, setSavingRate] = useState<string | null>(null);
+  const [minNights, setMinNights] = useState('5');
+  const [intervalNights, setIntervalNights] = useState('5');
+  const [savingSchedule, setSavingSchedule] = useState(false);
 
   // Local edit state for assignments: apartmentId -> { cleanerId -> isAssigned, primaryCleanerId }
   const [assignmentDraft, setAssignmentDraft] = useState<
@@ -63,18 +67,20 @@ function CleanerSettingsContent() {
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      const [aptRes, cleanerRes, assignRes, ratesRes] = await Promise.all([
+      const [aptRes, cleanerRes, assignRes, ratesRes, scheduleRes] = await Promise.all([
         fetch('/api/apartments'),
         fetch('/api/cleaners'),
         fetch('/api/cleaning/assignments'),
         fetch('/api/cleaning/rates'),
+        fetch('/api/settings/cleaning-schedule'),
       ]);
 
-      const [aptJson, cleanerJson, assignJson, ratesJson] = await Promise.all([
+      const [aptJson, cleanerJson, assignJson, ratesJson, scheduleJson] = await Promise.all([
         aptRes.json(),
         cleanerRes.json(),
         assignRes.json(),
         ratesRes.json(),
+        scheduleRes.json(),
       ]);
 
       const aptList: ApartmentRow[] = aptJson.success ? aptJson.data : aptJson.data ?? [];
@@ -107,6 +113,11 @@ function CleanerSettingsContent() {
         };
       }
       setRateDraft(rateDraftMap);
+
+      if (scheduleJson.success && scheduleJson.data) {
+        setMinNights(String(scheduleJson.data.minNights));
+        setIntervalNights(String(scheduleJson.data.intervalNights));
+      }
     } catch {
       toast.error('Failed to load cleaner settings');
     } finally {
@@ -268,6 +279,35 @@ function CleanerSettingsContent() {
     }
   };
 
+  const saveSchedule = async () => {
+    const min = parseInt(minNights, 10);
+    const interval = parseInt(intervalNights, 10);
+    if (!Number.isFinite(min) || min < 1 || !Number.isFinite(interval) || interval < 1) {
+      toast.error('Both values must be whole numbers of at least 1');
+      return;
+    }
+
+    try {
+      setSavingSchedule(true);
+      const response = await fetch('/api/settings/cleaning-schedule', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ minNights: min, intervalNights: interval }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.error ?? 'Failed to save schedule');
+      }
+      setMinNights(String(result.data.minNights));
+      setIntervalNights(String(result.data.intervalNights));
+      toast.success('Cleaning schedule saved');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to save schedule');
+    } finally {
+      setSavingSchedule(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -288,7 +328,7 @@ function CleanerSettingsContent() {
               Cleaner Management
             </h1>
             <p className="text-gray-600 mt-2">
-              Assign cleaners to properties and configure payout rates
+              Assign cleaners to properties, set payout rates, and configure mid-stay cleaning rules
             </p>
           </div>
           <Button variant="outline" onClick={loadData} disabled={loading}>
@@ -306,6 +346,10 @@ function CleanerSettingsContent() {
             <TabsTrigger value="rates" className="gap-2">
               <DollarSign className="w-4 h-4" />
               Payout Rates
+            </TabsTrigger>
+            <TabsTrigger value="schedule" className="gap-2">
+              <CalendarDays className="w-4 h-4" />
+              Schedule
             </TabsTrigger>
           </TabsList>
 
@@ -512,6 +556,66 @@ function CleanerSettingsContent() {
                 </CardContent>
               </Card>
             )}
+          </TabsContent>
+
+          <TabsContent value="schedule">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Mid-stay cleaning rules</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6 max-w-xl">
+                <p className="text-sm text-gray-600">
+                  Checkout cleans are always created on the check-out date. Mid-stay cleans are
+                  added when a stay is longer than the threshold, then repeated every interval
+                  until checkout (never on check-in or checkout day).
+                </p>
+                <div className="space-y-2">
+                  <label htmlFor="min-nights" className="text-sm font-medium text-gray-700">
+                    Create mid-stay cleans when a stay is longer than
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id="min-nights"
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={minNights}
+                      onChange={(e) => setMinNights(e.target.value)}
+                      className="w-24"
+                    />
+                    <span className="text-sm text-gray-600">nights</span>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="interval-nights" className="text-sm font-medium text-gray-700">
+                    Then every
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id="interval-nights"
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={intervalNights}
+                      onChange={(e) => setIntervalNights(e.target.value)}
+                      className="w-24"
+                    />
+                    <span className="text-sm text-gray-600">nights until checkout</span>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500">
+                  Example: with 5 and 5, a 16-night stay gets mid-stays on days 5, 10 and 15, plus
+                  a checkout clean on day 16. Existing tasks do not change until a booking updates
+                  or you run Generate Cleaning Tasks. Manual calendar edits are kept.
+                </p>
+                <div className="flex justify-end">
+                  <Button onClick={saveSchedule} disabled={savingSchedule || loading}>
+                    <Save className="w-4 h-4 mr-1" />
+                    {savingSchedule ? 'Saving...' : 'Save schedule'}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </div>

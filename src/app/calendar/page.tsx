@@ -13,7 +13,7 @@ import {
   startOfMonth,
   subMonths,
 } from 'date-fns';
-import { Check, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, Plus, Trash2, ZoomIn, ZoomOut } from 'lucide-react';
 import AuthWrapper from '@/components/AuthWrapper';
 import { CalendarSkeleton } from '@/components/ui/LoadingSkeleton';
 import { Button } from '@/components/ui/button';
@@ -29,9 +29,12 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import {
   Tooltip,
@@ -220,42 +223,15 @@ function getCleaningTaskDayIndex(
   return differenceInCalendarDays(scheduled, timelineStart);
 }
 
-function isTaskWithinBookingStay(task: CleaningTaskWithDetails): boolean {
-  if (!task.check_in_date || !task.check_out_date) return false;
-  const scheduled = parseLocalDate(task.scheduled_date);
-  const checkIn = parseLocalDate(task.check_in_date);
-  const checkOut = parseLocalDate(task.check_out_date);
-  return scheduled >= checkIn && scheduled <= checkOut;
-}
-
 function getCleaningMarkerPosition(
   marker: CleaningTaskMarker,
   totalDays: number
 ): { left: string; bottom: string; transform: string } {
-  const { task, dayIdx, bookingSpan, stackIndex } = marker;
-  const bottom = `${2 + stackIndex * 18}px`;
-
-  if (bookingSpan) {
-    if (task.task_type === 'checkout_clean') {
-      const endFraction = bookingSpan.endIdx / totalDays;
-      return {
-        left: `${endFraction * 100}%`,
-        bottom,
-        transform: 'translate(-50%, 0)',
-      };
-    }
-
-    const dayFraction = (dayIdx + 0.5) / totalDays;
-    return {
-      left: `${dayFraction * 100}%`,
-      bottom,
-      transform: 'translate(-50%, 0)',
-    };
-  }
-
+  const { dayIdx, stackIndex } = marker;
+  const dayFraction = (dayIdx + 0.5) / totalDays;
   return {
-    left: `calc((${dayIdx} + 0.5) * var(--day-width))`,
-    bottom,
+    left: `${dayFraction * 100}%`,
+    bottom: `${2 + stackIndex * 18}px`,
     transform: 'translate(-50%, 0)',
   };
 }
@@ -402,6 +378,15 @@ function BookingsCalendarContent() {
   const [updatingCleaningTaskId, setUpdatingCleaningTaskId] = useState<string | null>(null);
   const [assigningCleaningTaskId, setAssigningCleaningTaskId] = useState<string | null>(null);
   const [cleaners, setCleaners] = useState<{ id: string; name: string }[]>([]);
+  const [addCleanOpen, setAddCleanOpen] = useState(false);
+  const [addCleanPropertyId, setAddCleanPropertyId] = useState<string | null>(null);
+  const [addCleanDate, setAddCleanDate] = useState('');
+  const [addCleanType, setAddCleanType] = useState<CleaningTaskType>('midstay_clean');
+  const [addCleanBookingId, setAddCleanBookingId] = useState('');
+  const [addCleanCleanerId, setAddCleanCleanerId] = useState('');
+  const [addingClean, setAddingClean] = useState(false);
+  const [savingTaskId, setSavingTaskId] = useState<string | null>(null);
+  const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
 
   const dayColWidth = Math.round(BASE_DAY_COL_WIDTH * ZOOM_LEVELS[zoomIndex]);
   const scrollExtendThreshold = dayColWidth * 10;
@@ -679,11 +664,6 @@ function BookingsCalendarContent() {
     return map;
   }, [bookings, visibleProperties]);
 
-  const visibleBookingIds = useMemo(
-    () => new Set(bookings.map((booking) => booking.id)),
-    [bookings]
-  );
-
   const bookingSpanById = useMemo(() => {
     const map = new Map<string, BookingSpan>();
     for (const booking of bookings) {
@@ -702,8 +682,6 @@ function BookingsCalendarContent() {
     }
     for (const task of cleaningTasks) {
       if (!map.has(task.apartment_id)) continue;
-      if (!visibleBookingIds.has(task.booking_id)) continue;
-      if (!isTaskWithinBookingStay(task)) continue;
 
       const dayIdx = getCleaningTaskDayIndex(task, rangeStart, rangeEnd);
       if (dayIdx == null) continue;
@@ -711,7 +689,7 @@ function BookingsCalendarContent() {
       map.get(task.apartment_id)!.push({
         task,
         dayIdx,
-        bookingSpan: bookingSpanById.get(task.booking_id) ?? null,
+        bookingSpan: task.booking_id ? bookingSpanById.get(task.booking_id) ?? null : null,
         stackIndex: 0,
       });
     }
@@ -735,7 +713,6 @@ function BookingsCalendarContent() {
     visibleProperties,
     rangeStart,
     rangeEnd,
-    visibleBookingIds,
     bookingSpanById,
   ]);
 
@@ -821,6 +798,125 @@ function BookingsCalendarContent() {
     },
     []
   );
+
+  const overlappingBookingsForAdd = useMemo(() => {
+    if (!addCleanPropertyId || !addCleanDate) return [];
+    return bookings.filter(
+      (booking) =>
+        booking.apartment_id === addCleanPropertyId &&
+        !isCancelled(booking.booking_status) &&
+        booking.check_in_date <= addCleanDate &&
+        booking.check_out_date >= addCleanDate
+    );
+  }, [bookings, addCleanPropertyId, addCleanDate]);
+
+  const openAddClean = useCallback(
+    (propertyId: string, date: Date) => {
+      const dateStr = toDateString(date);
+      const overlapping = bookings.filter(
+        (booking) =>
+          booking.apartment_id === propertyId &&
+          !isCancelled(booking.booking_status) &&
+          booking.check_in_date <= dateStr &&
+          booking.check_out_date >= dateStr
+      );
+      setAddCleanPropertyId(propertyId);
+      setAddCleanDate(dateStr);
+      setAddCleanType('midstay_clean');
+      setAddCleanBookingId(overlapping[0]?.id ?? '');
+      setAddCleanCleanerId('');
+      setAddCleanOpen(true);
+      setActiveCleaningTaskId(null);
+      setCleaningPopoverAnchor(null);
+    },
+    [bookings]
+  );
+
+  const handleCreateClean = useCallback(async () => {
+    if (!addCleanPropertyId || !addCleanDate) return;
+    try {
+      setAddingClean(true);
+      const response = await fetch('/api/cleaning/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          apartment_id: addCleanPropertyId,
+          scheduled_date: addCleanDate,
+          task_type: addCleanType,
+          booking_id: addCleanBookingId || null,
+          ...(addCleanCleanerId ? { cleaner_id: addCleanCleanerId } : {}),
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.error ?? 'Failed to add cleaning day');
+      }
+      setCleaningTasks((prev) => [...prev, result.data as CleaningTaskWithDetails]);
+      setAddCleanOpen(false);
+      toast.success('Cleaning day added');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to add cleaning day');
+    } finally {
+      setAddingClean(false);
+    }
+  }, [addCleanPropertyId, addCleanDate, addCleanType, addCleanBookingId, addCleanCleanerId]);
+
+  const handleUpdateTask = useCallback(
+    async (
+      taskId: string,
+      payload: {
+        scheduled_date?: string;
+        task_type?: CleaningTaskType;
+        booking_id?: string | null;
+      }
+    ) => {
+      try {
+        setSavingTaskId(taskId);
+        const response = await fetch(`/api/cleaning/tasks/${taskId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const result = await response.json();
+        if (!response.ok || !result.success) {
+          throw new Error(result.error ?? 'Failed to update cleaning day');
+        }
+        setCleaningTasks((prev) =>
+          prev.map((task) =>
+            task.id === taskId ? (result.data as CleaningTaskWithDetails) : task
+          )
+        );
+        toast.success('Cleaning day updated');
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Failed to update cleaning day');
+      } finally {
+        setSavingTaskId(null);
+      }
+    },
+    []
+  );
+
+  const handleDeleteTask = useCallback(async (taskId: string) => {
+    if (!confirm('Delete this cleaning day?')) return;
+    try {
+      setDeletingTaskId(taskId);
+      const response = await fetch(`/api/cleaning/tasks/${taskId}`, {
+        method: 'DELETE',
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.error ?? 'Failed to delete cleaning day');
+      }
+      setCleaningTasks((prev) => prev.filter((task) => task.id !== taskId));
+      setActiveCleaningTaskId(null);
+      setCleaningPopoverAnchor(null);
+      toast.success('Cleaning day deleted');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete cleaning day');
+    } finally {
+      setDeletingTaskId(null);
+    }
+  }, []);
 
   const navigateMonth = (direction: -1 | 1) => {
     const el = scrollRef.current;
@@ -1110,6 +1206,7 @@ function BookingsCalendarContent() {
                     </span>
                   </div>
                 ))}
+                <span className="text-xs text-gray-400 ml-1">Hover a day and click + to add</span>
               </div>
 
               {/* Timeline grid — horizontal + vertical scroll */}
@@ -1249,12 +1346,33 @@ function BookingsCalendarContent() {
                                   <div
                                     key={idx}
                                     className={cn(
-                                      'shrink-0 border-l border-gray-100',
+                                      'group/day shrink-0 border-l border-gray-100 relative',
                                       isWeekend && 'bg-gray-50/60',
                                       isMonthStart && 'border-l-gray-200'
                                     )}
                                     style={{ width: 'var(--day-width)' }}
-                                  />
+                                  >
+                                    <button
+                                      type="button"
+                                      aria-label={`Add cleaning on ${format(date, 'd MMM yyyy')} for ${propertyName}`}
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        openAddClean(property.id, date);
+                                      }}
+                                      className="absolute inset-0 z-[4] hover:bg-blue-50/50"
+                                    />
+                                    <button
+                                      type="button"
+                                      aria-label={`Add cleaning on ${format(date, 'd MMM yyyy')} for ${propertyName}`}
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        openAddClean(property.id, date);
+                                      }}
+                                      className="absolute top-0.5 left-1/2 z-[16] hidden -translate-x-1/2 rounded-full bg-blue-600 p-0.5 text-white shadow-sm group-hover/day:flex"
+                                    >
+                                      <Plus className="h-2.5 w-2.5" strokeWidth={3} />
+                                    </button>
+                                  </div>
                                 );
                               })}
                             </div>
@@ -1529,6 +1647,88 @@ function BookingsCalendarContent() {
           </DialogContent>
         </Dialog>
 
+        <Dialog open={addCleanOpen} onOpenChange={setAddCleanOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Add cleaning day</DialogTitle>
+              <DialogDescription>
+                {addCleanPropertyId
+                  ? getPropertyDisplayName(
+                      apartments.find((apt) => apt.id === addCleanPropertyId) ?? null
+                    )
+                  : 'Property'}
+                {addCleanDate ? ` · ${formatDisplayDate(addCleanDate)}` : ''}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 text-sm">
+              <div className="space-y-1">
+                <Label>Date</Label>
+                <Input
+                  type="date"
+                  value={addCleanDate}
+                  onChange={(e) => setAddCleanDate(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label>Type</Label>
+                <select
+                  value={addCleanType}
+                  onChange={(e) => setAddCleanType(e.target.value as CleaningTaskType)}
+                  className="w-full text-sm rounded-md border border-gray-200 px-2 py-2 bg-white"
+                >
+                  <option value="midstay_clean">Mid-Stay Clean</option>
+                  <option value="checkout_clean">Checkout Clean</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <Label>Booking</Label>
+                <select
+                  value={addCleanBookingId}
+                  onChange={(e) => setAddCleanBookingId(e.target.value)}
+                  className="w-full text-sm rounded-md border border-gray-200 px-2 py-2 bg-white"
+                >
+                  <option value="">No booking (property only)</option>
+                  {overlappingBookingsForAdd.map((booking) => (
+                    <option key={booking.id} value={booking.id}>
+                      {getGuestFirstName(booking.guests?.name)} ·{' '}
+                      {formatDisplayDate(booking.check_in_date)} →{' '}
+                      {formatDisplayDate(booking.check_out_date)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <Label>Cleaner (optional)</Label>
+                <select
+                  value={addCleanCleanerId}
+                  onChange={(e) => setAddCleanCleanerId(e.target.value)}
+                  className="w-full text-sm rounded-md border border-gray-200 px-2 py-2 bg-white"
+                >
+                  <option value="">Unassigned</option>
+                  {cleaners.map((cleaner) => (
+                    <option key={cleaner.id} value={cleaner.id}>
+                      {cleaner.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setAddCleanOpen(false)}
+                disabled={addingClean}
+              >
+                Cancel
+              </Button>
+              <Button type="button" onClick={handleCreateClean} disabled={addingClean || !addCleanDate}>
+                {addingClean ? 'Adding…' : 'Add cleaning day'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         {activeCleaningTask &&
           cleaningPopoverAnchor &&
           typeof document !== 'undefined' &&
@@ -1593,6 +1793,46 @@ function BookingsCalendarContent() {
                     </div>
                   )}
                 </dl>
+
+                <div className="space-y-1 border-t border-gray-100 pt-2">
+                  <Label className="text-xs text-gray-500">Date</Label>
+                  <input
+                    key={`${activeCleaningTask.id}-date`}
+                    type="date"
+                    defaultValue={activeCleaningTask.scheduled_date}
+                    disabled={savingTaskId === activeCleaningTask.id}
+                    onBlur={(e) => {
+                      if (
+                        e.target.value &&
+                        e.target.value !== activeCleaningTask.scheduled_date
+                      ) {
+                        handleUpdateTask(activeCleaningTask.id, {
+                          scheduled_date: e.target.value,
+                        });
+                      }
+                    }}
+                    className="w-full text-xs rounded-md border border-gray-200 px-2 py-1.5 bg-white disabled:opacity-50"
+                    aria-label="Reschedule cleaning day"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs text-gray-500">Type</Label>
+                  <select
+                    value={activeCleaningTask.task_type}
+                    disabled={savingTaskId === activeCleaningTask.id}
+                    onChange={(e) =>
+                      handleUpdateTask(activeCleaningTask.id, {
+                        task_type: e.target.value as CleaningTaskType,
+                      })
+                    }
+                    className="w-full text-xs rounded-md border border-gray-200 px-2 py-1.5 bg-white disabled:opacity-50"
+                    aria-label="Cleaning type"
+                  >
+                    <option value="midstay_clean">Mid-Stay Clean</option>
+                    <option value="checkout_clean">Checkout Clean</option>
+                  </select>
+                </div>
 
                 <div className="space-y-1 border-t border-gray-100 pt-2">
                   <Label className="text-xs text-gray-500">Assign cleaner</Label>
@@ -1662,6 +1902,17 @@ function BookingsCalendarContent() {
                       Mark complete
                     </Button>
                   )}
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="w-full h-8 text-xs text-red-700 border-red-200 hover:bg-red-50"
+                    disabled={deletingTaskId === activeCleaningTask.id}
+                    onClick={() => handleDeleteTask(activeCleaningTask.id)}
+                  >
+                    <Trash2 className="w-3 h-3 mr-1" />
+                    {deletingTaskId === activeCleaningTask.id ? 'Deleting…' : 'Delete'}
+                  </Button>
                 </div>
               </div>
             </div>,
