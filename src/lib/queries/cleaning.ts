@@ -145,7 +145,8 @@ export function mapCleaningTaskRow(row: Record<string, unknown>): CleaningTaskWi
 }
 
 export function getPropertyDisplayName(task: CleaningTaskWithDetails): string {
-  return task.uplisting_name || task.apartment_name;
+  // Prefer internal unit/building name so cleaners know where to go
+  return task.apartment_name || task.uplisting_name || 'Unknown';
 }
 
 export async function getCleaningTasksWithDetails(
@@ -352,7 +353,7 @@ async function getBackToBackProperties(
     const meta = apartmentMeta.get(aptId);
     results.push({
       apartment_id: aptId,
-      property_name: meta?.uplisting_name || meta?.apartment_number || 'Unknown',
+      property_name: meta?.apartment_number || meta?.uplisting_name || 'Unknown',
       date,
       checkout_booking_reference: checkout.booking_reference,
       checkin_booking_reference: checkin.booking_reference,

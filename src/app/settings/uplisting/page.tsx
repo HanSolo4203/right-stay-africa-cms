@@ -30,6 +30,7 @@ interface SyncListingsResult {
 interface SyncBookingsResult {
   synced: number;
   skipped: number;
+  cancelled?: number;
   errors: string[];
 }
 
@@ -384,6 +385,9 @@ function UplistingSettingsContent() {
                       <p className="text-sm text-gray-600 mt-1">
                         Synced: {syncResult.bookings.synced} · Skipped:{' '}
                         {syncResult.bookings.skipped}
+                        {typeof syncResult.bookings.cancelled === 'number'
+                          ? ` · Cancelled: ${syncResult.bookings.cancelled}`
+                          : ''}
                       </p>
                       {syncResult.bookings.errors.length > 0 && (
                         <ul className="mt-2 space-y-1">

@@ -58,7 +58,7 @@ function statusLabel(status: string) {
 }
 
 function propertyLabel(task: CleaningPdfTask) {
-  return task.uplisting_name || task.apartment_name;
+  return task.apartment_name || task.uplisting_name || 'Unknown';
 }
 
 function groupByDate(tasks: CleaningPdfTask[]) {

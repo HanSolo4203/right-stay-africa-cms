@@ -323,22 +323,25 @@ export async function upsertUplistingBooking(
 export async function cancelUplistingBooking(
   supabase: ServiceClient,
   uplistingBookingId: string,
-  rawPayload: Record<string, unknown>
-): Promise<{ ok: boolean; error?: string }> {
-  const { error } = await supabase
+  rawPayload: Record<string, unknown>,
+  source: UplistingBookingSource = 'uplisting_webhook'
+): Promise<{ ok: boolean; cancelled: boolean; error?: string }> {
+  const { data, error } = await supabase
     .from('bookings')
     .update({
       booking_status: 'cancelled',
-      source: 'uplisting_webhook',
+      source,
       raw_payload: rawPayload,
     })
-    .eq('uplisting_booking_id', uplistingBookingId);
+    .eq('uplisting_booking_id', uplistingBookingId)
+    .neq('booking_status', 'cancelled')
+    .select('id');
 
   if (error) {
-    return { ok: false, error: error.message };
+    return { ok: false, cancelled: false, error: error.message };
   }
 
-  return { ok: true };
+  return { ok: true, cancelled: (data?.length ?? 0) > 0 };
 }
 
 export async function syncListings(): Promise<{
@@ -378,14 +381,34 @@ async function upsertBookingsForListing(
   uplistingId: string,
   bookings: UplistingBooking[],
   apartmentByUplistingId: Map<string, string>
-): Promise<{ synced: number; skipped: number; errors: string[] }> {
+): Promise<{ synced: number; skipped: number; cancelled: number; errors: string[] }> {
   const errors: string[] = [];
   let synced = 0;
   let skipped = 0;
+  let cancelled = 0;
 
   for (const booking of bookings) {
     if (isCancelledStatus(booking.status)) {
-      skipped += 1;
+      // Previously we skipped cancelled bookings, which left stale "confirmed"
+      // rows on the calendar after Uplisting cancelled them.
+      const result = await cancelUplistingBooking(
+        supabase,
+        String(booking.id),
+        booking as unknown as Record<string, unknown>,
+        'uplisting_api'
+      );
+
+      if (!result.ok) {
+        errors.push(`Booking ${booking.id}: ${result.error}`);
+        skipped += 1;
+        continue;
+      }
+
+      if (result.cancelled) {
+        cancelled += 1;
+      } else {
+        skipped += 1;
+      }
       continue;
     }
 
@@ -428,12 +451,13 @@ async function upsertBookingsForListing(
     }
   }
 
-  return { synced, skipped, errors };
+  return { synced, skipped, cancelled, errors };
 }
 
 export async function syncBookingsForListing(uplistingId: string): Promise<{
   synced: number;
   skipped: number;
+  cancelled: number;
   errors: string[];
 }> {
   console.log(
@@ -460,7 +484,7 @@ export async function syncBookingsForListing(uplistingId: string): Promise<{
     console.log(
       `[uplisting-sync] syncBookingsForListing: skipping disabled apartment for uplisting_id=${uplistingId}`
     );
-    return { synced: 0, skipped: 0, errors: [] };
+    return { synced: 0, skipped: 0, cancelled: 0, errors: [] };
   }
 
   const apartmentByUplistingId = new Map<string, string>([
@@ -486,7 +510,7 @@ export async function syncBookingsForListing(uplistingId: string): Promise<{
   );
 
   console.log(
-    `[uplisting-sync] syncBookingsForListing: done synced=${result.synced} skipped=${result.skipped} errors=${result.errors.length}`
+    `[uplisting-sync] syncBookingsForListing: done synced=${result.synced} skipped=${result.skipped} cancelled=${result.cancelled} errors=${result.errors.length}`
   );
 
   return result;
@@ -495,6 +519,7 @@ export async function syncBookingsForListing(uplistingId: string): Promise<{
 export async function syncBookings(): Promise<{
   synced: number;
   skipped: number;
+  cancelled: number;
   errors: string[];
 }> {
   console.log(
@@ -503,6 +528,7 @@ export async function syncBookings(): Promise<{
   const errors: string[] = [];
   let synced = 0;
   let skipped = 0;
+  let cancelled = 0;
 
   const supabase = createServiceClient();
 
@@ -561,12 +587,13 @@ export async function syncBookings(): Promise<{
 
     synced += result.synced;
     skipped += result.skipped;
+    cancelled += result.cancelled;
     errors.push(...result.errors);
   }
 
   console.log(
-    `[uplisting-sync] syncBookings: done synced=${synced} skipped=${skipped} errors=${errors.length}`
+    `[uplisting-sync] syncBookings: done synced=${synced} skipped=${skipped} cancelled=${cancelled} errors=${errors.length}`
   );
 
-  return { synced, skipped, errors };
+  return { synced, skipped, cancelled, errors };
 }

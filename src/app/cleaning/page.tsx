@@ -654,7 +654,7 @@ function CleaningContent() {
                       <SelectItem value="all">All properties</SelectItem>
                       {apartments.map((apt) => (
                         <SelectItem key={apt.id} value={apt.id}>
-                          {apt.uplisting_name || apt.apartment_number}
+                          {apt.apartment_number || apt.uplisting_name}
                         </SelectItem>
                       ))}
                     </SelectContent>
