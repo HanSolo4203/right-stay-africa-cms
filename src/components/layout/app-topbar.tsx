@@ -93,8 +93,16 @@ export function AppTopbar({
             <kbd className="pointer-events-none hidden rounded-md border border-border bg-muted px-2 py-1 font-mono text-[10px] text-muted-foreground lg:inline">
               ⌘K
             </kbd>
-            <Button variant="ghost" size="icon" className="size-11" aria-label="Notifications">
-              <Bell className="size-[18px]" strokeWidth={1.75} />
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-11"
+              aria-label="Booking updates"
+              asChild
+            >
+              <Link href="/updates">
+                <Bell className="size-[18px]" strokeWidth={1.75} />
+              </Link>
             </Button>
             {actions}
           </div>

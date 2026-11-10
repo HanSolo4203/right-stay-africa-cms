@@ -1,4 +1,5 @@
 import {
+  Activity,
   BarChart3,
   BookOpen,
   Building2,
@@ -43,6 +44,7 @@ export const navGroups: NavGroup[] = [
       { title: 'Jobs', href: '/cleaning', icon: Sparkles },
       { title: 'Properties', href: '/properties', icon: Building2 },
       { title: 'Bookings', href: '/bookings', icon: BookOpen },
+      { title: 'Updates', href: '/updates', icon: Activity },
       { title: 'Team', href: '/settings/cleaners', icon: Users },
     ],
   },
@@ -68,6 +70,7 @@ export const navGroups: NavGroup[] = [
 
 export const moreMenuItems: NavItem[] = [
   { title: 'Bookings', href: '/bookings', icon: BookOpen },
+  { title: 'Updates', href: '/updates', icon: Activity },
   { title: 'Team', href: '/settings/cleaners', icon: Users },
   { title: 'Inventory', href: '/inventory', icon: Package },
   { title: 'Reports', href: '/reports/monthly-expenses', icon: FileText },

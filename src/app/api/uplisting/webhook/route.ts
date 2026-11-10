@@ -111,6 +111,7 @@ async function processBookingEvent(
   const result = await upsertUplistingBooking(supabase, booking, {
     source: 'uplisting_webhook',
     rawPayload,
+    eventType,
   });
 
   if (!result.ok) {

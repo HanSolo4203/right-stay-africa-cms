@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import toast from 'react-hot-toast';
-import MatrixBackground from '@/components/ui/MatrixBackground';
 import LoginLoadingAnimation from '@/components/ui/LoginLoadingAnimation';
 
 export default function LoginPage() {
@@ -78,9 +77,8 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="login-page min-h-screen flex items-center justify-center px-4 sm:px-6 lg:px-8 relative">
-      <MatrixBackground />
-      <div className="max-w-md w-full space-y-6 relative z-10">
+    <div className="login-page min-h-screen flex items-center justify-center bg-gray-50 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-6">
         <div>
           <div className="flex justify-center">
             <Image

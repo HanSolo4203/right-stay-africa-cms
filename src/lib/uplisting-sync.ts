@@ -248,6 +248,37 @@ async function findOrCreateChannelId(
 
 export type UplistingBookingSource = 'uplisting_api' | 'uplisting_webhook';
 
+export type BookingSyncEventType =
+  | 'booking_created'
+  | 'booking_updated'
+  | 'booking_cancelled'
+  | 'sync_completed';
+
+type ExistingBookingSnapshot = {
+  id: string;
+  booking_status: string | null;
+  check_in_date: string | null;
+  check_out_date: string | null;
+  booking_reference: string | null;
+};
+
+type BookingSyncEventInput = {
+  eventType: BookingSyncEventType;
+  source: UplistingBookingSource | 'system';
+  bookingId?: string | null;
+  uplistingBookingId?: string | null;
+  uplistingListingId?: string | null;
+  apartmentId?: string | null;
+  bookingReference?: string | null;
+  guestName?: string | null;
+  propertyName?: string | null;
+  bookingStatus?: string | null;
+  checkInDate?: string | null;
+  checkOutDate?: string | null;
+  summary: string;
+  details?: Record<string, unknown>;
+};
+
 function buildBookingRow(
   booking: UplistingBooking,
   apartmentId: string,
@@ -279,14 +310,69 @@ function buildBookingRow(
   };
 }
 
+async function getApartmentDisplayName(
+  supabase: ServiceClient,
+  apartmentId: string
+): Promise<string> {
+  const { data } = await supabase
+    .from('apartments')
+    .select('apartment_number, uplisting_name')
+    .eq('id', apartmentId)
+    .maybeSingle();
+
+  return data?.uplisting_name || data?.apartment_number || 'Unknown property';
+}
+
+async function logBookingSyncEvent(
+  supabase: ServiceClient,
+  event: BookingSyncEventInput
+): Promise<void> {
+  const { error } = await supabase.from('booking_sync_events').insert({
+    event_type: event.eventType,
+    source: event.source,
+    booking_id: event.bookingId ?? null,
+    uplisting_booking_id: event.uplistingBookingId ?? null,
+    uplisting_listing_id: event.uplistingListingId ?? null,
+    apartment_id: event.apartmentId ?? null,
+    booking_reference: event.bookingReference ?? null,
+    guest_name: event.guestName ?? null,
+    property_name: event.propertyName ?? null,
+    booking_status: event.bookingStatus ?? null,
+    check_in_date: event.checkInDate ?? null,
+    check_out_date: event.checkOutDate ?? null,
+    summary: event.summary,
+    details: event.details ?? null,
+  });
+
+  if (error) {
+    console.error('[uplisting-sync] failed to log booking sync event:', error.message);
+  }
+}
+
+function bookingChanged(
+  existing: ExistingBookingSnapshot,
+  nextStatus: string,
+  nextCheckIn: string,
+  nextCheckOut: string,
+  nextReference: string
+): boolean {
+  return (
+    existing.booking_status !== nextStatus ||
+    existing.check_in_date !== nextCheckIn ||
+    existing.check_out_date !== nextCheckOut ||
+    (existing.booking_reference ?? '') !== nextReference
+  );
+}
+
 export async function upsertUplistingBooking(
   supabase: ServiceClient,
   booking: UplistingBooking,
   options: {
     source: UplistingBookingSource;
     rawPayload: Record<string, unknown>;
+    eventType?: 'booking_created' | 'booking_updated';
   }
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<{ ok: boolean; error?: string; eventType?: BookingSyncEventType }> {
   const apartmentId = await findApartmentIdByUplistingId(
     supabase,
     String(booking.property_id)
@@ -297,6 +383,13 @@ export async function upsertUplistingBooking(
       error: `no apartment with uplisting_id=${booking.property_id}`,
     };
   }
+
+  const uplistingBookingId = String(booking.id);
+  const { data: existing } = await supabase
+    .from('bookings')
+    .select('id, booking_status, check_in_date, check_out_date, booking_reference')
+    .eq('uplisting_booking_id', uplistingBookingId)
+    .maybeSingle();
 
   const guestId = await upsertGuest(supabase, booking);
   const channelId = await findOrCreateChannelId(supabase, booking.channel);
@@ -309,15 +402,68 @@ export async function upsertUplistingBooking(
     options.rawPayload
   );
 
-  const { error: upsertError } = await supabase
+  const { data: upserted, error: upsertError } = await supabase
     .from('bookings')
-    .upsert(row, { onConflict: 'uplisting_booking_id' });
+    .upsert(row, { onConflict: 'uplisting_booking_id' })
+    .select('id')
+    .single();
 
-  if (upsertError) {
-    return { ok: false, error: upsertError.message };
+  if (upsertError || !upserted) {
+    return { ok: false, error: upsertError?.message ?? 'Failed to upsert booking' };
   }
 
-  return { ok: true };
+  const nextStatus = row.booking_status;
+  const reference = row.booking_reference;
+  const guestName = guestDisplayName(booking);
+  const propertyName = await getApartmentDisplayName(supabase, apartmentId);
+
+  let eventType: BookingSyncEventType | null = null;
+  if (options.eventType) {
+    eventType = options.eventType;
+  } else if (!existing) {
+    eventType = 'booking_created';
+  } else if (
+    bookingChanged(
+      existing as ExistingBookingSnapshot,
+      nextStatus,
+      booking.check_in,
+      booking.check_out,
+      reference
+    )
+  ) {
+    eventType = 'booking_updated';
+  }
+
+  if (eventType) {
+    const verb =
+      eventType === 'booking_created'
+        ? 'New booking'
+        : options.source === 'uplisting_webhook'
+          ? 'Webhook updated booking'
+          : 'Synced booking';
+
+    await logBookingSyncEvent(supabase, {
+      eventType,
+      source: options.source,
+      bookingId: upserted.id,
+      uplistingBookingId,
+      uplistingListingId: String(booking.property_id),
+      apartmentId,
+      bookingReference: reference,
+      guestName,
+      propertyName,
+      bookingStatus: nextStatus,
+      checkInDate: booking.check_in,
+      checkOutDate: booking.check_out,
+      summary: `${verb} ${reference} · ${guestName} · ${propertyName}`,
+      details: {
+        channel: booking.channel ?? null,
+        previous_status: existing?.booking_status ?? null,
+      },
+    });
+  }
+
+  return { ok: true, eventType: eventType ?? undefined };
 }
 
 export async function cancelUplistingBooking(
@@ -335,13 +481,95 @@ export async function cancelUplistingBooking(
     })
     .eq('uplisting_booking_id', uplistingBookingId)
     .neq('booking_status', 'cancelled')
-    .select('id');
+    .select(
+      `
+      id,
+      booking_reference,
+      check_in_date,
+      check_out_date,
+      apartment_id,
+      uplisting_listing_id,
+      guests ( name ),
+      apartments ( apartment_number, uplisting_name )
+    `
+    );
 
   if (error) {
     return { ok: false, cancelled: false, error: error.message };
   }
 
-  return { ok: true, cancelled: (data?.length ?? 0) > 0 };
+  const cancelledRows = data ?? [];
+  if (cancelledRows.length === 0) {
+    return { ok: true, cancelled: false };
+  }
+
+  for (const row of cancelledRows) {
+    const apartments = row.apartments as
+      | { apartment_number: string; uplisting_name: string | null }
+      | { apartment_number: string; uplisting_name: string | null }[]
+      | null;
+    const apartment = Array.isArray(apartments) ? apartments[0] : apartments;
+    const guests = row.guests as { name: string } | { name: string }[] | null;
+    const guest = Array.isArray(guests) ? guests[0] : guests;
+    const propertyName =
+      apartment?.uplisting_name || apartment?.apartment_number || 'Unknown property';
+    const guestName = guest?.name || 'Unknown Guest';
+    const reference = row.booking_reference || `UPL-${uplistingBookingId}`;
+
+    await logBookingSyncEvent(supabase, {
+      eventType: 'booking_cancelled',
+      source,
+      bookingId: row.id,
+      uplistingBookingId,
+      uplistingListingId: row.uplisting_listing_id,
+      apartmentId: row.apartment_id,
+      bookingReference: reference,
+      guestName,
+      propertyName,
+      bookingStatus: 'cancelled',
+      checkInDate: row.check_in_date,
+      checkOutDate: row.check_out_date,
+      summary: `Cancelled booking ${reference} · ${guestName} · ${propertyName}`,
+    });
+  }
+
+  return { ok: true, cancelled: true };
+}
+
+export async function logSyncCompletedEvent(
+  supabase: ServiceClient,
+  options: {
+    scope: 'all' | 'property';
+    propertyName?: string | null;
+    uplistingListingId?: string | null;
+    apartmentId?: string | null;
+    synced: number;
+    skipped: number;
+    cancelled: number;
+    errors: string[];
+  }
+): Promise<void> {
+  const scopeLabel =
+    options.scope === 'property'
+      ? options.propertyName || options.uplistingListingId || 'property'
+      : 'all linked properties';
+
+  await logBookingSyncEvent(supabase, {
+    eventType: 'sync_completed',
+    source: 'uplisting_api',
+    uplistingListingId: options.uplistingListingId ?? null,
+    apartmentId: options.apartmentId ?? null,
+    propertyName: options.propertyName ?? null,
+    summary: `Manual sync finished for ${scopeLabel}: ${options.synced} synced, ${options.cancelled} cancelled, ${options.skipped} skipped`,
+    details: {
+      scope: options.scope,
+      synced: options.synced,
+      skipped: options.skipped,
+      cancelled: options.cancelled,
+      error_count: options.errors.length,
+      errors: options.errors.slice(0, 10),
+    },
+  });
 }
 
 export async function syncListings(): Promise<{
@@ -422,23 +650,13 @@ async function upsertBookingsForListing(
     }
 
     try {
-      const guestId = await upsertGuest(supabase, booking);
-      const channelId = await findOrCreateChannelId(supabase, booking.channel);
-      const row = buildBookingRow(
-        booking,
-        apartmentId,
-        guestId,
-        channelId,
-        'uplisting_api',
-        booking as unknown as Record<string, unknown>
-      );
+      const result = await upsertUplistingBooking(supabase, booking, {
+        source: 'uplisting_api',
+        rawPayload: booking as unknown as Record<string, unknown>,
+      });
 
-      const { error: upsertError } = await supabase
-        .from('bookings')
-        .upsert(row, { onConflict: 'uplisting_booking_id' });
-
-      if (upsertError) {
-        errors.push(`Booking ${booking.id}: ${upsertError.message}`);
+      if (!result.ok) {
+        errors.push(`Booking ${booking.id}: ${result.error}`);
         skipped += 1;
         continue;
       }
@@ -508,6 +726,18 @@ export async function syncBookingsForListing(uplistingId: string): Promise<{
     bookings,
     apartmentByUplistingId
   );
+
+  const propertyName = await getApartmentDisplayName(supabase, apartment.id);
+  await logSyncCompletedEvent(supabase, {
+    scope: 'property',
+    propertyName,
+    uplistingListingId: String(uplistingId),
+    apartmentId: apartment.id,
+    synced: result.synced,
+    skipped: result.skipped,
+    cancelled: result.cancelled,
+    errors: result.errors,
+  });
 
   console.log(
     `[uplisting-sync] syncBookingsForListing: done synced=${result.synced} skipped=${result.skipped} cancelled=${result.cancelled} errors=${result.errors.length}`
@@ -590,6 +820,14 @@ export async function syncBookings(): Promise<{
     cancelled += result.cancelled;
     errors.push(...result.errors);
   }
+
+  await logSyncCompletedEvent(supabase, {
+    scope: 'all',
+    synced,
+    skipped,
+    cancelled,
+    errors,
+  });
 
   console.log(
     `[uplisting-sync] syncBookings: done synced=${synced} skipped=${skipped} cancelled=${cancelled} errors=${errors.length}`
