@@ -69,26 +69,43 @@ async function upsertListing(
   supabase: ServiceClient,
   listing: UplistingListing
 ): Promise<{ ok: boolean; error?: string }> {
-  const { error: upsertError } = await supabase.from('apartments').upsert(
-    {
-      uplisting_id: listing.id,
-      uplisting_name: listing.name,
-    },
-    { onConflict: 'uplisting_id' }
-  );
+  const { data: updated, error: updateError } = await supabase
+    .from('apartments')
+    .update({ uplisting_name: listing.name })
+    .eq('uplisting_id', listing.id)
+    .select('id');
 
-  if (!upsertError) {
+  if (updateError) {
+    return { ok: false, error: updateError.message };
+  }
+
+  if (updated && updated.length > 0) {
     return { ok: true };
   }
 
   const { error: insertError } = await supabase.from('apartments').insert({
     uplisting_id: listing.id,
     uplisting_name: listing.name,
-    apartment_number: listing.internal_name || listing.id,
+    apartment_number: listing.internal_name || listing.name || listing.id,
     owner_name: 'Uplisting',
   });
 
   if (insertError) {
+    // Race: another sync may have inserted the same uplisting_id.
+    const { data: existing, error: lookupError } = await supabase
+      .from('apartments')
+      .select('id')
+      .eq('uplisting_id', listing.id)
+      .maybeSingle();
+
+    if (!lookupError && existing) {
+      await supabase
+        .from('apartments')
+        .update({ uplisting_name: listing.name })
+        .eq('id', existing.id);
+      return { ok: true };
+    }
+
     return { ok: false, error: insertError.message };
   }
 

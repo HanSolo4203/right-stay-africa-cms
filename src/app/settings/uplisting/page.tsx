@@ -48,11 +48,35 @@ interface CleaningGenerateResult {
   error?: string;
 }
 
+async function parseJsonResponse<T extends { error?: string }>(
+  response: Response
+): Promise<{ data: T | null; error: string | null }> {
+  const text = await response.text();
+  const preview = text.replace(/\s+/g, ' ').trim().slice(0, 200);
+
+  if (!text.trim()) {
+    return {
+      data: null,
+      error: `Sync failed (HTTP ${response.status}): empty response`,
+    };
+  }
+
+  try {
+    return { data: JSON.parse(text) as T, error: null };
+  } catch {
+    return {
+      data: null,
+      error: `Sync failed (HTTP ${response.status}): ${preview || 'non-JSON response'}`,
+    };
+  }
+}
+
 function UplistingSettingsContent() {
   const [apartments, setApartments] = useState<UplistingApartment[]>([]);
   const [bookingCount, setBookingCount] = useState<number | null>(null);
   const [loadingData, setLoadingData] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [syncPhase, setSyncPhase] = useState<'listings' | 'bookings' | null>(null);
   const [syncingPropertyId, setSyncingPropertyId] = useState<string | null>(null);
   const [syncResult, setSyncResult] = useState<SyncResponse | null>(null);
   const [generatingCleaning, setGeneratingCleaning] = useState(false);
@@ -118,10 +142,22 @@ function UplistingSettingsContent() {
         body: JSON.stringify({ uplisting_id: uplistingId }),
       });
 
-      const data = (await response.json()) as SyncBookingsResult & { error?: string };
+      const { data, error: parseError } = await parseJsonResponse<
+        SyncBookingsResult & { error?: string }
+      >(response);
+
+      if (parseError) {
+        toast.error(parseError);
+        return;
+      }
 
       if (!response.ok) {
-        toast.error(data.error ?? `Failed to sync ${apartmentNumber}`);
+        toast.error(data?.error ?? `Failed to sync ${apartmentNumber}`);
+        return;
+      }
+
+      if (!data) {
+        toast.error(`Failed to sync ${apartmentNumber}`);
         return;
       }
 
@@ -213,31 +249,126 @@ function UplistingSettingsContent() {
     try {
       setSyncing(true);
       setSyncResult(null);
+      setSyncPhase('listings');
+      toast.loading('Syncing listings…', { id: 'uplisting-sync' });
 
-      const response = await fetch('/api/uplisting/sync', {
+      const listingsResponse = await fetch('/api/uplisting/sync', {
         method: 'POST',
         headers: {
+          'Content-Type': 'application/json',
           'x-sync-secret': syncSecret,
         },
+        body: JSON.stringify({ scope: 'listings' }),
       });
 
-      const data = (await response.json()) as SyncResponse;
-
-      if (!response.ok) {
-        setSyncResult({ error: data.error ?? 'Sync failed' });
-        toast.error(data.error ?? 'Sync failed');
+      const listingsParsed = await parseJsonResponse<SyncResponse>(listingsResponse);
+      if (listingsParsed.error) {
+        setSyncResult({ error: listingsParsed.error });
+        toast.error(listingsParsed.error, { id: 'uplisting-sync' });
         return;
       }
 
-      setSyncResult(data);
-      toast.success('Uplisting sync completed');
+      if (!listingsResponse.ok) {
+        const message = listingsParsed.data?.error ?? 'Listings sync failed';
+        setSyncResult({ error: message });
+        toast.error(message, { id: 'uplisting-sync' });
+        return;
+      }
+
+      setSyncPhase('bookings');
+      toast.loading('Syncing bookings…', { id: 'uplisting-sync' });
+
+      // Refresh linked apartments after listings sync, then sync bookings
+      // per property so each request stays under proxy timeouts.
+      const supabase = createClientComponentClient();
+      const { data: linkedApartments, error: linkedError } = await supabase
+        .from('apartments')
+        .select('id, apartment_number, uplisting_id, uplisting_name')
+        .not('uplisting_id', 'is', null)
+        .order('apartment_number');
+
+      if (linkedError) {
+        const message = linkedError.message;
+        setSyncResult({
+          listings: listingsParsed.data?.listings,
+          error: message,
+        });
+        toast.error(message, { id: 'uplisting-sync' });
+        return;
+      }
+
+      const linked = (linkedApartments ?? []) as UplistingApartment[];
+      setApartments(linked);
+
+      const bookingsAggregate: SyncBookingsResult = {
+        synced: 0,
+        skipped: 0,
+        cancelled: 0,
+        errors: [],
+      };
+
+      for (let index = 0; index < linked.length; index += 1) {
+        const apartment = linked[index];
+        toast.loading(
+          `Syncing bookings ${index + 1}/${linked.length}: ${apartment.apartment_number}`,
+          { id: 'uplisting-sync' }
+        );
+
+        const propertyResponse = await fetch('/api/uplisting/sync/property', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-sync-secret': syncSecret,
+          },
+          body: JSON.stringify({ uplisting_id: apartment.uplisting_id }),
+        });
+
+        const propertyParsed = await parseJsonResponse<
+          SyncBookingsResult & { error?: string }
+        >(propertyResponse);
+
+        if (propertyParsed.error) {
+          bookingsAggregate.errors.push(
+            `${apartment.apartment_number}: ${propertyParsed.error}`
+          );
+          continue;
+        }
+
+        if (!propertyResponse.ok || !propertyParsed.data) {
+          bookingsAggregate.errors.push(
+            `${apartment.apartment_number}: ${
+              propertyParsed.data?.error ?? 'Bookings sync failed'
+            }`
+          );
+          continue;
+        }
+
+        bookingsAggregate.synced += propertyParsed.data.synced;
+        bookingsAggregate.skipped += propertyParsed.data.skipped;
+        bookingsAggregate.cancelled =
+          (bookingsAggregate.cancelled ?? 0) +
+          (propertyParsed.data.cancelled ?? 0);
+        bookingsAggregate.errors.push(
+          ...propertyParsed.data.errors.map(
+            (error) => `${apartment.apartment_number}: ${error}`
+          )
+        );
+      }
+
+      const merged: SyncResponse = {
+        listings: listingsParsed.data?.listings,
+        bookings: bookingsAggregate,
+      };
+      setSyncResult(merged);
+      toast.success('Uplisting sync completed', { id: 'uplisting-sync' });
       await loadIntegrationData();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Sync request failed';
       setSyncResult({ error: message });
-      toast.error(message);
+      toast.error(message, { id: 'uplisting-sync' });
     } finally {
       setSyncing(false);
+      setSyncPhase(null);
     }
   };
 
@@ -297,7 +428,11 @@ function UplistingSettingsContent() {
                 className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <RefreshCw className={`w-4 h-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
-                {syncing ? 'Syncing...' : 'Sync Now'}
+                {syncing
+                  ? syncPhase === 'bookings'
+                    ? 'Syncing bookings...'
+                    : 'Syncing listings...'
+                  : 'Sync Now'}
               </button>
             </div>
           </div>
@@ -366,49 +501,46 @@ function UplistingSettingsContent() {
               <h2 className="text-lg font-medium text-gray-900">Last Sync Result</h2>
             </div>
             <div className="px-6 py-4 space-y-4">
-              {syncResult.error ? (
+              {syncResult.error && (
                 <p className="text-sm text-red-600">{syncResult.error}</p>
-              ) : (
-                <>
-                  {syncResult.listings && (
-                    <div>
-                      <h3 className="text-sm font-semibold text-gray-900">Listings</h3>
-                      <p className="text-sm text-gray-600 mt-1">
-                        Synced: {syncResult.listings.synced}
-                      </p>
-                      {syncResult.listings.errors.length > 0 && (
-                        <ul className="mt-2 space-y-1">
-                          {syncResult.listings.errors.map((error, index) => (
-                            <li key={index} className="text-sm text-red-600">
-                              {error}
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
+              )}
+              {syncResult.listings && (
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-900">Listings</h3>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Synced: {syncResult.listings.synced}
+                  </p>
+                  {syncResult.listings.errors.length > 0 && (
+                    <ul className="mt-2 space-y-1">
+                      {syncResult.listings.errors.map((error, index) => (
+                        <li key={index} className="text-sm text-red-600">
+                          {error}
+                        </li>
+                      ))}
+                    </ul>
                   )}
-                  {syncResult.bookings && (
-                    <div>
-                      <h3 className="text-sm font-semibold text-gray-900">Bookings</h3>
-                      <p className="text-sm text-gray-600 mt-1">
-                        Synced: {syncResult.bookings.synced} · Skipped:{' '}
-                        {syncResult.bookings.skipped}
-                        {typeof syncResult.bookings.cancelled === 'number'
-                          ? ` · Cancelled: ${syncResult.bookings.cancelled}`
-                          : ''}
-                      </p>
-                      {syncResult.bookings.errors.length > 0 && (
-                        <ul className="mt-2 space-y-1">
-                          {syncResult.bookings.errors.map((error, index) => (
-                            <li key={index} className="text-sm text-red-600">
-                              {error}
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
+                </div>
+              )}
+              {syncResult.bookings && (
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-900">Bookings</h3>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Synced: {syncResult.bookings.synced} · Skipped:{' '}
+                    {syncResult.bookings.skipped}
+                    {typeof syncResult.bookings.cancelled === 'number'
+                      ? ` · Cancelled: ${syncResult.bookings.cancelled}`
+                      : ''}
+                  </p>
+                  {syncResult.bookings.errors.length > 0 && (
+                    <ul className="mt-2 space-y-1">
+                      {syncResult.bookings.errors.map((error, index) => (
+                        <li key={index} className="text-sm text-red-600">
+                          {error}
+                        </li>
+                      ))}
+                    </ul>
                   )}
-                </>
+                </div>
               )}
             </div>
           </div>
