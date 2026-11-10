@@ -356,7 +356,8 @@ export function normalizeBooking(
 
 async function uplistingListingsFetch<T>(
   path: string,
-  searchParams?: Record<string, string | number | undefined>
+  searchParams?: Record<string, string | number | undefined>,
+  init?: RequestInit
 ): Promise<T> {
   const url = new URL(`${UPLISTING_LISTINGS_BASE_URL}${path}`);
 
@@ -369,7 +370,11 @@ async function uplistingListingsFetch<T>(
   }
 
   const response = await fetch(url.toString(), {
-    headers: uplistingRequestHeaders(getApiKey()),
+    ...init,
+    headers: {
+      ...uplistingRequestHeaders(getApiKey()),
+      ...(init?.headers ?? {}),
+    },
   });
 
   if (!response.ok) {
@@ -381,7 +386,16 @@ async function uplistingListingsFetch<T>(
     );
   }
 
-  return response.json() as Promise<T>;
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
+  const text = await response.text();
+  if (!text) {
+    return undefined as T;
+  }
+
+  return JSON.parse(text) as T;
 }
 
 async function uplistingListingsFetchUrl<T>(url: string): Promise<T> {
@@ -500,4 +514,81 @@ export async function testUplistingConnection(): Promise<{
   const payload = await uplistingListingsFetch<JsonApiPayload>('/properties');
   const count = extractResources(payload).length;
   return { ok: true, propertyCount: count };
+}
+
+const BOOKING_WEBHOOK_EVENTS = [
+  'booking_created',
+  'booking_updated',
+  'booking_removed',
+] as const;
+
+export type UplistingWebhookEvent = (typeof BOOKING_WEBHOOK_EVENTS)[number];
+
+export type EnsuredUplistingWebhook = {
+  id: string;
+  event: string;
+  target_url: string;
+};
+
+function getWebhookTargetUrl(): string {
+  const base = (
+    process.env.NEXT_PUBLIC_APP_URL ??
+    process.env.APP_URL ??
+    ''
+  ).replace(/\/$/, '');
+  if (!base) {
+    throw new Error(
+      'NEXT_PUBLIC_APP_URL is not defined (needed to register Uplisting webhooks)'
+    );
+  }
+  return `${base}/api/uplisting/webhook`;
+}
+
+/**
+ * Ensure booking create/update/remove hooks point at this app.
+ * Recreates matching hooks so Uplisting re-enables delivery after prior failures.
+ */
+export async function ensureUplistingWebhooks(): Promise<{
+  targetUrl: string;
+  removed: number;
+  created: EnsuredUplistingWebhook[];
+}> {
+  const targetUrl = getWebhookTargetUrl();
+  const existing = await uplistingListingsFetch<JsonApiPayload>('/hooks');
+  const resources = extractResources(existing);
+
+  let removed = 0;
+  for (const resource of resources) {
+    const attributes = (resource.attributes ?? {}) as Record<string, unknown>;
+    const hookUrl = toString(attributes.target_url);
+    if (hookUrl !== targetUrl) {
+      continue;
+    }
+    await uplistingListingsFetch(`/hooks/${resource.id}`, undefined, {
+      method: 'DELETE',
+    });
+    removed += 1;
+  }
+
+  const created: EnsuredUplistingWebhook[] = [];
+  for (const event of BOOKING_WEBHOOK_EVENTS) {
+    const result = await uplistingListingsFetch<{ id?: string | number }>(
+      '/hooks',
+      undefined,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          target_url: targetUrl,
+          event,
+        }),
+      }
+    );
+    created.push({
+      id: String(result.id ?? ''),
+      event,
+      target_url: targetUrl,
+    });
+  }
+
+  return { targetUrl, removed, created };
 }

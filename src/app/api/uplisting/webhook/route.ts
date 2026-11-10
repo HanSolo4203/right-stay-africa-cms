@@ -7,48 +7,34 @@ import {
   upsertUplistingBooking,
 } from '@/lib/uplisting-sync';
 import {
+  extractBookingPayload,
+  parseBookingPayload,
+  resolveWebhookEventType,
+  toRawPayload,
+  type ResolvedBookingEvent,
+} from '@/lib/uplisting-webhook';
+import {
   MIN_CHECK_IN_DATE,
-  normalizeBooking,
   type UplistingBooking,
 } from '@/lib/uplisting';
 
 export const dynamic = 'force-dynamic';
 
-type WebhookEnvelope = {
-  type?: string;
-  event?: string;
-  data?: unknown;
-  booking?: unknown;
-  payload?: unknown;
-};
-
-function verifyUplistingSignature(
-  rawBody: string,
-  signatureHeader: string | null,
-  secret: string
-): boolean {
-  if (!signatureHeader?.trim()) {
-    return false;
-  }
-
-  const expected = createHmac('sha256', secret)
-    .update(rawBody, 'utf8')
-    .digest('hex');
-
-  const received = signatureHeader.startsWith('sha256=')
-    ? signatureHeader.slice(7)
-    : signatureHeader;
+function signaturesMatch(expectedHex: string, received: string): boolean {
+  const normalizedReceived = received.startsWith('sha256=')
+    ? received.slice(7)
+    : received;
 
   try {
-    const expectedBuf = Buffer.from(expected, 'hex');
-    const receivedBuf = Buffer.from(received, 'hex');
+    const expectedBuf = Buffer.from(expectedHex, 'hex');
+    const receivedBuf = Buffer.from(normalizedReceived, 'hex');
     if (expectedBuf.length !== receivedBuf.length) {
       return false;
     }
     return timingSafeEqual(expectedBuf, receivedBuf);
   } catch {
-    const expectedUtf8 = Buffer.from(expected);
-    const receivedUtf8 = Buffer.from(received);
+    const expectedUtf8 = Buffer.from(expectedHex);
+    const receivedUtf8 = Buffer.from(normalizedReceived);
     if (expectedUtf8.length !== receivedUtf8.length) {
       return false;
     }
@@ -56,43 +42,46 @@ function verifyUplistingSignature(
   }
 }
 
-function getEventType(event: WebhookEnvelope): string | null {
-  const type = event.type ?? event.event;
-  return type?.trim() ? type.trim() : null;
-}
+function verifyUplistingSignature(
+  rawBody: string,
+  signatureHeader: string | null,
+  secret: string,
+  timestampHeader: string | null
+): boolean {
+  if (!signatureHeader?.trim()) {
+    return false;
+  }
 
-function extractBookingPayload(event: WebhookEnvelope): unknown {
-  const data = event.data;
-  if (data && typeof data === 'object' && !Array.isArray(data)) {
-    const record = data as Record<string, unknown>;
-    if (record.booking !== undefined) {
-      return record.booking;
+  const bodyOnly = createHmac('sha256', secret)
+    .update(rawBody, 'utf8')
+    .digest('hex');
+
+  if (signaturesMatch(bodyOnly, signatureHeader)) {
+    return true;
+  }
+
+  // V3-style signatures: HMAC(secret, `${timestamp}.${rawBody}`)
+  if (timestampHeader?.trim()) {
+    const stamped = createHmac('sha256', secret)
+      .update(`${timestampHeader.trim()}.${rawBody}`, 'utf8')
+      .digest('hex');
+    if (signaturesMatch(stamped, signatureHeader)) {
+      return true;
     }
-    if (record.id !== undefined || record.attributes !== undefined) {
-      return data;
-    }
   }
-  return event.booking ?? event.payload ?? data ?? null;
+
+  return false;
 }
 
-function toRawPayload(value: unknown): Record<string, unknown> {
-  if (value && typeof value === 'object' && !Array.isArray(value)) {
-    return value as Record<string, unknown>;
+function shouldSkipByCheckIn(
+  booking: UplistingBooking,
+  eventType: ResolvedBookingEvent
+): boolean {
+  if (!booking.check_in) {
+    // Removals can arrive with a reduced payload; still cancel by booking id.
+    return eventType !== 'booking_removed';
   }
-  return { value };
-}
-
-function parseBookingPayload(payload: unknown): UplistingBooking | null {
-  if (!payload || typeof payload !== 'object') {
-    return null;
-  }
-
-  const booking = normalizeBooking(payload as UplistingBooking);
-  if (!booking.id || !booking.property_id) {
-    return null;
-  }
-
-  return booking;
+  return booking.check_in < MIN_CHECK_IN_DATE;
 }
 
 async function processBookingEvent(
@@ -100,7 +89,7 @@ async function processBookingEvent(
   booking: UplistingBooking,
   rawPayload: Record<string, unknown>
 ): Promise<void> {
-  if (booking.check_in < MIN_CHECK_IN_DATE) {
+  if (shouldSkipByCheckIn(booking, eventType)) {
     logger.debug(
       `[uplisting-webhook] skipping ${eventType} booking ${booking.id}: check_in ${booking.check_in} before ${MIN_CHECK_IN_DATE}`
     );
@@ -123,7 +112,7 @@ async function processBookingRemovedEvent(
   booking: UplistingBooking,
   rawPayload: Record<string, unknown>
 ): Promise<void> {
-  if (booking.check_in < MIN_CHECK_IN_DATE) {
+  if (shouldSkipByCheckIn(booking, 'booking_removed')) {
     logger.debug(
       `[uplisting-webhook] skipping booking_removed ${booking.id}: check_in ${booking.check_in} before ${MIN_CHECK_IN_DATE}`
     );
@@ -151,37 +140,56 @@ export async function POST(request: NextRequest) {
 
   const rawBody = await request.text();
   const signature = request.headers.get('x-uplisting-signature');
+  const timestamp = request.headers.get('x-uplisting-timestamp');
+  const headerEventType =
+    request.headers.get('x-uplisting-event') ??
+    request.headers.get('x-uplisting-event-type');
 
-  if (!verifyUplistingSignature(rawBody, signature, webhookSecret)) {
+  console.log(
+    `[uplisting-webhook] hit bytes=${rawBody.length} signature=${Boolean(
+      signature?.trim()
+    )} timestamp=${Boolean(timestamp?.trim())} event_header=${
+      headerEventType ?? 'none'
+    }`
+  );
+
+  if (!verifyUplistingSignature(rawBody, signature, webhookSecret, timestamp)) {
+    logger.error(
+      `[uplisting-webhook] invalid signature (signature_present=${Boolean(
+        signature?.trim()
+      )} timestamp_present=${Boolean(timestamp?.trim())})`
+    );
     return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
   }
 
-  let event: WebhookEnvelope;
+  let event: Record<string, unknown>;
   try {
-    event = JSON.parse(rawBody) as WebhookEnvelope;
+    event = JSON.parse(rawBody) as Record<string, unknown>;
   } catch (err) {
     logger.error('[uplisting-webhook] invalid JSON body', err);
     return NextResponse.json({ ok: true });
   }
 
-  const eventType = getEventType(event);
-  if (!eventType) {
-    logger.warn('[uplisting-webhook] missing event type');
-    return NextResponse.json({ ok: true });
-  }
-
-  const supported = new Set([
-    'booking_created',
-    'booking_updated',
-    'booking_removed',
-  ]);
-
-  if (!supported.has(eventType)) {
-    logger.debug(`[uplisting-webhook] ignoring unsupported event: ${eventType}`);
-    return NextResponse.json({ ok: true });
-  }
-
   const rawBookingPayload = extractBookingPayload(event);
+  const eventType = resolveWebhookEventType(
+    event,
+    rawBookingPayload,
+    headerEventType
+  );
+
+  if (!eventType) {
+    if (looksLikeUnsupportedEvent(event, headerEventType)) {
+      logger.debug(
+        `[uplisting-webhook] ignoring unsupported event: ${
+          headerEventType ?? String(event.type ?? event.event)
+        }`
+      );
+    } else {
+      logger.warn('[uplisting-webhook] missing event type and booking payload');
+    }
+    return NextResponse.json({ ok: true });
+  }
+
   const booking = parseBookingPayload(rawBookingPayload);
 
   if (!booking) {
@@ -190,6 +198,10 @@ export async function POST(request: NextRequest) {
     );
     return NextResponse.json({ ok: true });
   }
+
+  console.log(
+    `[uplisting-webhook] accepted ${eventType} booking=${booking.id} property=${booking.property_id} guest=${booking.guest_name}`
+  );
 
   const rawPayload = toRawPayload(rawBookingPayload);
 
@@ -208,4 +220,15 @@ export async function POST(request: NextRequest) {
   }
 
   return NextResponse.json({ ok: true });
+}
+
+function looksLikeUnsupportedEvent(
+  event: Record<string, unknown>,
+  headerEventType: string | null
+): boolean {
+  const raw =
+    headerEventType?.trim() ||
+    (typeof event.type === 'string' ? event.type : null) ||
+    (typeof event.event === 'string' ? event.event : null);
+  return Boolean(raw?.trim());
 }

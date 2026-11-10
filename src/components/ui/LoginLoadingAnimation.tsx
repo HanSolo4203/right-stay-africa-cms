@@ -165,7 +165,7 @@ export default function LoginLoadingAnimation({ onComplete }: LoginLoadingAnimat
         {/* Loading image */}
         <div className="mb-6">
           <div className="relative inline-block">
-            <LoadingImage size={260} fullScreen={false} alt="Loading" />
+            <LoadingImage size={40} fullScreen={false} alt="Loading" />
           </div>
         </div>
 

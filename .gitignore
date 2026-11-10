@@ -92,6 +92,9 @@ jspm_packages/
 .env.test
 .env.production
 
+# local MCP setup notes (may contain project URLs/keys)
+MCP_SETUP.md
+
 # parcel-bundler cache (https://parceljs.org/)
 .cache
 .parcel-cache

@@ -1,6 +1,5 @@
 'use client';
 
-import Image from "next/image";
 import { useState, useEffect } from 'react';
 
 interface UpcomingCleaning {
@@ -57,17 +56,9 @@ export default function Loading() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
-      {/* Loading Animation */}
-      <div className="text-center mb-8">
-        <Image
-          src="/why-are-you-gae.png"
-          alt="Loading"
-          width={160}
-          height={160}
-          priority
-          className="animate-pulse"
-        />
-        <p className="text-gray-600 mt-4 text-lg">Loading your dashboard...</p>
+      <div className="mb-8 text-center">
+        <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-2 border-gray-300 border-t-gray-800" />
+        <p className="text-lg text-gray-600">Loading your dashboard...</p>
       </div>
 
       {/* Upcoming Cleanings Table */}

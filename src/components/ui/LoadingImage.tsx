@@ -1,28 +1,40 @@
 'use client';
 
-import Image from 'next/image';
+import { Loader2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface LoadingImageProps {
   size?: number;
   fullScreen?: boolean;
   alt?: string;
+  className?: string;
 }
 
-export default function LoadingImage({ size = 200, fullScreen = true, alt = 'Loading' }: LoadingImageProps) {
+export default function LoadingImage({
+  size = 40,
+  fullScreen = true,
+  alt = 'Loading',
+  className,
+}: LoadingImageProps) {
   return (
     <div
-      className={fullScreen ? 'fixed inset-0 flex items-center justify-center z-50 bg-transparent' : 'flex items-center justify-center w-full'}
+      className={cn(
+        fullScreen
+          ? 'fixed inset-0 z-50 flex items-center justify-center bg-background/60'
+          : 'flex w-full items-center justify-center',
+        className
+      )}
       style={fullScreen ? undefined : { minHeight: '50vh' }}
+      role="status"
+      aria-label={alt}
     >
-      <Image
-        src="/why-are-you-gae.png"
-        alt={alt}
-        width={size}
-        height={size}
-        priority
+      <Loader2
+        className="animate-spin text-muted-foreground"
+        style={{ width: size, height: size }}
+        strokeWidth={1.75}
+        aria-hidden
       />
+      <span className="sr-only">{alt}</span>
     </div>
   );
 }
-
-

@@ -1,25 +1,14 @@
-import Image from "next/image";
+import { Loader2 } from 'lucide-react';
 
 export default function Loading() {
   return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        minHeight: "100vh",
-        width: "100%",
-      }}
-    >
-      <Image
-        src="/why-are-you-gae.png"
-        alt="Loading"
-        width={200}
-        height={200}
-        priority
+    <div className="flex min-h-[50vh] w-full items-center justify-center">
+      <Loader2
+        className="size-10 animate-spin text-muted-foreground"
+        strokeWidth={1.75}
+        aria-hidden
       />
+      <span className="sr-only">Loading</span>
     </div>
   );
 }
-
-

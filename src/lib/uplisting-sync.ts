@@ -435,11 +435,12 @@ export async function upsertUplistingBooking(
   const propertyName = await getApartmentDisplayName(supabase, apartmentId);
 
   let eventType: BookingSyncEventType | null = null;
-  if (options.eventType) {
-    eventType = options.eventType;
-  } else if (!existing) {
+  if (!existing) {
     eventType = 'booking_created';
   } else if (
+    options.source === 'uplisting_webhook' ||
+    options.eventType === 'booking_updated' ||
+    options.eventType === 'booking_created' ||
     bookingChanged(
       existing as ExistingBookingSnapshot,
       nextStatus,
@@ -448,13 +449,16 @@ export async function upsertUplistingBooking(
       reference
     )
   ) {
+    // Prefer updated when the row already exists (webhook create after sync, etc.).
     eventType = 'booking_updated';
   }
 
   if (eventType) {
     const verb =
       eventType === 'booking_created'
-        ? 'New booking'
+        ? options.source === 'uplisting_webhook'
+          ? 'Webhook new booking'
+          : 'New booking'
         : options.source === 'uplisting_webhook'
           ? 'Webhook updated booking'
           : 'Synced booking';

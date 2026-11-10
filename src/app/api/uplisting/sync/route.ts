@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ensureUplistingWebhooks } from '@/lib/uplisting';
 import { syncBookings, syncListings } from '@/lib/uplisting-sync';
 
 export const dynamic = 'force-dynamic';
@@ -10,6 +11,16 @@ function parseScope(value: unknown): SyncScope {
     return value;
   }
   return 'all';
+}
+
+async function ensureHooksSafe() {
+  try {
+    return await ensureUplistingWebhooks();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    console.error('[uplisting-sync] ensureUplistingWebhooks failed:', message);
+    return { error: message };
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -33,14 +44,18 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Keep booking create/update/remove hooks pointed at this app and
+    // re-enable delivery if Uplisting disabled them after earlier failures.
+    const hooks = await ensureHooksSafe();
+
     if (scope === 'listings') {
       const listings = await syncListings();
-      return NextResponse.json({ listings });
+      return NextResponse.json({ listings, hooks });
     }
 
     if (scope === 'bookings') {
       const bookings = await syncBookings();
-      return NextResponse.json({ bookings });
+      return NextResponse.json({ bookings, hooks });
     }
 
     const listings = await syncListings();
@@ -49,6 +64,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       listings,
       bookings,
+      hooks,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
