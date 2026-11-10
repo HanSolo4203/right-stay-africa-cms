@@ -29,6 +29,8 @@ export interface Apartment {
   uplisting_name?: string;
   // Amount paid to cleaner for a cleaning at this apartment (not customer price)
   cleaner_payout?: number;
+  /** When false, hidden from calendar/scheduling; bookings & cleanings are retained */
+  is_active: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -167,6 +169,7 @@ export interface CreateApartmentData {
   owner_email?: string;
   address?: string;
   cleaner_payout?: number;
+  is_active?: boolean;
 }
 
 export interface CreateRSALaundryAssetData {

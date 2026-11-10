@@ -137,8 +137,8 @@ export default function Header() {
     };
   }, [financeTimeout, settingsTimeout, operationsTimeout]);
 
-  // Hide header on the login page
-  if (pathname === '/login') {
+  // Hide header on the login page and public cleaner live schedule
+  if (pathname === '/login' || pathname.startsWith('/cleaning/live')) {
     return null;
   }
 

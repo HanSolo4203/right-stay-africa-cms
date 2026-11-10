@@ -9,6 +9,7 @@ export async function GET() {
     const { data: apartments, error: apartmentsError } = await supabase
       .from('apartments')
       .select('id, apartment_number, owner_name')
+      .eq('is_active', true)
       .order('apartment_number');
 
     if (apartmentsError) {

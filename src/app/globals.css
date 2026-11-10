@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -36,422 +37,209 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+  --color-status-scheduled: var(--status-scheduled);
+  --color-status-scheduled-fg: var(--status-scheduled-fg);
+  --color-status-assigned: var(--status-assigned);
+  --color-status-assigned-fg: var(--status-assigned-fg);
+  --color-status-progress: var(--status-progress);
+  --color-status-progress-fg: var(--status-progress-fg);
+  --color-status-completed: var(--status-completed);
+  --color-status-completed-fg: var(--status-completed-fg);
+  --color-status-issue: var(--status-issue);
+  --color-status-issue-fg: var(--status-issue-fg);
+  --color-status-cancelled: var(--status-cancelled);
+  --color-status-cancelled-fg: var(--status-cancelled-fg);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
-}
-
-/* Force common grey utility text colors to render as black site-wide */
-.text-gray-300,
-.text-gray-400,
-.text-gray-500,
-.text-gray-600,
-.text-gray-700,
-.text-gray-800 {
-  color: #000 !important;
-}
-
-/* Ensure SVG icons (chevrons, etc.) that inherit currentColor render black */
-.text-gray-300 svg,
-.text-gray-400 svg,
-.text-gray-500 svg,
-.text-gray-600 svg,
-.text-gray-700 svg,
-.text-gray-800 svg {
-  color: #000 !important;
-}
-
-/* Make arrow and dropdown icons black globally (Lucide/heroicons use currentColor) */
-svg[stroke="currentColor"],
-svg[fill="currentColor"],
-button svg[stroke="currentColor"],
-button svg[fill="currentColor"],
-summary svg,
-details svg {
-  color: #000 !important; /* sets currentColor to black */
-}
-
-/* React Big Calendar navigation arrows */
-.rbc-toolbar button svg {
-  color: #000 !important;
-}
-
-/* React Big Calendar: ensure day labels and date numbers are black */
-.rbc-month-view .rbc-month-header .rbc-header,
-.rbc-month-view .rbc-date-cell,
-.rbc-month-view .rbc-date-cell > a.rbc-button-link,
-.rbc-month-view .rbc-date-cell.rbc-now,
-.rbc-month-view .rbc-off-range,
-.rbc-month-view .rbc-off-range > a.rbc-button-link {
-  color: #111827 !important; /* Tailwind gray-900 */
-}
-
-/* React Big Calendar: RSA Laundry Room events styling */
-.rbc-event[style*="background-color: #f97316"] {
-  background-color: #f97316 !important; /* orange-500 */
-  border-color: #ea580c !important; /* orange-600 */
-  color: white !important;
-}
-
-.rbc-event[style*="background-color: #f97316"]:hover {
-  background-color: #ea580c !important; /* orange-600 */
-  border-color: #dc2626 !important; /* orange-700 */
-}
-
-/* Target events with RSA Laundry Room in title */
-.rbc-event[title*="RSA Laundry Room"] {
-  background-color: #f97316 !important; /* orange-500 */
-  border-color: #ea580c !important; /* orange-600 */
-  color: white !important;
-}
-
-/* Class-based approach for RSA laundry events */
-.rbc-event.rsa-laundry-event {
-  background-color: #f97316 !important; /* orange-500 */
-  border-color: #ea580c !important; /* orange-600 */
-  color: white !important;
-}
-
-.rbc-event.rsa-laundry-event:hover {
-  background-color: #ea580c !important; /* orange-600 */
-  border-color: #dc2626 !important; /* orange-700 */
-}
-
-/* Global form control text color: enforce near-black text across site */
-input, textarea, select {
-  color: #111827; /* Tailwind gray-900 */
-  caret-color: #111827;
-}
-
-/* Placeholder color for readability */
-input::placeholder,
-textarea::placeholder {
-  color: #374151; /* Tailwind gray-700 */
-}
-
-/* Ensure select text renders black on desktop for readability */
-@media (min-width: 1024px) {
-  select, select option { 
-    color: #111827; /* Tailwind gray-900 (near black) */
-  }
-}
-
-/* Mobile readability improvements */
-@media (max-width: 640px) {
-  /* Force solid black text for form controls */
-  input, select, textarea {
-    color: #111827; /* Tailwind gray-900 */
-  }
-
-  input::placeholder,
-  textarea::placeholder {
-    color: #374151; /* Tailwind gray-700 for better contrast */
-  }
-
-  /* React Big Calendar date numbers and headers */
-  .rbc-month-view .rbc-date-cell,
-  .rbc-month-view .rbc-date-cell > a,
-  .rbc-header,
-  .rbc-button-link {
-    color: #111827 !important;
-  }
-}
-
-/* Matrix-style background animation */
-.matrix-bg {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: #fff; /* White background per request */
-  overflow: hidden;
-  z-index: 0; /* Sit below content but above page background */
-  pointer-events: none;
-}
-
-.matrix-column {
-  position: absolute;
-  top: -100%;
-  color: #000000; /* Black matrix characters on white */
-  font-family: 'Courier New', monospace;
-  font-size: 16px;
-  line-height: 16px;
-  text-shadow: 0 0 8px rgba(0,0,0,0.08), 0 0 16px rgba(0,0,0,0.06);
-  animation: matrix-fall linear infinite;
-  white-space: pre;
-  opacity: 0.9;
-}
-
-@keyframes matrix-fall {
-  0% {
-    transform: translateY(-100vh);
-    opacity: 1;
-  }
-  100% {
-    transform: translateY(100vh);
-    opacity: 0;
-  }
-}
-
-/* Matrix characters */
-.matrix-char {
-  display: block;
-  animation: matrix-flicker 0.1s infinite alternate;
-}
-
-@keyframes matrix-flicker {
-  0% { opacity: 0.8; }
-  100% { opacity: 1; }
-}
-
-/* Override input text color for login page */
-.login-page input {
-  color: #111827 !important; /* black */
-  caret-color: #111827 !important;
-}
-
-/* Enhanced tooltip styles for calendar events */
-[title] {
-  position: relative;
-}
-
-/* Custom tooltip styling for better visibility */
-.rbc-event[title]:hover::after {
-  content: attr(title);
-  position: absolute;
-  bottom: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(0, 0, 0, 0.9);
-  color: white;
-  padding: 8px 12px;
-  border-radius: 6px;
-  font-size: 12px;
-  white-space: pre-line;
-  z-index: 1000;
-  min-width: 200px;
-  max-width: 300px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  pointer-events: none;
-  opacity: 0;
-  animation: tooltipFadeIn 0.2s ease-in-out forwards;
-}
-
-@keyframes tooltipFadeIn {
-  from {
-    opacity: 0;
-    transform: translateX(-50%) translateY(-5px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0);
-  }
-}
-
-/* Tooltip arrow */
-.rbc-event[title]:hover::before {
-  content: '';
-  position: absolute;
-  bottom: 100%;
-  left: 50%;
-  transform: translateX(-50%) translateY(100%);
-  border: 5px solid transparent;
-  border-top-color: rgba(0, 0, 0, 0.9);
-  z-index: 1001;
-  pointer-events: none;
-  opacity: 0;
-  animation: tooltipFadeIn 0.2s ease-in-out forwards;
-}
-
-/* Hide spinner controls for number inputs */
-input[type="number"]::-webkit-outer-spin-button,
-input[type="number"]::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
-}
-
-/* Firefox */
-input[type="number"] {
-  -moz-appearance: textfield;
-}
-
-/* Disable mouse scroll wheel on number inputs */
-input[type="number"] {
-  pointer-events: auto;
-}
-
-input[type="number"]:focus {
-  pointer-events: auto;
-}
-
-/* Additional styling to ensure number inputs behave consistently */
-input[type="number"] {
-  -webkit-user-select: text;
-  -moz-user-select: text;
-  -ms-user-select: text;
-  user-select: text;
-}
-
-/* Calendar cell scrolling functionality - target individual date cells only */
-.rbc-month-view .rbc-date-cell {
-  overflow: hidden !important;
-  transition: all 0.3s ease-in-out;
-  position: relative;
-  max-height: 120px;
-}
-
-/* Enable scrolling only when hovering over individual date cells */
-.rbc-month-view .rbc-date-cell:hover {
-  overflow-y: auto !important;
-  max-height: 250px !important;
-  z-index: 20;
-  box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.1);
-  background: rgba(255, 255, 255, 0.9);
-}
-
-/* Target the events container within each date cell */
-.rbc-month-view .rbc-date-cell .rbc-events-container {
-  overflow: hidden;
-  max-height: 100px;
-}
-
-.rbc-month-view .rbc-date-cell:hover .rbc-events-container {
-  overflow-y: auto;
-  max-height: 200px;
-}
-
-/* Smooth scrolling for individual date cells */
-.rbc-month-view .rbc-date-cell::-webkit-scrollbar {
-  width: 4px;
-}
-
-.rbc-month-view .rbc-date-cell::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.05);
-  border-radius: 2px;
-}
-
-.rbc-month-view .rbc-date-cell::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 2px;
-}
-
-.rbc-month-view .rbc-date-cell::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.4);
-}
-
-/* Ensure events within cells maintain proper spacing */
-.rbc-month-view .rbc-date-cell .rbc-event {
-  margin-bottom: 1px;
-  flex-shrink: 0;
-}
-
-/* Prevent row-level scrolling */
-.rbc-month-view .rbc-row {
-  overflow: visible;
-}
-
-.rbc-month-view .rbc-row-content {
-  overflow: visible;
-}
-
-.rbc-month-view .rbc-row-segment {
-  overflow: visible;
-}
-
-/* Ensure the calendar container allows for overflow */
-.rbc-calendar {
-  overflow: visible;
-}
-
-.rbc-month-view {
-  overflow: visible;
-}
-
-/* Debug: Add subtle border to individual date cells on hover */
-.rbc-month-view .rbc-date-cell:hover {
-  border: 1px solid rgba(0, 0, 0, 0.1);
+  --shadow-xs: 0 1px 2px 0 oklch(0 0 0 / 0.04);
 }
 
 :root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
+  --radius: 0.75rem;
+  --background: oklch(0.99 0 0);
+  --foreground: oklch(0.2 0 0);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
+  --card-foreground: oklch(0.2 0 0);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
+  --popover-foreground: oklch(0.2 0 0);
+  --primary: oklch(0.55 0.11 195);
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0.96 0 0);
+  --secondary-foreground: oklch(0.25 0 0);
+  --muted: oklch(0.96 0 0);
+  --muted-foreground: oklch(0.5 0 0);
+  --accent: oklch(0.95 0.02 195);
+  --accent-foreground: oklch(0.35 0.08 195);
+  --destructive: oklch(0.55 0.2 25);
+  --border: oklch(0.92 0 0);
+  --input: oklch(0.92 0 0);
+  --ring: oklch(0.55 0.11 195);
+  --chart-1: oklch(0.55 0.11 195);
+  --chart-2: oklch(0.6 0.12 160);
+  --chart-3: oklch(0.7 0.12 80);
+  --chart-4: oklch(0.55 0.15 250);
+  --chart-5: oklch(0.6 0.18 25);
   --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar-foreground: oklch(0.2 0 0);
+  --sidebar-primary: oklch(0.55 0.11 195);
+  --sidebar-primary-foreground: oklch(0.99 0 0);
+  --sidebar-accent: oklch(0.95 0.02 195);
+  --sidebar-accent-foreground: oklch(0.35 0.08 195);
+  --sidebar-border: oklch(0.92 0 0);
+  --sidebar-ring: oklch(0.55 0.11 195);
+  --status-scheduled: oklch(0.95 0.01 250);
+  --status-scheduled-fg: oklch(0.4 0.03 250);
+  --status-assigned: oklch(0.94 0.04 250);
+  --status-assigned-fg: oklch(0.45 0.14 250);
+  --status-progress: oklch(0.95 0.05 85);
+  --status-progress-fg: oklch(0.5 0.12 75);
+  --status-completed: oklch(0.95 0.05 150);
+  --status-completed-fg: oklch(0.4 0.1 150);
+  --status-issue: oklch(0.95 0.05 25);
+  --status-issue-fg: oklch(0.5 0.18 25);
+  --status-cancelled: oklch(0.94 0 0);
+  --status-cancelled-fg: oklch(0.5 0 0);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-top: env(safe-area-inset-top, 0px);
+  --page-pad: 1rem;
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
+  --background: oklch(0.15 0 0);
+  --foreground: oklch(0.95 0 0);
+  --card: oklch(0.19 0 0);
+  --card-foreground: oklch(0.95 0 0);
+  --popover: oklch(0.19 0 0);
+  --popover-foreground: oklch(0.95 0 0);
+  --primary: oklch(0.65 0.1 195);
+  --primary-foreground: oklch(0.15 0 0);
+  --secondary: oklch(0.24 0 0);
+  --secondary-foreground: oklch(0.95 0 0);
+  --muted: oklch(0.24 0 0);
+  --muted-foreground: oklch(0.7 0 0);
+  --accent: oklch(0.25 0.03 195);
+  --accent-foreground: oklch(0.85 0.05 195);
+  --destructive: oklch(0.65 0.18 25);
   --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --input: oklch(1 0 0 / 12%);
+  --ring: oklch(0.65 0.1 195);
+  --chart-1: oklch(0.65 0.1 195);
+  --chart-2: oklch(0.65 0.12 160);
+  --chart-3: oklch(0.75 0.12 80);
+  --chart-4: oklch(0.6 0.15 250);
+  --chart-5: oklch(0.65 0.16 25);
+  --sidebar: oklch(0.17 0 0);
+  --sidebar-foreground: oklch(0.95 0 0);
+  --sidebar-primary: oklch(0.65 0.1 195);
+  --sidebar-primary-foreground: oklch(0.15 0 0);
+  --sidebar-accent: oklch(0.25 0.03 195);
+  --sidebar-accent-foreground: oklch(0.85 0.05 195);
   --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --sidebar-ring: oklch(0.65 0.1 195);
+  --status-scheduled: oklch(0.28 0.02 250);
+  --status-scheduled-fg: oklch(0.8 0.04 250);
+  --status-assigned: oklch(0.28 0.05 250);
+  --status-assigned-fg: oklch(0.8 0.1 250);
+  --status-progress: oklch(0.3 0.05 85);
+  --status-progress-fg: oklch(0.85 0.1 85);
+  --status-completed: oklch(0.28 0.05 150);
+  --status-completed-fg: oklch(0.8 0.1 150);
+  --status-issue: oklch(0.3 0.06 25);
+  --status-issue-fg: oklch(0.85 0.12 25);
+  --status-cancelled: oklch(0.28 0 0);
+  --status-cancelled-fg: oklch(0.7 0 0);
+}
+
+@media (min-width: 768px) {
+  :root {
+    --page-pad: 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --page-pad: 2rem;
+  }
 }
 
 @layer base {
-  /* Set the page canvas color (visible during overscroll bounce) to match site theme */
-  html {
-    background-color: #f9fafb; /* tailwind gray-50 to match body bg-gray-50 */
-  }
   * {
     @apply border-border outline-ring/50;
   }
+
+  html {
+    @apply h-full bg-background;
+    -webkit-tap-highlight-color: transparent;
+  }
+
   body {
-    @apply bg-background text-foreground;
+    @apply min-h-full bg-background text-foreground font-sans antialiased;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-semibold tracking-tight;
+  }
+
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
+
+  @media (min-width: 768px) {
+    input,
+    textarea,
+    select {
+      font-size: 14px;
+    }
+  }
+
+  /* Hide number input spinners */
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  input[type="number"] {
+    -moz-appearance: textfield;
+  }
+}
+
+@layer utilities {
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .page-pad {
+    padding-inline: var(--page-pad);
+  }
+
+  .safe-pb {
+    padding-bottom: calc(var(--safe-bottom) + 0.5rem);
+  }
+
+  .safe-pt {
+    padding-top: calc(var(--safe-top) + 0.5rem);
+  }
+
+  .pb-mobile-nav {
+    padding-bottom: calc(4.5rem + var(--safe-bottom));
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
   }
 }

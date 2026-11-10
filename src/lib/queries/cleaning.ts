@@ -368,6 +368,7 @@ export async function getCleaningTaskApartments(
   const { data, error } = await supabase
     .from('apartments')
     .select('id, apartment_number, uplisting_name')
+    .eq('is_active', true)
     .order('apartment_number');
 
   if (error) {

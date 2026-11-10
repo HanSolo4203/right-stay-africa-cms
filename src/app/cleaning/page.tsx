@@ -8,13 +8,19 @@ import {
   CheckCircle2,
   ClipboardList,
   Clock,
+  Copy,
   DollarSign,
   Download,
+  LayoutGrid,
+  Link2,
+  List,
   RefreshCw,
   Settings2,
   Sparkles,
 } from 'lucide-react';
 import AuthWrapper from '@/components/AuthWrapper';
+import { CleaningCalendarMonth } from '@/components/cleaning/CleaningCalendarMonth';
+import { CleaningMonthPicker } from '@/components/cleaning/CleaningMonthPicker';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -24,6 +30,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -33,6 +45,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  formatCleaningDate,
+  getMonthDateRange,
+  getCurrentMonthKey,
+  getTodayIsoDate,
+} from '@/lib/cleaning-month';
+import {
+  generateCleaningCalendarPDF,
+  generateCleaningListPDF,
+  tasksForMonthPdf,
+} from '@/lib/cleaning-pdf';
 import { createClientComponentClient } from '@/lib/supabase';
 import type { CleanerPayoutSummary } from '@/lib/types';
 import {
@@ -61,17 +84,10 @@ const TASK_TYPE_OPTIONS: { value: CleaningTaskType | 'all'; label: string }[] = 
   { value: 'midstay_clean', label: 'Mid-stay clean' },
 ];
 
-function getTodayIsoDate(): string {
-  return new Date().toISOString().split('T')[0];
-}
+type ScheduleViewMode = 'list' | 'calendar';
 
 function formatDate(dateString: string) {
-  return new Date(`${dateString}T00:00:00`).toLocaleDateString('en-ZA', {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
+  return formatCleaningDate(dateString);
 }
 
 function getTaskTypeBadge(taskType: CleaningTaskType) {
@@ -134,6 +150,40 @@ interface CleanerOption {
   name: string;
 }
 
+async function copyTextToClipboard(text: string): Promise<boolean> {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    // Fall through to legacy copy — browsers often block clipboard after await.
+  }
+
+  try {
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.setAttribute('readonly', '');
+    textarea.style.position = 'fixed';
+    textarea.style.top = '0';
+    textarea.style.left = '0';
+    textarea.style.width = '1px';
+    textarea.style.height = '1px';
+    textarea.style.padding = '0';
+    textarea.style.border = 'none';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    textarea.setSelectionRange(0, text.length);
+    const ok = document.execCommand('copy');
+    document.body.removeChild(textarea);
+    return ok;
+  } catch {
+    return false;
+  }
+}
+
 function CleaningContent() {
   const [tasks, setTasks] = useState<CleaningTaskWithDetails[]>([]);
   const [stats, setStats] = useState<CleaningStats | null>(null);
@@ -154,23 +204,35 @@ function CleaningContent() {
   const [editingPayoutId, setEditingPayoutId] = useState<string | null>(null);
   const [payoutDraft, setPayoutDraft] = useState<Record<string, string>>({});
 
-  const [dateFrom, setDateFrom] = useState(getTodayIsoDate());
-  const [dateTo, setDateTo] = useState('');
+  const [selectedMonth, setSelectedMonth] = useState(getCurrentMonthKey);
+  const [viewMode, setViewMode] = useState<ScheduleViewMode>('list');
   const [propertyId, setPropertyId] = useState('all');
   const [taskType, setTaskType] = useState<CleaningTaskType | 'all'>('all');
   const [statusFilter, setStatusFilter] = useState<CleaningTaskStatus | 'all'>('pending');
+  const [copyingLiveLink, setCopyingLiveLink] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
+  const [liveLinkModalOpen, setLiveLinkModalOpen] = useState(false);
+  const [liveLinkUrl, setLiveLinkUrl] = useState('');
+  const [liveLinkLabel, setLiveLinkLabel] = useState('');
+  const [today, setToday] = useState<string | null>(null);
 
-  const today = getTodayIsoDate();
+  useEffect(() => {
+    setToday(getTodayIsoDate());
+    setSelectedMonth(getCurrentMonthKey());
+  }, []);
+
+  const monthRange = useMemo(() => getMonthDateRange(selectedMonth), [selectedMonth]);
 
   const refreshData = useCallback(async () => {
     try {
       setLoading(true);
       const supabase = createClientComponentClient();
+      const range = getMonthDateRange(selectedMonth);
 
       const [taskData, statsData, apartmentData, cleanersRes] = await Promise.all([
         getCleaningTasksWithDetails(supabase, {
-          fromDate: dateFrom || today,
-          ...(dateTo ? { toDate: dateTo } : {}),
+          fromDate: range.start,
+          toDate: range.end,
           ...(propertyId !== 'all' ? { apartmentId: propertyId } : {}),
           taskType,
           status: statusFilter,
@@ -197,7 +259,7 @@ function CleaningContent() {
     } finally {
       setLoading(false);
     }
-  }, [dateFrom, dateTo, propertyId, taskType, statusFilter, unassignedOnly, today]);
+  }, [selectedMonth, propertyId, taskType, statusFilter, unassignedOnly]);
 
   useEffect(() => {
     refreshData();
@@ -324,6 +386,62 @@ function CleaningContent() {
     void loadPayoutReport();
   };
 
+  const handleCopyLiveLink = async () => {
+    try {
+      setCopyingLiveLink(true);
+      const params = new URLSearchParams({ month: selectedMonth });
+      const response = await fetch(`/api/cleaning/live-link?${params}`);
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.error ?? 'Failed to create live link');
+      }
+
+      const url = result.data.url as string;
+      const label = (result.data.month_label as string) || selectedMonth;
+      setLiveLinkUrl(url);
+      setLiveLinkLabel(label);
+      setLiveLinkModalOpen(true);
+
+      const copied = await copyTextToClipboard(url);
+      if (copied) {
+        toast.success('Live cleaner link copied — paste into WhatsApp');
+      } else {
+        toast('Link ready — select it in the dialog and copy if needed');
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to create live link');
+    } finally {
+      setCopyingLiveLink(false);
+    }
+  };
+
+  const handleCopyLiveLinkFromModal = async () => {
+    if (!liveLinkUrl) return;
+    const copied = await copyTextToClipboard(liveLinkUrl);
+    if (copied) {
+      toast.success('Copied — paste into WhatsApp');
+    } else {
+      toast.error('Could not copy automatically — select the link and copy manually');
+    }
+  };
+
+  const handleDownloadPdf = async (format: 'list' | 'calendar') => {
+    try {
+      setExportingPdf(true);
+      const pdfTasks = tasksForMonthPdf(tasks, selectedMonth);
+      if (format === 'list') {
+        await generateCleaningListPDF(pdfTasks, selectedMonth);
+      } else {
+        await generateCleaningCalendarPDF(pdfTasks, selectedMonth);
+      }
+      toast.success(format === 'list' ? 'List PDF downloaded' : 'Calendar PDF downloaded');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to export PDF');
+    } finally {
+      setExportingPdf(false);
+    }
+  };
+
   const handleStatusChange = async (taskId: string, status: CleaningTaskStatus) => {
     try {
       setUpdatingTaskId(taskId);
@@ -364,38 +482,72 @@ function CleaningContent() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
-              <Sparkles className="w-8 h-8 text-blue-600" />
-              Cleaning Schedule
-            </h1>
-            <p className="text-gray-600 mt-2">
-              Upcoming cleaning tasks from bookings — grouped by scheduled date
+    <div className="mx-auto max-w-7xl">
+      <div>
+        <div className="mb-5 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-end sm:justify-between">
+          <div className="min-w-0 space-y-1">
+            <h2 className="flex items-center gap-2 text-xl font-semibold tracking-tight md:text-2xl">
+              <Sparkles className="size-5 text-primary" strokeWidth={1.75} />
+              Jobs
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Cleaning tasks grouped by scheduled date
             </p>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="hidden flex-wrap gap-2 md:flex">
             <Link href="/settings/cleaners">
-              <Button variant="outline" size="sm">
-                <Settings2 className="w-4 h-4 mr-2" />
+              <Button variant="outline" className="min-h-11">
+                <Settings2 className="size-4" strokeWidth={1.75} />
                 Cleaner Settings
               </Button>
             </Link>
-            <Button variant="outline" size="sm" onClick={openPayoutModal}>
-              <DollarSign className="w-4 h-4 mr-2" />
+            <Button variant="outline" className="min-h-11" onClick={openPayoutModal}>
+              <DollarSign className="size-4" strokeWidth={1.75} />
               Payout Report
             </Button>
-            <button
-              type="button"
+            <Button
+              variant="outline"
+              className="min-h-11"
+              onClick={handleCopyLiveLink}
+              disabled={copyingLiveLink}
+            >
+              {copyingLiveLink ? (
+                <RefreshCw className="size-4 animate-spin" strokeWidth={1.75} />
+              ) : (
+                <Link2 className="size-4" strokeWidth={1.75} />
+              )}
+              Copy Live Link
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="min-h-11" disabled={exportingPdf || loading}>
+                  <Download className="size-4" strokeWidth={1.75} />
+                  Download PDF
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => void handleDownloadPdf('list')}>
+                  <List className="size-4" strokeWidth={1.75} />
+                  List format
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => void handleDownloadPdf('calendar')}>
+                  <LayoutGrid className="size-4" strokeWidth={1.75} />
+                  Calendar format
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Button
+              variant="secondary"
+              className="min-h-11"
               onClick={refreshData}
               disabled={loading}
-              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
             >
-              <RefreshCw className={cn('w-4 h-4 mr-2', loading && 'animate-spin')} />
+              <RefreshCw
+                className={cn('size-4', loading && 'animate-spin')}
+                strokeWidth={1.75}
+              />
               Refresh
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -463,33 +615,35 @@ function CleaningContent() {
 
         {/* Upcoming schedule */}
         <section className="mb-8">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <ClipboardList className="w-5 h-5 text-blue-600" />
-            Upcoming cleaning schedule
-          </h2>
+          <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+              <ClipboardList className="w-5 h-5 text-blue-600" />
+              Upcoming cleaning schedule
+            </h2>
+            <div className="flex gap-2">
+              <Button
+                variant={viewMode === 'list' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setViewMode('list')}
+              >
+                <List className="w-4 h-4 mr-2" />
+                List
+              </Button>
+              <Button
+                variant={viewMode === 'calendar' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setViewMode('calendar')}
+              >
+                <LayoutGrid className="w-4 h-4 mr-2" />
+                Calendar
+              </Button>
+            </div>
+          </div>
 
           <Card className="mb-6">
             <CardContent className="pt-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="date-from">From date</Label>
-                  <Input
-                    id="date-from"
-                    type="date"
-                    value={dateFrom}
-                    onChange={(e) => setDateFrom(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="date-to">To date</Label>
-                  <Input
-                    id="date-to"
-                    type="date"
-                    value={dateTo}
-                    onChange={(e) => setDateTo(e.target.value)}
-                    min={dateFrom}
-                  />
-                </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <CleaningMonthPicker value={selectedMonth} onChange={setSelectedMonth} />
                 <div className="space-y-2">
                   <Label htmlFor="property-filter">Property</Label>
                   <Select value={propertyId} onValueChange={setPropertyId}>
@@ -546,6 +700,22 @@ function CleaningContent() {
                   </Select>
                 </div>
               </div>
+              <p className="text-xs text-gray-500 mt-3">
+                Showing {monthRange.start} to {monthRange.end}. Live cleaner links also include
+                the first 7 days of the next month.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 text-xs"
+                  onClick={handleCopyLiveLink}
+                  disabled={copyingLiveLink}
+                >
+                  <Copy className="w-3.5 h-3.5 mr-1.5" />
+                  Copy WhatsApp live link for this month
+                </Button>
+              </div>
             </CardContent>
           </Card>
 
@@ -554,6 +724,20 @@ function CleaningContent() {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
               <span className="ml-2 text-gray-600">Loading cleaning tasks...</span>
             </div>
+          ) : viewMode === 'calendar' ? (
+            tasks.length === 0 ? (
+              <Card>
+                <CardContent className="py-12 text-center text-gray-500">
+                  No cleaning tasks found for the current filters.
+                </CardContent>
+              </Card>
+            ) : (
+              <CleaningCalendarMonth
+                monthKey={selectedMonth}
+                tasks={tasks}
+                today={today ?? undefined}
+              />
+            )
           ) : groupedByDate.length === 0 ? (
             <Card>
               <CardContent className="py-12 text-center text-gray-500">
@@ -563,7 +747,7 @@ function CleaningContent() {
           ) : (
             <div className="space-y-6">
               {groupedByDate.map(([date, dayTasks]) => {
-                const isToday = date === today;
+                const isToday = Boolean(today && date === today);
                 return (
                   <div key={date}>
                     <div
@@ -870,6 +1054,46 @@ function CleaningContent() {
           )}
         </section>
       </div>
+
+      <Dialog open={liveLinkModalOpen} onOpenChange={setLiveLinkModalOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Live cleaner schedule link</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600">
+              Share this link in WhatsApp for{' '}
+              <span className="font-medium text-gray-900">{liveLinkLabel || selectedMonth}</span>.
+              It always shows the latest schedule for that month plus the first week of the next month.
+            </p>
+            <div className="space-y-2">
+              <Label htmlFor="live-link-url">Link</Label>
+              <Input
+                id="live-link-url"
+                readOnly
+                value={liveLinkUrl}
+                onFocus={(e) => e.currentTarget.select()}
+                onClick={(e) => e.currentTarget.select()}
+                className="font-mono text-xs"
+              />
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" onClick={() => void handleCopyLiveLinkFromModal()}>
+                <Copy className="w-4 h-4 mr-2" />
+                Copy link
+              </Button>
+              {liveLinkUrl ? (
+                <a href={liveLinkUrl} target="_blank" rel="noreferrer">
+                  <Button type="button" variant="outline">
+                    <Link2 className="w-4 h-4 mr-2" />
+                    Open link
+                  </Button>
+                </a>
+              ) : null}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={payoutModalOpen} onOpenChange={setPayoutModalOpen}>
         <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">

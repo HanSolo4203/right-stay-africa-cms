@@ -1,18 +1,46 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
+import { format } from 'date-fns';
+import { enZA } from 'date-fns/locale';
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Clock3,
+  Plus,
+  Sparkles,
+} from 'lucide-react';
+import AuthWrapper from '@/components/AuthWrapper';
+import { JobCard } from '@/components/app/job-card';
+import { PageHeader } from '@/components/app/page-header';
+import { EmptyState } from '@/components/app/empty-state';
+import { JobCardSkeleton, StatTileSkeleton } from '@/components/app/skeletons';
+import { StatTile, StatTileGrid } from '@/components/app/stat-tile';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import MonthSelector from '@/components/ui/MonthSelector';
 import SummaryCards from '@/components/ui/SummaryCards';
 import CleaningsByApartmentChart from '@/components/ui/CleaningsByApartmentChart';
 import CleanerWorkloadChart from '@/components/ui/CleanerWorkloadChart';
 import CleanerEarningsReport from '@/components/ui/CleanerEarningsReport';
-// import MonthlyTrendsChart from '@/components/ui/MonthlyTrendsChart';
 import InvoicingTable from '@/components/ui/InvoicingTable';
 import RSALaundryStats from '@/components/ui/RSALaundryStats';
-import UpcomingCleaningsTable from '@/components/ui/UpcomingCleaningsTable';
 import DashboardInventoryAnalytics from '@/components/ui/DashboardInventoryAnalytics';
-import AuthWrapper from '@/components/AuthWrapper';
-import { Toaster } from 'react-hot-toast';
+import { mapCleaningStatus } from '@/lib/status';
+import { getTodayIsoDate } from '@/lib/cleaning-month';
+
+interface UpcomingCleaning {
+  id: string;
+  cleaning_date: string;
+  cleaner_1_name: string;
+  cleaner_2_name: string | null;
+  is_multi_cleaner: boolean;
+  apartment_number: string;
+  owner_name: string;
+  notes: string;
+  property_category: string;
+}
 
 interface AnalyticsData {
   summary: {
@@ -48,21 +76,8 @@ interface AnalyticsData {
     rsa_laundry_earnings: number;
     rsa_laundry_sessions: number;
   }>;
-  monthly_trends: Array<{
-    month: string;
-    month_key: string;
-    cleaning_count: number;
-    unique_apartments: number;
-    unique_cleaners: number;
-  }>;
   insights: {
     most_active_apartment: {
-      apartment_number: string;
-      owner_name: string;
-      cleaning_count: number;
-      apartment_id: string;
-    } | null;
-    least_active_apartment: {
       apartment_number: string;
       owner_name: string;
       cleaning_count: number;
@@ -81,268 +96,302 @@ interface AnalyticsData {
     total_amount: number;
     apartment_id: string;
   }>;
-  date_range: {
-    month?: string;
-    year?: string;
-    total_sessions: number;
-  };
+}
+
+function greetingForHour(hour: number) {
+  if (hour < 12) return 'Good morning';
+  if (hour < 18) return 'Good afternoon';
+  return 'Good evening';
 }
 
 function DashboardContent() {
   const [selectedMonth, setSelectedMonth] = useState(() => {
-    // Try to get the saved month from localStorage, fallback to current month
     if (typeof window !== 'undefined') {
       const savedMonth = localStorage.getItem('dashboard-selected-month');
-      if (savedMonth) {
-        return savedMonth;
-      }
+      if (savedMonth) return savedMonth;
     }
     const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    return `${year}-${month}`; // YYYY-MM format in local timezone
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
-  
-  const [selectedYear, setSelectedYear] = useState<string | undefined>(undefined);
+  const [selectedYear, setSelectedYear] = useState<string | undefined>();
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'analytics' | 'upcoming'>('analytics');
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [upcoming, setUpcoming] = useState<UpcomingCleaning[]>([]);
+  const [upcomingLoading, setUpcomingLoading] = useState(true);
+  const [today] = useState(() => getTodayIsoDate());
+  const now = useMemo(() => new Date(), []);
+
+  useEffect(() => {
+    const loadUpcoming = async () => {
+      try {
+        setUpcomingLoading(true);
+        const response = await fetch('/api/cleaning-sessions?upcoming=true');
+        const result = await response.json();
+        const rows: UpcomingCleaning[] = Array.isArray(result.data) ? result.data : [];
+        rows.sort(
+          (a, b) =>
+            new Date(a.cleaning_date).getTime() - new Date(b.cleaning_date).getTime()
+        );
+        setUpcoming(rows);
+      } catch {
+        setUpcoming([]);
+      } finally {
+        setUpcomingLoading(false);
+      }
+    };
+    void loadUpcoming();
+  }, []);
 
   const loadAnalyticsData = async (month?: string, year?: string) => {
     try {
-      setLoading(true);
+      setAnalyticsLoading(true);
       let url = '/api/analytics?';
-      if (month) {
-        url += `month=${month}`;
-      }
-      if (year) {
-        url += month ? `&year=${year}` : `year=${year}`;
-      }
-      
+      if (month) url += `month=${month}`;
+      if (year) url += month ? `&year=${year}` : `year=${year}`;
       const response = await fetch(url);
       const result = await response.json();
-
-      if (result.success) {
-        setAnalyticsData(result.data);
-      } else {
-        console.error('Failed to load analytics data:', result.error);
-      }
+      if (result.success) setAnalyticsData(result.data);
     } catch (error) {
       console.error('Error loading analytics data:', error);
     } finally {
-      setLoading(false);
+      setAnalyticsLoading(false);
     }
   };
 
   useEffect(() => {
-    if (selectedYear) {
-      loadAnalyticsData(undefined, selectedYear);
-    } else {
-      loadAnalyticsData(selectedMonth);
-    }
+    void loadAnalyticsData(selectedYear ? undefined : selectedMonth, selectedYear);
   }, [selectedMonth, selectedYear]);
 
-  const handleYearChange = (year: string) => {
-    setSelectedYear(year);
-    setSelectedMonth(''); // Clear month selection when year is selected
-  };
+  const todaysJobs = upcoming.filter((job) => {
+    const d = new Date(job.cleaning_date);
+    return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === today;
+  });
 
-  const handleMonthChange = (month: string) => {
-    setSelectedMonth(month);
-    setSelectedYear(undefined); // Clear year selection when month is selected
-    // Save the selected month to localStorage
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('dashboard-selected-month', month);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading analytics...</p>
-        </div>
-      </div>
-    );
-  }
+  const upNext = upcoming.slice(0, 6);
+  const issueJobs = upcoming.filter((job) =>
+    (job.notes || '').toLowerCase().includes('issue')
+  );
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-4 sm:py-6 lg:py-8">
-        {/* Header */}
-        <div className="mb-6 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-gray-600 mt-2 text-sm sm:text-base">
-            Comprehensive insights into your cleaning operations
-          </p>
-        </div>
+    <div className="mx-auto max-w-7xl space-y-6">
+      <PageHeader
+        title={`${greetingForHour(now.getHours())}`}
+        description={format(now, 'EEEE, d MMMM yyyy', { locale: enZA })}
+        actions={
+          <Button asChild className="min-h-11">
+            <Link href="/cleaning?new=1">
+              <Plus className="size-4" strokeWidth={1.75} />
+              New job
+            </Link>
+          </Button>
+        }
+      />
 
-        {/* Tab Navigation */}
-        <div className="mb-6 sm:mb-8">
-          <div className="border-b border-gray-200">
-            <nav className="-mb-px flex space-x-8">
-              <button
-                onClick={() => setActiveTab('analytics')}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === 'analytics'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                Analytics
-              </button>
-              <button
-                onClick={() => setActiveTab('upcoming')}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === 'upcoming'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                Upcoming Cleanings
-              </button>
-            </nav>
+      {upcomingLoading ? (
+        <StatTileGrid>
+          {Array.from({ length: 4 }).map((_, i) => (
+            <StatTileSkeleton key={i} />
+          ))}
+        </StatTileGrid>
+      ) : (
+        <StatTileGrid>
+          <StatTile
+            label="Today's jobs"
+            value={todaysJobs.length}
+            icon={Sparkles}
+            sublabel={format(now, 'd MMM', { locale: enZA })}
+          />
+          <StatTile
+            label="In progress"
+            value={0}
+            icon={Clock3}
+            sublabel="Live updates on Jobs"
+          />
+          <StatTile
+            label="Up next"
+            value={upNext.length}
+            icon={CheckCircle2}
+            sublabel="Upcoming cleans"
+          />
+          <StatTile
+            label="Issues"
+            value={issueJobs.length}
+            icon={AlertTriangle}
+            sublabel={issueJobs.length ? 'Needs attention' : 'All clear'}
+          />
+        </StatTileGrid>
+      )}
+
+      <section className="space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-base font-semibold tracking-tight">Up next</h2>
+          <Button asChild variant="ghost" className="min-h-11">
+            <Link href="/cleaning">View all</Link>
+          </Button>
+        </div>
+        {upcomingLoading ? (
+          <div className="space-y-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <JobCardSkeleton key={i} />
+            ))}
           </div>
-        </div>
+        ) : upNext.length === 0 ? (
+          <EmptyState
+            icon={Sparkles}
+            title="No upcoming cleans"
+            description="When bookings generate cleaning tasks, they’ll show up here."
+            actionLabel="Open jobs"
+            onAction={() => {
+              window.location.href = '/cleaning';
+            }}
+          />
+        ) : (
+          <div className="grid gap-3 md:grid-cols-2">
+            {upNext.map((job) => {
+              const cleaners = [
+                job.cleaner_1_name,
+                job.is_multi_cleaner ? job.cleaner_2_name : null,
+              ].filter(Boolean) as string[];
+              const date = new Date(job.cleaning_date);
+              return (
+                <JobCard
+                  key={job.id}
+                  propertyName={
+                    job.apartment_number
+                      ? `Apt ${job.apartment_number}`
+                      : job.property_category || 'Property'
+                  }
+                  area={job.owner_name}
+                  windowLabel={format(date, 'EEE, d MMM', { locale: enZA })}
+                  cleanerNames={cleaners}
+                  status={mapCleaningStatus('pending', {
+                    hasAssignee: Boolean(job.cleaner_1_name),
+                  })}
+                  timeUntil={
+                    date.toISOString().slice(0, 10) === today ? 'Today' : undefined
+                  }
+                  onOpen={() => {
+                    window.location.href = '/cleaning';
+                  }}
+                />
+              );
+            })}
+          </div>
+        )}
+      </section>
 
-        {/* Tab Content */}
-        {activeTab === 'analytics' && (
-          <>
-            {/* Month/Year Selector */}
-            <div className="mb-6 sm:mb-8">
-              <MonthSelector 
-                selectedMonth={selectedMonth} 
-                onMonthChange={handleMonthChange}
-                selectedYear={selectedYear}
-                onYearChange={handleYearChange}
+      {issueJobs.length > 0 ? (
+        <section className="space-y-3">
+          <h2 className="text-base font-semibold tracking-tight">
+            Issues needing attention
+          </h2>
+          <div className="grid gap-3 md:grid-cols-2">
+            {issueJobs.slice(0, 4).map((job) => (
+              <JobCard
+                key={`issue-${job.id}`}
+                propertyName={`Apt ${job.apartment_number}`}
+                area={job.owner_name}
+                windowLabel={format(new Date(job.cleaning_date), 'EEE, d MMM', {
+                  locale: enZA,
+                })}
+                cleanerNames={[job.cleaner_1_name].filter(Boolean)}
+                status="issue"
+                onOpen={() => {
+                  window.location.href = '/cleaning';
+                }}
+              />
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      <Tabs defaultValue="analytics" className="pt-2">
+        <TabsList className="h-11 w-full justify-start overflow-x-auto md:w-auto">
+          <TabsTrigger value="analytics" className="min-h-9">
+            Analytics
+          </TabsTrigger>
+          <TabsTrigger value="insights" className="min-h-9">
+            Insights
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent value="analytics" className="mt-4 space-y-6">
+          <MonthSelector
+            selectedMonth={selectedMonth}
+            onMonthChange={(month) => {
+              setSelectedMonth(month);
+              setSelectedYear(undefined);
+              if (typeof window !== 'undefined') {
+                localStorage.setItem('dashboard-selected-month', month);
+              }
+            }}
+            selectedYear={selectedYear}
+            onYearChange={(year) => {
+              setSelectedYear(year);
+              setSelectedMonth('');
+            }}
+          />
+          {analyticsLoading ? (
+            <StatTileGrid>
+              {Array.from({ length: 4 }).map((_, i) => (
+                <StatTileSkeleton key={i} />
+              ))}
+            </StatTileGrid>
+          ) : analyticsData ? (
+            <>
+              <InvoicingTable
+                data={analyticsData.invoicing_data}
+                month={selectedMonth}
+                year={selectedYear}
+              />
+              <RSALaundryStats selectedMonth={selectedMonth} />
+              <DashboardInventoryAnalytics />
+              <div className="flex justify-center">
+                <div className="w-full max-w-6xl">
+                  <SummaryCards data={analyticsData.summary} />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-6">
+                <CleaningsByApartmentChart
+                  data={analyticsData.cleanings_by_apartment}
+                />
+                <CleanerWorkloadChart data={analyticsData.cleaner_workload} />
+              </div>
+              <CleanerEarningsReport data={analyticsData.cleaner_earnings} />
+            </>
+          ) : null}
+        </TabsContent>
+        <TabsContent value="insights" className="mt-4">
+          {analyticsData?.insights ? (
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+              {analyticsData.insights.most_active_apartment ? (
+                <StatTile
+                  label="Most active apartment"
+                  value={`Apt ${analyticsData.insights.most_active_apartment.apartment_number}`}
+                  sublabel={`${analyticsData.insights.most_active_apartment.cleaning_count} cleanings`}
+                />
+              ) : null}
+              {analyticsData.insights.top_cleaner ? (
+                <StatTile
+                  label="Top performer"
+                  value={analyticsData.insights.top_cleaner.cleaner_name}
+                  sublabel={`${analyticsData.insights.top_cleaner.session_count} sessions`}
+                />
+              ) : null}
+              <StatTile
+                label="Avg per apartment"
+                value={analyticsData.summary.average_cleanings_per_apartment}
+                sublabel="cleanings this month"
               />
             </div>
-
-        {/* Invoicing Table - Moved to top as first section */}
-        {analyticsData && (
-          <div className="mb-6 sm:mb-8">
-            <InvoicingTable 
-              data={analyticsData.invoicing_data} 
-              month={selectedMonth}
-              year={selectedYear}
+          ) : (
+            <EmptyState
+              icon={Sparkles}
+              title="No insights yet"
+              description="Insights appear once cleaning data is available for the selected period."
             />
-          </div>
-        )}
-
-        {/* RSA Laundry Service Statistics */}
-        <div className="mb-6 sm:mb-8">
-          <RSALaundryStats selectedMonth={selectedMonth} />
-        </div>
-
-        {/* Inventory Stock Analytics */}
-        <div className="mb-6 sm:mb-8">
-          <DashboardInventoryAnalytics />
-        </div>
-
-        {/* Summary Cards (centered) */}
-        {analyticsData && (
-          <div className="mb-6 sm:mb-8 flex justify-center">
-            <div className="max-w-6xl w-full flex justify-center">
-              <SummaryCards data={analyticsData.summary} />
-            </div>
-          </div>
-        )}
-
-        {/* Charts Grid */}
-        {analyticsData && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 mb-6 sm:mb-8">
-            <CleaningsByApartmentChart data={analyticsData.cleanings_by_apartment} />
-            <CleanerWorkloadChart data={analyticsData.cleaner_workload} />
-          </div>
-        )}
-
-        {/* Cleaner Earnings Report */}
-        {analyticsData && (
-          <div className="mb-6 sm:mb-8">
-            <CleanerEarningsReport data={analyticsData.cleaner_earnings} />
-          </div>
-        )}
-
-        
-
-        
-
-        {/* Insights Section */}
-        {analyticsData && analyticsData.insights && (
-          <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Key Insights</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {analyticsData.insights.most_active_apartment && (
-                <div className="text-center p-4 bg-blue-50 rounded-lg">
-                  <h4 className="font-medium text-blue-900 mb-2">Most Active Apartment</h4>
-                  <p className="text-2xl font-bold text-blue-700">
-                    Apt {analyticsData.insights.most_active_apartment.apartment_number}
-                  </p>
-                  <p className="text-sm text-blue-600">
-                    {analyticsData.insights.most_active_apartment.cleaning_count} cleanings
-                  </p>
-                </div>
-              )}
-              
-              {analyticsData.insights.top_cleaner && (
-                <div className="text-center p-4 bg-green-50 rounded-lg">
-                  <h4 className="font-medium text-green-900 mb-2">Top Performer</h4>
-                  <p className="text-2xl font-bold text-green-700">
-                    {analyticsData.insights.top_cleaner.cleaner_name}
-                  </p>
-                  <p className="text-sm text-green-600">
-                    {analyticsData.insights.top_cleaner.session_count} sessions
-                  </p>
-                </div>
-              )}
-              
-              <div className="text-center p-4 bg-purple-50 rounded-lg">
-                <h4 className="font-medium text-purple-900 mb-2">Average per Apartment</h4>
-                <p className="text-2xl font-bold text-purple-700">
-                  {analyticsData.summary.average_cleanings_per_apartment}
-                </p>
-                <p className="text-sm text-purple-600">cleanings this month</p>
-              </div>
-            </div>
-          </div>
-        )}
-          </>
-        )}
-
-        {/* Upcoming Cleanings Tab */}
-        {activeTab === 'upcoming' && (
-          <div className="mb-6 sm:mb-8">
-            <UpcomingCleaningsTable />
-          </div>
-        )}
-      </div>
-      
-      {/* Toast Notifications */}
-      <Toaster
-        position="top-right"
-        toastOptions={{
-          duration: 4000,
-          style: {
-            background: '#363636',
-            color: '#fff',
-          },
-          success: {
-            duration: 3000,
-            iconTheme: {
-              primary: '#10B981',
-              secondary: '#fff',
-            },
-          },
-          error: {
-            duration: 5000,
-            iconTheme: {
-              primary: '#EF4444',
-              secondary: '#fff',
-            },
-          },
-        }}
-      />
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

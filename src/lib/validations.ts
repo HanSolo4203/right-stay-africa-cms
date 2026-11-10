@@ -7,6 +7,7 @@ export const createApartmentSchema = z.object({
   owner_email: z.string().email('Invalid email format').optional().or(z.literal('')),
   address: z.string().max(200, 'Address too long').optional().or(z.literal('')),
   cleaner_payout: z.number().min(0, 'Payout must be positive').optional(),
+  is_active: z.boolean().optional(),
 });
 
 export const updateApartmentSchema = createApartmentSchema.partial();

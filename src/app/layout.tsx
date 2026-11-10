@@ -1,52 +1,41 @@
-import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
+import type { Metadata, Viewport } from 'next';
+import { GeistSans } from 'geist/font/sans';
+import { GeistMono } from 'geist/font/mono';
 import './globals.css';
-import Header from '@/components/layout/Header';
-import { Toaster } from 'react-hot-toast';
+import { ThemeProvider } from '@/components/providers/theme-provider';
+import { AppShell } from '@/components/layout/app-shell';
+import { Toaster } from '@/components/ui/sonner';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import DisableNumberInputScroll from '@/components/DisableNumberInputScroll';
 
-const inter = Inter({ subsets: ['latin'] });
-
 export const metadata: Metadata = {
-  title: 'Right Stay Africa - Cleaning Management System',
-  description: 'Professional cleaning management system for apartment complexes and property management companies.',
-  keywords: ['cleaning', 'management', 'apartments', 'property', 'scheduling', 'analytics'],
-  authors: [{ name: 'Right Stay Africa' }],
-  creator: 'Right Stay Africa',
-  publisher: 'Right Stay Africa',
-  formatDetection: {
-    email: false,
-    address: false,
-    telephone: false,
-  },
-  metadataBase: new URL('https://rightstayafrica.com'),
+  title: 'Right Stay CMS',
+  description:
+    'Cleaning scheduler and operations console for Right Stay Africa short-term rentals in Cape Town.',
+  metadataBase: new URL('https://ops.rightstayafrica.com'),
   openGraph: {
-    title: 'Right Stay Africa - Cleaning Management System',
-    description: 'Professional cleaning management system for apartment complexes and property management companies.',
-    url: 'https://rightstayafrica.com',
+    title: 'Right Stay CMS',
+    description:
+      'Cleaning scheduler and operations console for Right Stay Africa.',
+    url: 'https://ops.rightstayafrica.com',
     siteName: 'Right Stay Africa',
-    locale: 'en_US',
+    locale: 'en_ZA',
     type: 'website',
   },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'Right Stay Africa - Cleaning Management System',
-    description: 'Professional cleaning management system for apartment complexes and property management companies.',
-  },
   robots: {
-    index: true,
-    follow: true,
-    googleBot: {
-      index: true,
-      follow: true,
-      'max-video-preview': -1,
-      'max-image-preview': 'large',
-      'max-snippet': -1,
-    },
+    index: false,
+    follow: false,
   },
-  verification: {
-    google: 'your-google-verification-code',
-  },
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: 'oklch(0.99 0 0)' },
+    { media: '(prefers-color-scheme: dark)', color: 'oklch(0.15 0 0)' },
+  ],
 };
 
 export default function RootLayout({
@@ -55,45 +44,24 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="h-full">
-      <head>
-        <link rel="icon" href="/favicon.ico" />
-        <link rel="manifest" href="/site.webmanifest" />
-        <meta name="theme-color" content="#f9fafb" />
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
-      </head>
-      <body className={`${inter.className} h-full bg-gray-50`}>
-        <DisableNumberInputScroll />
-        <div className="min-h-full">
-          <Header />
-          <main className="py-8">
-            {children}
-          </main>
-        </div>
-        <Toaster
-          position="top-right"
-          toastOptions={{
-            duration: 4000,
-            style: {
-              background: '#363636',
-              color: '#fff',
-            },
-            success: {
-              duration: 3000,
-              iconTheme: {
-                primary: '#10b981',
-                secondary: '#fff',
-              },
-            },
-            error: {
-              duration: 5000,
-              iconTheme: {
-                primary: '#ef4444',
-                secondary: '#fff',
-              },
-            },
-          }}
-        />
+    <html
+      lang="en-ZA"
+      className={`${GeistSans.variable} ${GeistMono.variable} h-full`}
+      suppressHydrationWarning
+    >
+      <body className="min-h-full font-sans antialiased">
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <TooltipProvider delayDuration={200}>
+            <DisableNumberInputScroll />
+            <AppShell>{children}</AppShell>
+            <Toaster position="top-center" richColors closeButton />
+          </TooltipProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

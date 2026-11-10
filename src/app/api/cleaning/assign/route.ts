@@ -11,7 +11,7 @@ import { z } from 'zod';
 
 const assignSchema = z.object({
   task_id: z.string().uuid(),
-  cleaner_id: z.string().uuid(),
+  cleaner_id: z.string().uuid().nullable(),
   cleaner_payout: z.number().optional(),
 });
 
@@ -35,6 +35,38 @@ export async function POST(request: NextRequest) {
 
     if (fetchError || !task) {
       return errorResponse('Cleaning task not found', 404);
+    }
+
+    if (cleaner_id == null) {
+      const { data, error } = await supabase
+        .from('cleaning_tasks')
+        .update({
+          assigned_cleaner_id: null,
+          cleaner_payout: null,
+          auto_assigned: false,
+        })
+        .eq('id', task_id)
+        .select(
+          `
+          *,
+          cleaners ( name ),
+          apartments ( apartment_number, uplisting_name )
+        `
+        )
+        .single();
+
+      if (error) {
+        console.error('Error unassigning cleaner:', error);
+        return serverErrorResponse('Failed to unassign cleaner');
+      }
+
+      return successResponse(
+        {
+          ...data,
+          cleaner_name: null,
+        },
+        'Cleaner unassigned successfully'
+      );
     }
 
     const payout =

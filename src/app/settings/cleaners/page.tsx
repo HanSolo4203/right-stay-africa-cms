@@ -33,10 +33,6 @@ interface CleanerRow {
   name: string;
 }
 
-function formatZAR(amount: number) {
-  return new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR' }).format(amount);
-}
-
 function getPropertyLabel(apt: ApartmentRow) {
   return apt.uplisting_name || apt.apartment_number;
 }

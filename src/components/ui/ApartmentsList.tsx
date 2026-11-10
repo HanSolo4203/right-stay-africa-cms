@@ -21,6 +21,7 @@ export default function ApartmentsList({ onApartmentCountChange }: ApartmentsLis
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedApartment, setSelectedApartment] = useState<Apartment | null>(null);
+  const [togglingApartmentId, setTogglingApartmentId] = useState<string | null>(null);
 
   // Use ref to store the callback to avoid dependency issues
   const onApartmentCountChangeRef = useRef(onApartmentCountChange);
@@ -112,11 +113,57 @@ export default function ApartmentsList({ onApartmentCountChange }: ApartmentsLis
     loadApartments();
   };
 
+  const handleToggleActive = async (apartment: Apartment) => {
+    const currentlyActive = apartment.is_active !== false;
+    const nextActive = !currentlyActive;
+    const actionLabel = nextActive ? 'enable' : 'disable';
+
+    if (
+      !nextActive &&
+      !confirm(
+        `Disable Apartment ${apartment.apartment_number}? It will be hidden from the calendar, but bookings and cleaning history will be kept.`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      setTogglingApartmentId(apartment.id);
+      const response = await fetch(`/api/apartments/${apartment.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_active: nextActive }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setApartments((prev) =>
+          prev.map((apt) =>
+            apt.id === apartment.id ? { ...apt, ...result.data } : apt
+          )
+        );
+        toast.success(
+          nextActive
+            ? `Apartment ${apartment.apartment_number} enabled`
+            : `Apartment ${apartment.apartment_number} disabled`
+        );
+      } else {
+        toast.error(result.error || `Failed to ${actionLabel} apartment`);
+      }
+    } catch (error) {
+      console.error(`Error trying to ${actionLabel} apartment:`, error);
+      toast.error(`Failed to ${actionLabel} apartment`);
+    } finally {
+      setTogglingApartmentId(null);
+    }
+  };
+
   const handleDelete = async (apartment: Apartment) => {
     const sessionCount = apartmentSessionCounts[apartment.id] || 0;
     
     if (sessionCount > 0) {
-      toast.error(`Cannot delete apartment. It has ${sessionCount} cleaning session(s). Please delete the sessions first.`);
+      toast.error(`Cannot delete apartment. It has ${sessionCount} cleaning session(s). Disable it instead to keep history.`);
       return;
     }
 
@@ -160,7 +207,9 @@ export default function ApartmentsList({ onApartmentCountChange }: ApartmentsLis
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Apartments</h2>
-          <p className="text-gray-600">Manage your rental properties</p>
+          <p className="text-gray-600">
+            Manage your rental properties. Disable properties you no longer manage to hide them from the calendar without losing history.
+          </p>
         </div>
         <button
           onClick={() => setIsAddModalOpen(true)}
@@ -187,6 +236,11 @@ export default function ApartmentsList({ onApartmentCountChange }: ApartmentsLis
       <div className="flex items-center text-sm text-gray-600">
         <Building2 className="w-4 h-4 mr-2" />
         {filteredApartments.length} apartment{filteredApartments.length !== 1 ? 's' : ''} found
+        {apartments.some((apt) => apt.is_active === false) && (
+          <span className="ml-2">
+            ({apartments.filter((apt) => apt.is_active === false).length} disabled)
+          </span>
+        )}
         {searchTerm && (
           <span className="ml-2">
             (filtered from {apartments.length} total)
@@ -204,6 +258,8 @@ export default function ApartmentsList({ onApartmentCountChange }: ApartmentsLis
               sessionCount={apartmentSessionCounts[apartment.id] || 0}
               onEdit={handleEdit}
               onDelete={handleDelete}
+              onToggleActive={handleToggleActive}
+              isToggling={togglingApartmentId === apartment.id}
             />
           ))}
         </div>

@@ -444,7 +444,7 @@ export async function syncBookingsForListing(uplistingId: string): Promise<{
 
   const { data: apartment, error: apartmentError } = await supabase
     .from('apartments')
-    .select('id, uplisting_id')
+    .select('id, uplisting_id, is_active')
     .eq('uplisting_id', uplistingId)
     .maybeSingle();
 
@@ -454,6 +454,13 @@ export async function syncBookingsForListing(uplistingId: string): Promise<{
 
   if (!apartment) {
     throw new Error(`No apartment linked with uplisting_id=${uplistingId}`);
+  }
+
+  if (apartment.is_active === false) {
+    console.log(
+      `[uplisting-sync] syncBookingsForListing: skipping disabled apartment for uplisting_id=${uplistingId}`
+    );
+    return { synced: 0, skipped: 0, errors: [] };
   }
 
   const apartmentByUplistingId = new Map<string, string>([
@@ -502,6 +509,7 @@ export async function syncBookings(): Promise<{
   const { data: apartments, error: apartmentsError } = await supabase
     .from('apartments')
     .select('id, uplisting_id')
+    .eq('is_active', true)
     .not('uplisting_id', 'is', null);
 
   if (apartmentsError) {

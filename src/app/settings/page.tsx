@@ -868,31 +868,31 @@ function SettingsContent() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="mx-auto max-w-7xl">
+      <div>
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
-          <p className="text-gray-600 mt-2">
-            Manage your cleaning management system preferences
+        <div className="mb-6">
+          <h2 className="text-xl font-semibold tracking-tight md:text-2xl">Settings</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Manage preferences for cleaners, properties, and billing.
           </p>
         </div>
 
-        <div className="flex flex-col lg:flex-row gap-8">
+        <div className="flex flex-col gap-6 lg:flex-row lg:gap-8">
           {/* Sidebar */}
           <div className="lg:w-64">
-            <nav className="space-y-1">
+            <nav className="space-y-1 rounded-[12px] border border-border bg-card p-2 shadow-xs">
               {tabs.map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-md ${
+                  className={`flex min-h-11 w-full items-center rounded-[10px] px-3 text-sm font-medium ${
                     activeTab === tab.id
-                      ? 'bg-blue-100 text-blue-700 border border-blue-200'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                      ? 'bg-accent text-accent-foreground'
+                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                   }`}
                 >
-                  <tab.icon className="w-5 h-5 mr-3" />
+                  <tab.icon className="mr-3 size-[18px]" strokeWidth={1.75} />
                   {tab.name}
                 </button>
               ))}

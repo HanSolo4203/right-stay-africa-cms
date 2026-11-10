@@ -145,11 +145,17 @@ export async function getPropertiesWithBookings(
   const { data, error } = await supabase
     .from(TABLES.APARTMENTS)
     .select('id, apartment_number, uplisting_id, uplisting_name, bookings!inner(id)')
+    .eq('is_active', true)
     .order('apartment_number', { ascending: true });
 
   if (error) {
     throw new Error(error.message);
   }
 
-  return (data ?? []).map(({ bookings: _bookings, ...apartment }) => apartment) as PropertyWithBookings[];
+  return (data ?? []).map((row) => ({
+    id: row.id,
+    apartment_number: row.apartment_number,
+    uplisting_id: row.uplisting_id,
+    uplisting_name: row.uplisting_name,
+  })) as PropertyWithBookings[];
 }

@@ -11,6 +11,7 @@ CREATE TABLE apartments (
     owner_name TEXT NOT NULL,
     owner_email TEXT,
     address TEXT,
+    is_active BOOLEAN NOT NULL DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
