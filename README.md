@@ -75,9 +75,11 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 
 # Uplisting integration (Settings → Connect → API Key)
-UPLISTING_API_KEY=           # UUID-shaped key; trim whitespace; restart dev server after changes
-UPLISTING_WEBHOOK_SECRET=    # Secret for validating Uplisting webhook signatures
-SYNC_SECRET=                 # Secret header value to protect the manual sync endpoint
+UPLISTING_API_KEY=           # UUID-shaped key; trim whitespace; restart/rebuild after changes
+UPLISTING_WEBHOOK_SECRET=    # Connect → Webhooks key for HMAC when signature headers are present
+UPLISTING_WEBHOOK_TOKEN=     # Query-token auth (?token=) registered on the webhook URL
+UPLISTING_WEBHOOK_DEBUG=false # Temporary: log webhook headers + truncated body
+SYNC_SECRET=                 # Secret header value to protect sync / hooks / cron endpoints
 NEXT_PUBLIC_SYNC_SECRET=     # Same value as SYNC_SECRET (used by the Uplisting settings page)
 ```
 
@@ -87,8 +89,10 @@ NEXT_PUBLIC_SYNC_SECRET=     # Same value as SYNC_SECRET (used by the Uplisting 
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Supabase anon/public key (safe for client components) |
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes | Service-role key for API routes and server-side jobs |
 | `UPLISTING_API_KEY` | For Uplisting sync | API key from Uplisting **Settings → Connect → API Key**. Auth is `Basic` + Base64(key), not Bearer. |
-| `UPLISTING_WEBHOOK_SECRET` | For webhooks | Shared secret used to verify incoming Uplisting webhook signatures |
-| `SYNC_SECRET` | For manual sync | Value sent in the `x-sync-secret` header when calling `POST /api/uplisting/sync` |
+| `UPLISTING_WEBHOOK_SECRET` | For webhooks | Connect → Webhooks signing key; used for HMAC when `x-uplisting-signature` is present |
+| `UPLISTING_WEBHOOK_TOKEN` | For webhooks | Shared token on `?token=`; fallback when signature headers are absent |
+| `UPLISTING_WEBHOOK_DEBUG` | Optional | `true` logs webhook headers + truncated body (never the secret) |
+| `SYNC_SECRET` | For manual sync | Value sent in the `x-sync-secret` header when calling sync / hooks / cron |
 | `NEXT_PUBLIC_SYNC_SECRET` | For settings UI | Client-side copy of `SYNC_SECRET` for the Sync Now button on `/settings/uplisting` |
 
 ### Uplisting API notes

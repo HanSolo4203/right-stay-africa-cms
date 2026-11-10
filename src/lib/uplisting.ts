@@ -506,6 +506,49 @@ export async function fetchBookingsForListing(
   return allBookings;
 }
 
+/**
+ * Fetch a single booking by Uplisting booking id.
+ * Falls back to scanning a property's bookings when the direct endpoint
+ * is unavailable or returns a listing-shaped payload.
+ */
+export async function fetchBookingById(
+  bookingId: string | number,
+  propertyIdHint?: string | number | null
+): Promise<UplistingBooking | null> {
+  const id = String(bookingId);
+
+  try {
+    const payload = await uplistingBookingsFetch<unknown>(`/bookings/${id}`);
+    if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
+      const record = payload as Record<string, unknown>;
+
+      // Listing-scoped response shape — not a single booking.
+      if (!Array.isArray(record.bookings)) {
+        if (record.data && typeof record.data === 'object') {
+          return normalizeBooking(record.data as Record<string, unknown>);
+        }
+        if (record.id != null) {
+          return normalizeBooking(record);
+        }
+      }
+    }
+  } catch {
+    // Direct lookup is optional; fall through to listing scan.
+  }
+
+  const listingId = propertyIdHint != null ? String(propertyIdHint) : null;
+  if (!listingId) {
+    return null;
+  }
+
+  try {
+    const bookings = await fetchBookingsForListing(listingId);
+    return bookings.find((booking) => String(booking.id) === id) ?? null;
+  } catch {
+    return null;
+  }
+}
+
 /** Quick connectivity check — same request as Uplisting’s documented test. */
 export async function testUplistingConnection(): Promise<{
   ok: boolean;
@@ -530,7 +573,14 @@ export type EnsuredUplistingWebhook = {
   target_url: string;
 };
 
-function getWebhookTargetUrl(): string {
+export type ListedUplistingWebhook = {
+  id: string;
+  event: string;
+  target_url: string;
+  disabled?: boolean;
+};
+
+function getAppBaseUrl(): string {
   const base = (
     process.env.NEXT_PUBLIC_APP_URL ??
     process.env.APP_URL ??
@@ -541,30 +591,84 @@ function getWebhookTargetUrl(): string {
       'NEXT_PUBLIC_APP_URL is not defined (needed to register Uplisting webhooks)'
     );
   }
-  return `${base}/api/uplisting/webhook`;
+  return base;
+}
+
+function getWebhookBasePath(): string {
+  return `${getAppBaseUrl()}/api/uplisting/webhook`;
+}
+
+/**
+ * Webhook URL registered with Uplisting.
+ * Includes ?token= when UPLISTING_WEBHOOK_TOKEN is set (Connect auth fallback).
+ * Note: Uplisting does not accept a signing secret at registration — the
+ * Connect → Webhooks key (UPLISTING_WEBHOOK_SECRET) is only used for HMAC
+ * verification when signature headers are present on delivery.
+ */
+export function getWebhookTargetUrl(): string {
+  const basePath = getWebhookBasePath();
+  const token = process.env.UPLISTING_WEBHOOK_TOKEN?.trim();
+  if (!token) {
+    return basePath;
+  }
+  const url = new URL(basePath);
+  url.searchParams.set('token', token);
+  return url.toString();
+}
+
+function isOurWebhookUrl(hookUrl: string): boolean {
+  const basePath = getWebhookBasePath();
+  try {
+    const incoming = new URL(hookUrl);
+    const ours = new URL(basePath);
+    return (
+      incoming.origin === ours.origin && incoming.pathname === ours.pathname
+    );
+  } catch {
+    return hookUrl === basePath || hookUrl.startsWith(`${basePath}?`);
+  }
+}
+
+function hookFromResource(resource: JsonApiResource): ListedUplistingWebhook {
+  const attributes = (resource.attributes ?? {}) as Record<string, unknown>;
+  return {
+    id: String(resource.id),
+    event: toString(attributes.event ?? attributes.event_name),
+    target_url: toString(attributes.target_url),
+    disabled:
+      typeof attributes.disabled === 'boolean'
+        ? attributes.disabled
+        : attributes.enabled === false
+          ? true
+          : undefined,
+  };
+}
+
+export async function listUplistingWebhooks(): Promise<ListedUplistingWebhook[]> {
+  const existing = await uplistingListingsFetch<JsonApiPayload>('/hooks');
+  return extractResources(existing).map(hookFromResource);
 }
 
 /**
  * Ensure booking create/update/remove hooks point at this app.
- * Recreates matching hooks so Uplisting re-enables delivery after prior failures.
+ * Deletes any prior hooks aimed at this webhook path (with or without token),
+ * then recreates them so Uplisting re-enables delivery after prior failures.
  */
 export async function ensureUplistingWebhooks(): Promise<{
   targetUrl: string;
   removed: number;
   created: EnsuredUplistingWebhook[];
+  listed: ListedUplistingWebhook[];
 }> {
   const targetUrl = getWebhookTargetUrl();
-  const existing = await uplistingListingsFetch<JsonApiPayload>('/hooks');
-  const resources = extractResources(existing);
+  const existing = await listUplistingWebhooks();
 
   let removed = 0;
-  for (const resource of resources) {
-    const attributes = (resource.attributes ?? {}) as Record<string, unknown>;
-    const hookUrl = toString(attributes.target_url);
-    if (hookUrl !== targetUrl) {
+  for (const hook of existing) {
+    if (!isOurWebhookUrl(hook.target_url)) {
       continue;
     }
-    await uplistingListingsFetch(`/hooks/${resource.id}`, undefined, {
+    await uplistingListingsFetch(`/hooks/${hook.id}`, undefined, {
       method: 'DELETE',
     });
     removed += 1;
@@ -590,5 +694,6 @@ export async function ensureUplistingWebhooks(): Promise<{
     });
   }
 
-  return { targetUrl, removed, created };
+  const listed = await listUplistingWebhooks();
+  return { targetUrl, removed, created, listed };
 }

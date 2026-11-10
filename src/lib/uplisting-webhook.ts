@@ -100,6 +100,64 @@ export function extractBookingPayload(event: WebhookEnvelope): unknown {
   return data ?? null;
 }
 
+export function extractBookingId(payload: unknown): string | null {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    return null;
+  }
+
+  const record = payload as Record<string, unknown>;
+  const candidates = [record.id, record.booking_id, record.bookingId];
+  for (const candidate of candidates) {
+    if (candidate != null && String(candidate).trim() !== '') {
+      return String(candidate);
+    }
+  }
+  return null;
+}
+
+export function extractPropertyIdHint(payload: unknown): string | null {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    return null;
+  }
+
+  const record = payload as Record<string, unknown>;
+  const candidates = [
+    record.property_id,
+    record.listing_id,
+    record.propertyId,
+    record.listingId,
+  ];
+  for (const candidate of candidates) {
+    if (candidate != null && String(candidate).trim() !== '') {
+      return String(candidate);
+    }
+  }
+  return null;
+}
+
+/** True when the payload lacks fields needed for a full calendar upsert. */
+export function isThinBookingPayload(payload: unknown): boolean {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    return true;
+  }
+
+  const record = payload as Record<string, unknown>;
+  const hasId = extractBookingId(record) != null;
+  const hasProperty =
+    record.property_id != null ||
+    record.listing_id != null ||
+    (record.relationships != null && typeof record.relationships === 'object');
+  const hasDates =
+    record.check_in != null ||
+    record.check_in_date != null ||
+    (record.attributes != null &&
+      typeof record.attributes === 'object' &&
+      ((record.attributes as Record<string, unknown>).check_in != null ||
+        (record.attributes as Record<string, unknown>).check_in_date != null));
+
+  return !hasId || !hasProperty || !hasDates;
+}
+
 export function parseBookingPayload(payload: unknown): UplistingBooking | null {
   if (!payload || typeof payload !== 'object') {
     return null;
@@ -111,6 +169,49 @@ export function parseBookingPayload(payload: unknown): UplistingBooking | null {
   }
 
   return booking;
+}
+
+/**
+ * Parse whatever we can from a webhook body. Id-only payloads are allowed
+ * so the caller can enrich via the Uplisting API or cancel by booking id.
+ */
+export function parsePartialBookingPayload(
+  payload: unknown
+): UplistingBooking | null {
+  if (!payload || typeof payload !== 'object') {
+    return null;
+  }
+
+  const bookingId = extractBookingId(payload);
+  if (!bookingId) {
+    return null;
+  }
+
+  const numericId = Number(bookingId);
+  if (!Number.isFinite(numericId) || numericId <= 0) {
+    return null;
+  }
+
+  try {
+    const booking = normalizeBooking(payload as UplistingBooking);
+    if (!booking.id) {
+      booking.id = numericId;
+    }
+    if (!booking.property_id) {
+      const hint = extractPropertyIdHint(payload);
+      if (hint) {
+        booking.property_id = Number(hint) || 0;
+      }
+    }
+    return booking;
+  } catch {
+    return normalizeBooking({
+      id: numericId,
+      property_id: Number(extractPropertyIdHint(payload) ?? 0),
+      guest_name: 'Unknown Guest',
+      status: '',
+    });
+  }
 }
 
 export function resolveWebhookEventType(
