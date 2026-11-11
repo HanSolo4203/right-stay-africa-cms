@@ -297,6 +297,14 @@ async function processBookingEvent(
   }
 }
 
+/** Health / browser probes — Uplisting delivers events via POST only. */
+export async function GET() {
+  return NextResponse.json({
+    ok: true,
+    message: 'Uplisting webhook endpoint; POST booking events here.',
+  });
+}
+
 export async function POST(request: NextRequest) {
   const webhookSecret = process.env.UPLISTING_WEBHOOK_SECRET?.trim();
   const webhookToken = process.env.UPLISTING_WEBHOOK_TOKEN?.trim();
