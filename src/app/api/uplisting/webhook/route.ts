@@ -286,9 +286,15 @@ async function processBookingEvent(
     throw new Error(result.error ?? `Failed to process ${eventType}`);
   }
 
-  console.log(
-    `[uplisting-webhook] upserted booking=${booking.id} event=${result.eventType ?? eventType}`
-  );
+  if (result.eventType) {
+    console.log(
+      `[uplisting-webhook] upserted booking=${booking.id} event=${result.eventType}`
+    );
+  } else {
+    console.log(
+      `[uplisting-webhook] upsert no-op booking=${booking.id} (stale or unchanged)`
+    );
+  }
 }
 
 export async function POST(request: NextRequest) {
