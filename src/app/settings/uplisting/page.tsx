@@ -12,6 +12,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import AuthWrapper from '@/components/AuthWrapper';
+import { UplistingSyncStatus } from '@/components/uplisting/UplistingSyncStatus';
 import ResponsiveTable from '@/components/ui/ResponsiveTable';
 import { createClientComponentClient } from '@/lib/supabase';
 import toast, { Toaster } from 'react-hot-toast';
@@ -21,6 +22,7 @@ interface UplistingApartment extends Record<string, unknown> {
   apartment_number: string;
   uplisting_id: string;
   uplisting_name: string | null;
+  is_active: boolean | null;
 }
 
 interface SyncListingsResult {
@@ -82,6 +84,7 @@ function UplistingSettingsContent() {
   const [generatingCleaning, setGeneratingCleaning] = useState(false);
   const [cleaningGenerateResult, setCleaningGenerateResult] =
     useState<CleaningGenerateResult | null>(null);
+  const [syncStatusKey, setSyncStatusKey] = useState(0);
 
   const loadIntegrationData = useCallback(async () => {
     try {
@@ -91,7 +94,7 @@ function UplistingSettingsContent() {
       const [apartmentsResult, bookingsResult] = await Promise.all([
         supabase
           .from('apartments')
-          .select('id, apartment_number, uplisting_id, uplisting_name')
+          .select('id, apartment_number, uplisting_id, uplisting_name, is_active')
           .not('uplisting_id', 'is', null)
           .order('apartment_number'),
         supabase
@@ -110,6 +113,7 @@ function UplistingSettingsContent() {
 
       setApartments((apartmentsResult.data ?? []) as UplistingApartment[]);
       setBookingCount(bookingsResult.count ?? 0);
+      setSyncStatusKey((key) => key + 1);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load Uplisting data';
       toast.error(message);
@@ -122,7 +126,18 @@ function UplistingSettingsContent() {
     loadIntegrationData();
   }, [loadIntegrationData]);
 
-  const handlePropertySync = async (uplistingId: string, apartmentNumber: string) => {
+  const handlePropertySync = async (
+    uplistingId: string,
+    apartmentNumber: string,
+    isActive: boolean | null
+  ) => {
+    if (isActive === false) {
+      toast.error(
+        `${apartmentNumber} is disabled — booking dates are not synced (existing records kept)`
+      );
+      return;
+    }
+
     const syncSecret = process.env.NEXT_PUBLIC_SYNC_SECRET;
 
     if (!syncSecret) {
@@ -279,11 +294,12 @@ function UplistingSettingsContent() {
       toast.loading('Syncing bookings…', { id: 'uplisting-sync' });
 
       // Refresh linked apartments after listings sync, then sync bookings
-      // per property so each request stays under proxy timeouts.
+      // per active property so each request stays under proxy timeouts.
+      // Disabled apartments are skipped; existing booking rows stay in the DB.
       const supabase = createClientComponentClient();
       const { data: linkedApartments, error: linkedError } = await supabase
         .from('apartments')
-        .select('id, apartment_number, uplisting_id, uplisting_name')
+        .select('id, apartment_number, uplisting_id, uplisting_name, is_active')
         .not('uplisting_id', 'is', null)
         .order('apartment_number');
 
@@ -299,6 +315,7 @@ function UplistingSettingsContent() {
 
       const linked = (linkedApartments ?? []) as UplistingApartment[];
       setApartments(linked);
+      const activeLinked = linked.filter((apartment) => apartment.is_active !== false);
 
       const bookingsAggregate: SyncBookingsResult = {
         synced: 0,
@@ -307,10 +324,10 @@ function UplistingSettingsContent() {
         errors: [],
       };
 
-      for (let index = 0; index < linked.length; index += 1) {
-        const apartment = linked[index];
+      for (let index = 0; index < activeLinked.length; index += 1) {
+        const apartment = activeLinked[index];
         toast.loading(
-          `Syncing bookings ${index + 1}/${linked.length}: ${apartment.apartment_number}`,
+          `Syncing bookings ${index + 1}/${activeLinked.length}: ${apartment.apartment_number}`,
           { id: 'uplisting-sync' }
         );
 
@@ -438,11 +455,18 @@ function UplistingSettingsContent() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
           <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6">
             <p className="text-sm font-medium text-gray-500">Linked Apartments</p>
             <p className="text-3xl font-bold text-gray-900 mt-2">
               {loadingData ? '—' : apartments.length}
+            </p>
+            <p className="text-xs text-gray-500 mt-1">
+              {loadingData
+                ? '…'
+                : `${apartments.filter((apt) => apt.is_active !== false).length} active · ${
+                    apartments.filter((apt) => apt.is_active === false).length
+                  } disabled`}
             </p>
           </div>
           <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6">
@@ -454,6 +478,7 @@ function UplistingSettingsContent() {
               source: uplisting_api, uplisting_webhook
             </p>
           </div>
+          <UplistingSyncStatus refreshKey={syncStatusKey} />
         </div>
 
         {cleaningGenerateResult && (
@@ -550,7 +575,8 @@ function UplistingSettingsContent() {
           <div>
             <h2 className="text-xl font-semibold text-gray-900">Linked Apartments</h2>
             <p className="text-sm text-gray-600 mt-1">
-              Properties with a Uplisting listing ID
+              Properties with a Uplisting listing ID. Disabled properties are skipped on
+              sync; existing booking records are kept.
             </p>
           </div>
 
@@ -578,26 +604,54 @@ function UplistingSettingsContent() {
                   render: (value) => (value as string | null) ?? '—',
                 },
                 {
+                  key: 'is_active',
+                  label: 'Status',
+                  render: (value) =>
+                    value === false ? (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700">
+                        Disabled
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-50 text-green-700">
+                        Active
+                      </span>
+                    ),
+                },
+                {
                   key: 'id',
                   label: 'Actions',
                   render: (_, item) => {
                     const isSyncing = syncingPropertyId === item.uplisting_id;
-                    const isDisabled = syncing || isSyncing;
+                    const propertyDisabled = item.is_active === false;
+                    const isDisabled = syncing || isSyncing || propertyDisabled;
 
                     return (
                       <button
                         type="button"
                         onClick={(event) => {
                           event.stopPropagation();
-                          handlePropertySync(item.uplisting_id, item.apartment_number);
+                          handlePropertySync(
+                            item.uplisting_id,
+                            item.apartment_number,
+                            item.is_active
+                          );
                         }}
                         disabled={isDisabled}
+                        title={
+                          propertyDisabled
+                            ? 'Disabled properties are not synced; existing records are kept'
+                            : undefined
+                        }
                         className="inline-flex items-center px-3 py-1.5 border border-transparent rounded-md shadow-sm text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <RefreshCw
                           className={`w-3.5 h-3.5 mr-1.5 ${isSyncing ? 'animate-spin' : ''}`}
                         />
-                        {isSyncing ? 'Syncing...' : 'Sync Bookings'}
+                        {propertyDisabled
+                          ? 'Skipped'
+                          : isSyncing
+                            ? 'Syncing...'
+                            : 'Sync Bookings'}
                       </button>
                     );
                   },
