@@ -5,11 +5,57 @@ import {
   type UplistingBooking,
   type UplistingListing,
 } from '@/lib/uplisting';
-import { isStaleWebhookPayload } from '@/lib/uplisting-webhook';
+import {
+  extractWebhookTimestamp,
+  isStaleWebhookPayload,
+} from '@/lib/uplisting-webhook';
 
 type ServiceClient = ReturnType<typeof createServiceClient>;
 
 const LISTING_REQUEST_DELAY_MS = 200;
+
+/**
+ * In-process tombstones for booking_removed that arrive before the row exists.
+ * Keyed by uplisting booking id → event timestamp ms (or Date.now()).
+ */
+const recentWebhookCancels = new Map<string, number>();
+const RECENT_CANCEL_TTL_MS = 30 * 60 * 1000;
+
+function rememberWebhookCancel(
+  uplistingBookingId: string,
+  rawPayload: Record<string, unknown>
+): void {
+  const ts = extractWebhookTimestamp(rawPayload);
+  const ms = ts ? Date.parse(ts) : Date.now();
+  if (!Number.isFinite(ms)) {
+    return;
+  }
+  const previous = recentWebhookCancels.get(uplistingBookingId) ?? 0;
+  if (ms >= previous) {
+    recentWebhookCancels.set(uplistingBookingId, ms);
+  }
+}
+
+function isSupersededByRecentCancel(
+  uplistingBookingId: string,
+  rawPayload: Record<string, unknown>
+): boolean {
+  const cancelMs = recentWebhookCancels.get(uplistingBookingId);
+  if (cancelMs == null) {
+    return false;
+  }
+  if (Date.now() - cancelMs > RECENT_CANCEL_TTL_MS) {
+    recentWebhookCancels.delete(uplistingBookingId);
+    return false;
+  }
+  const incomingTs = extractWebhookTimestamp(rawPayload);
+  if (!incomingTs) {
+    // No timestamp on create/update after a known cancel → treat as stale.
+    return true;
+  }
+  const incomingMs = Date.parse(incomingTs);
+  return Number.isFinite(incomingMs) && incomingMs < cancelMs;
+}
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -422,6 +468,16 @@ export async function upsertUplistingBooking(
     return { ok: true, eventType: undefined };
   }
 
+  if (
+    options.source === 'uplisting_webhook' &&
+    isSupersededByRecentCancel(uplistingBookingId, options.rawPayload)
+  ) {
+    console.log(
+      `[uplisting-sync] skipping webhook upsert superseded by newer cancel booking=${uplistingBookingId}`
+    );
+    return { ok: true, eventType: undefined };
+  }
+
   const guestId = await upsertGuest(supabase, booking);
   const channelId = await findOrCreateChannelId(supabase, booking.channel);
   const row = buildBookingRow(
@@ -508,6 +564,8 @@ export async function cancelUplistingBooking(
   source: UplistingBookingSource = 'uplisting_webhook'
 ): Promise<{ ok: boolean; cancelled: boolean; error?: string }> {
   if (source === 'uplisting_webhook') {
+    rememberWebhookCancel(uplistingBookingId, rawPayload);
+
     const { data: existing } = await supabase
       .from('bookings')
       .select('id, raw_payload')
@@ -550,6 +608,11 @@ export async function cancelUplistingBooking(
 
   const cancelledRows = data ?? [];
   if (cancelledRows.length === 0) {
+    // booking_removed can beat booking_created; remember the tombstone so a
+    // later create with an older timestamp does not revive the booking.
+    console.log(
+      `[uplisting-sync] cancel tombstone recorded for missing booking=${uplistingBookingId}`
+    );
     return { ok: true, cancelled: false };
   }
 
