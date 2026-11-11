@@ -4,7 +4,6 @@ import * as React from 'react';
 import { usePathname } from 'next/navigation';
 import { Plus } from 'lucide-react';
 import Link from 'next/link';
-import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/layout/app-sidebar';
 import { AppTopbar } from '@/components/layout/app-topbar';
 import { MobileBottomNav } from '@/components/layout/mobile-bottom-nav';
@@ -30,19 +29,29 @@ export function AppShell({ children }: AppShellProps) {
     pathname.startsWith('/calendar');
 
   return (
-    <SidebarProvider>
+    <div className="relative min-h-svh bg-background">
       <AppSidebar />
-      <SidebarInset className="min-h-svh bg-background">
+      <div
+        className={cn(
+          'flex min-h-svh min-w-0 flex-1 flex-col',
+          'lg:pl-[calc(var(--rail-width)+var(--rail-gap)+0.75rem)]'
+        )}
+      >
         <AppTopbar />
-        <div className={cn('page-pad flex-1 py-4 md:py-6', 'pb-mobile-nav md:pb-8')}>
+        <div
+          className={cn(
+            'page-pad min-w-0 flex-1 py-4 md:py-6',
+            'pb-mobile-nav md:pb-8'
+          )}
+        >
           {children}
         </div>
         {showFab ? (
           <Button
             asChild
             size="icon"
-            className="fixed right-4 z-40 size-14 rounded-full shadow-xs md:hidden"
-            style={{ bottom: 'calc(4.75rem + var(--safe-bottom))' }}
+            className="fixed right-4 z-40 size-14 rounded-full shadow-[var(--shadow-panel)] md:hidden"
+            style={{ bottom: 'calc(5.5rem + var(--safe-bottom))' }}
             aria-label="New job"
           >
             <Link href="/cleaning?new=1">
@@ -51,7 +60,7 @@ export function AppShell({ children }: AppShellProps) {
           </Button>
         ) : null}
         <MobileBottomNav />
-      </SidebarInset>
-    </SidebarProvider>
+      </div>
+    </div>
   );
 }

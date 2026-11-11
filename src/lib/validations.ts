@@ -8,6 +8,9 @@ export const createApartmentSchema = z.object({
   address: z.string().max(200, 'Address too long').optional().or(z.literal('')),
   cleaner_payout: z.number().min(0, 'Payout must be positive').optional(),
   is_active: z.boolean().optional(),
+  size_type: z.enum(['1_bed', '2_bed_luxury', 'custom']).optional(),
+  checkout_minutes: z.number().int().min(1).max(24 * 60).nullable().optional(),
+  midstay_minutes: z.number().int().min(1).max(24 * 60).nullable().optional(),
 });
 
 export const updateApartmentSchema = createApartmentSchema.partial();
@@ -17,6 +20,9 @@ export const createCleanerSchema = z.object({
   name: z.string().min(1, 'Name is required').max(100, 'Name too long'),
   phone: z.string().max(20, 'Phone number too long').optional().or(z.literal('')),
   email: z.string().email('Invalid email format').optional().or(z.literal('')),
+  daily_capacity_minutes: z.number().int().min(30).max(24 * 60).optional(),
+  is_on_call: z.boolean().optional(),
+  is_active: z.boolean().optional(),
 });
 
 export const updateCleanerSchema = createCleanerSchema.partial();

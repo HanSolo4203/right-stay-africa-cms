@@ -80,9 +80,11 @@ export async function PATCH(
       task_type?: string;
       booking_id?: string | null;
       is_manual: boolean;
+      is_locked: boolean;
       cleaner_payout?: number | null;
     } = {
       is_manual: true,
+      is_locked: true,
     };
 
     if (parsed.data.scheduled_date !== undefined) {

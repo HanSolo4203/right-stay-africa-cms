@@ -5,6 +5,7 @@ import {
   type UplistingBooking,
   type UplistingListing,
 } from '@/lib/uplisting';
+import { regenerateBookingCleaningTasks } from '@/lib/cleaning-scheduler';
 import {
   extractWebhookTimestamp,
   isStaleWebhookPayload,
@@ -554,6 +555,18 @@ export async function upsertUplistingBooking(
     });
   }
 
+  // Regenerate when the booking is new/changed (skip no-op syncs).
+  if (eventType) {
+    try {
+      await regenerateBookingCleaningTasks(supabase, upserted.id);
+    } catch (error) {
+      console.error(
+        `[uplisting-sync] cleaning rebalance failed booking=${upserted.id}:`,
+        error
+      );
+    }
+  }
+
   return { ok: true, eventType: eventType ?? undefined };
 }
 
@@ -644,6 +657,15 @@ export async function cancelUplistingBooking(
       checkOutDate: row.check_out_date,
       summary: `Cancelled booking ${reference} · ${guestName} · ${propertyName}`,
     });
+
+    try {
+      await regenerateBookingCleaningTasks(supabase, row.id as string);
+    } catch (error) {
+      console.error(
+        `[uplisting-sync] cleaning rebalance after cancel failed booking=${row.id}:`,
+        error
+      );
+    }
   }
 
   return { ok: true, cancelled: true };

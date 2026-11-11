@@ -9,12 +9,15 @@ export interface CleaningTaskWithDetails {
   apartment_id: string;
   task_type: CleaningTaskType;
   scheduled_date: string;
+  ideal_date: string | null;
   status: CleaningTaskStatus;
   notes: string | null;
   assigned_cleaner_id: string | null;
   cleaner_payout: number | null;
   auto_assigned: boolean;
   is_manual: boolean;
+  is_locked: boolean;
+  duration_minutes: number | null;
   cleaner_name: string | null;
   completed_at: string | null;
   created_at: string;
@@ -60,12 +63,15 @@ export const CLEANING_TASK_SELECT = `
   apartment_id,
   task_type,
   scheduled_date,
+  ideal_date,
   status,
   notes,
   assigned_cleaner_id,
   cleaner_payout,
   auto_assigned,
   is_manual,
+  is_locked,
+  duration_minutes,
   completed_at,
   created_at,
   updated_at,
@@ -124,12 +130,16 @@ export function mapCleaningTaskRow(row: Record<string, unknown>): CleaningTaskWi
     apartment_id: row.apartment_id as string,
     task_type: row.task_type as CleaningTaskType,
     scheduled_date: row.scheduled_date as string,
+    ideal_date: (row.ideal_date as string | null) ?? null,
     status: row.status as CleaningTaskStatus,
     notes: (row.notes as string | null) ?? null,
     assigned_cleaner_id: (row.assigned_cleaner_id as string | null) ?? null,
     cleaner_payout: row.cleaner_payout != null ? Number(row.cleaner_payout) : null,
     auto_assigned: Boolean(row.auto_assigned),
     is_manual: Boolean(row.is_manual),
+    is_locked: Boolean(row.is_locked),
+    duration_minutes:
+      row.duration_minutes != null ? Number(row.duration_minutes) : null,
     cleaner_name: cleaner?.name ?? null,
     completed_at: (row.completed_at as string | null) ?? null,
     created_at: row.created_at as string,

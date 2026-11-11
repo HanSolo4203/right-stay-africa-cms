@@ -32,7 +32,7 @@ import { AddCleaningDialog } from './AddCleaningDialog';
 import { BookingDetailsDialog } from './BookingDetailsDialog';
 import { CalendarToolbar } from './CalendarToolbar';
 import { CleaningPopover } from './CleaningPopover';
-import { PropertyRow } from './PropertyRow';
+import { PropertyLabel, PropertyRow } from './PropertyRow';
 import { TimelineHeader } from './TimelineHeader';
 import {
   buildTimelineDays,
@@ -52,6 +52,7 @@ import {
   parseLocalDate,
   propertyHasBookingOverlap,
   resolvePresetRange,
+  ROW_HEIGHT,
   toDateString,
   ZOOM_ANIMATION_MS,
   ZOOM_LEVELS,
@@ -79,7 +80,7 @@ function TimelineSkeleton({ propertyColWidth }: { propertyColWidth: number }) {
         </div>
       </div>
       {Array.from({ length: 8 }).map((_, row) => (
-        <div key={row} className="flex border-b border-gray-100" style={{ height: 72 }}>
+        <div key={row} className="flex border-b border-gray-100" style={{ height: ROW_HEIGHT }}>
           <div
             className="shrink-0 border-r border-gray-100 bg-white p-3 space-y-2"
             style={{ width: propertyColWidth }}
@@ -103,6 +104,7 @@ function TimelineSkeleton({ propertyColWidth }: { propertyColWidth: number }) {
 
 export function MultiCalendar() {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const propertyScrollRef = useRef<HTMLDivElement>(null);
   const extendingRef = useRef(false);
   const initialScrollDone = useRef(false);
   const scrollRafRef = useRef<number | null>(null);
@@ -111,7 +113,6 @@ export function MultiCalendar() {
   const gridInnerRef = useRef<HTMLDivElement>(null);
   const zoomLabelRef = useRef<HTMLSpanElement>(null);
   const displayMonthRef = useRef(startOfMonth(new Date()));
-  const propertyColWidthRef = useRef(200);
 
   const [selectedPropertyId, setSelectedPropertyId] = useState('all');
   const [rangeStart, setRangeStart] = useState(() =>
@@ -149,7 +150,6 @@ export function MultiCalendar() {
   const [legendOpen, setLegendOpen] = useState(false);
 
   const { isPhone, baseDayWidth, propertyColWidth } = useViewportMetrics(propertyColCollapsed);
-  propertyColWidthRef.current = propertyColWidth;
 
   const dayColWidth = Math.round(baseDayWidth * ZOOM_LEVELS[zoomIndex]);
   const scrollExtendThreshold = dayColWidth * 10;
@@ -186,7 +186,7 @@ export function MultiCalendar() {
     [timelineDays, today]
   );
 
-  const gridMinWidth = `calc(var(--property-col-width) + var(--day-width) * ${totalDays})`;
+  const gridMinWidth = `calc(var(--day-width) * ${totalDays})`;
 
   const initialScrollLeft = useMemo(() => {
     if (todayIdx < 0) return 0;
@@ -306,15 +306,21 @@ export function MultiCalendar() {
     [today, jumpToDate]
   );
 
+  const syncPropertyScroll = useCallback((scrollTop: number) => {
+    const propEl = propertyScrollRef.current;
+    if (propEl && propEl.scrollTop !== scrollTop) {
+      propEl.scrollTop = scrollTop;
+    }
+  }, []);
+
   const updateDisplayMonthFromScroll = useCallback(() => {
     if (isZoomingRef.current) return;
     const el = scrollRef.current;
     if (!el || timelineDays.length === 0) return;
 
-    const colW = propertyColWidthRef.current;
     const visibleCenterIdx = Math.min(
       timelineDays.length - 1,
-      Math.max(0, Math.floor((el.scrollLeft + (el.clientWidth - colW) / 2) / dayColWidth))
+      Math.max(0, Math.floor((el.scrollLeft + el.clientWidth / 2) / dayColWidth))
     );
     const centerDate = timelineDays[visibleCenterIdx];
     const month = startOfMonth(centerDate);
@@ -365,10 +371,11 @@ export function MultiCalendar() {
       const el = scrollRef.current;
       if (!el) return;
 
-      const colW = propertyColWidthRef.current;
+      syncPropertyScroll(el.scrollTop);
+
       const gridScrollLeft = el.scrollLeft;
-      const gridClientWidth = el.clientWidth - colW;
-      const gridScrollWidth = el.scrollWidth - colW;
+      const gridClientWidth = el.clientWidth;
+      const gridScrollWidth = el.scrollWidth;
 
       if (gridScrollLeft + gridClientWidth > gridScrollWidth - scrollExtendThreshold) {
         extendTimelineForward();
@@ -382,6 +389,7 @@ export function MultiCalendar() {
     extendTimelineForward,
     extendTimelineBackward,
     scrollExtendThreshold,
+    syncPropertyScroll,
   ]);
 
   const bookingsByProperty = useMemo(() => {
@@ -714,8 +722,7 @@ export function MultiCalendar() {
         return;
       }
 
-      const colW = propertyColWidthRef.current;
-      const gridViewport = el.clientWidth - colW;
+      const gridViewport = el.clientWidth;
       const startWidth = baseDayWidth * startScale;
 
       const todayVisible =
@@ -743,7 +750,7 @@ export function MultiCalendar() {
 
         const scrollEl = scrollRef.current;
         if (scrollEl) {
-          const viewport = scrollEl.clientWidth - propertyColWidthRef.current;
+          const viewport = scrollEl.clientWidth;
           if (todayViewportX != null) {
             scrollEl.scrollLeft = Math.max(
               0,
@@ -848,8 +855,8 @@ export function MultiCalendar() {
 
   return (
     <TooltipProvider delayDuration={200}>
-      <div className="flex flex-col flex-1 min-h-0">
-        <div className="px-4 sm:px-6 lg:px-8 py-4 flex flex-col gap-4 flex-1 min-h-0">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-4">
             <div>
               <h1 className="text-2xl sm:text-3xl font-semibold text-gray-900 tracking-tight">
@@ -994,33 +1001,67 @@ export function MultiCalendar() {
                 </Button>
               </div>
 
-              <div className="bg-white border border-gray-200 rounded-lg overflow-hidden flex-1 min-h-0 flex flex-col">
+              <div className="bg-white border border-gray-200 rounded-lg overflow-hidden flex flex-1 min-h-[50dvh] max-h-[calc(100dvh-220px)]">
+                {/* Frozen listings column — outside horizontal scroll so it never covers the app sidebar */}
+                <div
+                  className="shrink-0 flex flex-col border-r border-gray-200 bg-white z-[1]"
+                  style={{ width: propertyColWidth }}
+                >
+                  <div
+                    className="shrink-0 border-b border-gray-200 px-2 sm:px-3 py-2 flex items-center gap-1 bg-white"
+                    style={{ height: 48 }}
+                  >
+                    <button
+                      type="button"
+                      onClick={togglePropertyCol}
+                      aria-label={
+                        propertyColCollapsed
+                          ? 'Expand listings column'
+                          : 'Collapse listings column'
+                      }
+                      className="inline-flex h-10 w-10 sm:h-8 sm:w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 touch-manipulation"
+                    >
+                      {propertyColCollapsed ? (
+                        <ChevronRight className="w-4 h-4" />
+                      ) : (
+                        <ChevronLeft className="w-4 h-4" />
+                      )}
+                    </button>
+                    {!propertyColCollapsed && (
+                      <span className="text-xs font-medium text-gray-500">Listings</span>
+                    )}
+                  </div>
+                  <div
+                    ref={propertyScrollRef}
+                    className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+                  >
+                    {visibleProperties.map((property) => (
+                      <PropertyLabel
+                        key={property.id}
+                        property={property}
+                        propertyColCollapsed={propertyColCollapsed}
+                        showOccupancy={showOccupancy}
+                        occupancy={occupancyByProperty.get(property.id) ?? null}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Timeline scrolls horizontally + vertically; vertical scroll syncs with listings */}
                 <div
                   ref={scrollRef}
                   onScroll={handleScroll}
-                  className="relative overflow-x-auto overflow-y-auto flex-1 min-h-[50dvh] max-h-[calc(100dvh-220px)] overscroll-x-contain"
-                  style={
-                    {
-                      ['--property-col-width' as string]: `${propertyColWidth}px`,
-                    } as React.CSSProperties
-                  }
+                  className="relative min-w-0 flex-1 overflow-auto overscroll-x-contain"
                 >
                   <div
                     ref={gridInnerRef}
                     style={{
                       minWidth: gridMinWidth,
                       ['--day-width' as string]: `${dayColWidth}px`,
-                      ['--property-col-width' as string]: `${propertyColWidth}px`,
                     }}
                     className="relative"
                   >
-                    <TimelineHeader
-                      timelineDays={timelineDays}
-                      today={today}
-                      propertyColWidth={propertyColWidth}
-                      propertyColCollapsed={propertyColCollapsed}
-                      onTogglePropertyCol={togglePropertyCol}
-                    />
+                    <TimelineHeader timelineDays={timelineDays} today={today} />
 
                     {visibleProperties.length === 0 ? (
                       <div className="px-6 py-16 text-center text-gray-500 text-sm">
@@ -1040,10 +1081,6 @@ export function MultiCalendar() {
                           totalDays={totalDays}
                           todayIdx={todayIdx}
                           dayWidth={dayColWidth}
-                          propertyColWidth={propertyColWidth}
-                          propertyColCollapsed={propertyColCollapsed}
-                          showOccupancy={showOccupancy}
-                          occupancy={occupancyByProperty.get(property.id) ?? null}
                           activeCleaningTaskId={activeCleaningTaskId}
                           onSelectBooking={onSelectBooking}
                           onAddClean={openAddClean}

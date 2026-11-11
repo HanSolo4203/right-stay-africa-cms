@@ -26,7 +26,7 @@ export function MobileBottomNav() {
   return (
     <>
       <nav
-        className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card/95 backdrop-blur md:hidden"
+        className="fixed inset-x-3 bottom-3 z-40 rounded-[20px] bg-sidebar text-sidebar-foreground shadow-[var(--shadow-panel)] md:hidden"
         style={{ paddingBottom: 'var(--safe-bottom)' }}
         aria-label="Primary"
       >
@@ -40,13 +40,14 @@ export function MobileBottomNav() {
                   href={item.href}
                   className={cn(
                     'flex h-full min-h-11 flex-col items-center justify-center gap-0.5 text-[11px] font-medium',
-                    active ? 'text-primary' : 'text-muted-foreground'
+                    active
+                      ? 'text-white'
+                      : 'text-[color:var(--sidebar-muted)]'
                   )}
                 >
                   <Icon
                     className="size-[18px]"
                     strokeWidth={1.75}
-                    fill={active ? 'currentColor' : 'none'}
                     aria-hidden
                   />
                   {item.title}
@@ -60,15 +61,13 @@ export function MobileBottomNav() {
               onClick={() => setMoreOpen(true)}
               className={cn(
                 'flex h-full min-h-11 w-full flex-col items-center justify-center gap-0.5 text-[11px] font-medium',
-                moreActive ? 'text-primary' : 'text-muted-foreground'
+                moreActive
+                  ? 'text-white'
+                  : 'text-[color:var(--sidebar-muted)]'
               )}
               aria-label="More navigation"
             >
-              <MoreHorizontal
-                className="size-[18px]"
-                strokeWidth={1.75}
-                fill={moreActive ? 'currentColor' : 'none'}
-              />
+              <MoreHorizontal className="size-[18px]" strokeWidth={1.75} />
               More
             </button>
           </li>

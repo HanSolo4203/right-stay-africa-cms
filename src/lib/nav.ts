@@ -35,6 +35,17 @@ export const primaryMobileTabs: NavItem[] = [
   { title: 'Properties', href: '/properties', icon: Building2, mobileTab: true },
 ];
 
+/** Compact icon rail for desktop (Dashboard chat menu style). */
+export const railNavItems: NavItem[] = [
+  { title: 'Today', href: '/dashboard', icon: BarChart3 },
+  { title: 'Calendar', href: '/calendar', icon: Calendar },
+  { title: 'Jobs', href: '/cleaning', icon: Sparkles },
+  { title: 'Properties', href: '/properties', icon: Building2 },
+  { title: 'Bookings', href: '/bookings', icon: BookOpen },
+  { title: 'Updates', href: '/updates', icon: Activity },
+  { title: 'Settings', href: '/settings', icon: Settings },
+];
+
 export const navGroups: NavGroup[] = [
   {
     title: 'Operations',

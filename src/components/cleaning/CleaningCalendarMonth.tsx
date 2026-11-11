@@ -5,15 +5,24 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { getCalendarCells, getCurrentMonthKey } from '@/lib/cleaning-month';
 import {
+  capacityBadgeClasses,
+  capacityTone,
+  formatBookedCapacity,
+  overflowHoursLabel,
+} from '@/lib/cleaning-capacity-ui';
+import {
   getPropertyDisplayName,
   type CleaningTaskWithDetails,
 } from '@/lib/queries/cleaning';
+import type { CleaningDayCapacity } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
 interface CleaningCalendarMonthProps {
   monthKey: string;
   tasks: CleaningTaskWithDetails[];
+  capacityByDate?: Record<string, CleaningDayCapacity>;
   today?: string;
+  onSelectDate?: (date: string) => void;
 }
 
 const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -21,7 +30,9 @@ const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 export function CleaningCalendarMonth({
   monthKey,
   tasks,
+  capacityByDate = {},
   today,
+  onSelectDate,
 }: CleaningCalendarMonthProps) {
   const [currentMonthKey, setCurrentMonthKey] = useState<string | null>(null);
   useEffect(() => {
@@ -53,16 +64,20 @@ export function CleaningCalendarMonth({
               return <div key={`empty-${index}`} className="bg-white min-h-[110px]" />;
             }
             const dayTasks = byDate.get(cell.date) ?? [];
+            const capacity = capacityByDate[cell.date];
+            const tone = capacity ? capacityTone(capacity) : 'neutral';
             const isToday = Boolean(today && cell.date === today);
             return (
-              <div
+              <button
+                type="button"
                 key={cell.date}
+                onClick={() => onSelectDate?.(cell.date!)}
                 className={cn(
-                  'bg-white min-h-[110px] p-1.5 flex flex-col gap-1',
+                  'bg-white min-h-[110px] p-1.5 flex flex-col gap-1 text-left hover:bg-gray-50 transition-colors',
                   isToday && 'ring-2 ring-inset ring-blue-500'
                 )}
               >
-                <div className="flex items-center justify-between px-0.5">
+                <div className="flex items-center justify-between px-0.5 gap-1">
                   <span
                     className={cn(
                       'text-xs font-semibold',
@@ -71,10 +86,22 @@ export function CleaningCalendarMonth({
                   >
                     {cell.dayNumber}
                   </span>
-                  {dayTasks.length > 0 && (
-                    <span className="text-[10px] text-gray-500">{dayTasks.length}</span>
+                  {capacity && capacity.booked_minutes > 0 && (
+                    <span
+                      className={cn(
+                        'text-[10px] px-1 py-0.5 rounded border font-medium whitespace-nowrap',
+                        capacityBadgeClasses(tone)
+                      )}
+                    >
+                      {formatBookedCapacity(capacity)}
+                    </span>
                   )}
                 </div>
+                {capacity && capacity.overflow_minutes > 0 && (
+                  <div className="text-[10px] font-medium text-red-700 bg-red-50 border border-red-200 rounded px-1 py-0.5">
+                    Extra cleaner needed: {overflowHoursLabel(capacity.overflow_minutes)}
+                  </div>
+                )}
                 <div className="space-y-1 overflow-hidden">
                   {dayTasks.slice(0, 3).map((task) => (
                     <div
@@ -89,6 +116,9 @@ export function CleaningCalendarMonth({
                     >
                       <div className="font-medium truncate">
                         {task.task_type === 'checkout_clean' ? 'Checkout' : 'Mid-stay'}
+                        {task.duration_minutes != null
+                          ? ` · ${Math.round(task.duration_minutes / 6) / 10}h`
+                          : ''}
                       </div>
                       <div className="truncate opacity-80">{getPropertyDisplayName(task)}</div>
                       <div className="truncate opacity-70">
@@ -102,7 +132,7 @@ export function CleaningCalendarMonth({
                     </div>
                   )}
                 </div>
-              </div>
+              </button>
             );
           })}
         </div>
@@ -112,6 +142,15 @@ export function CleaningCalendarMonth({
           </Badge>
           <Badge className="bg-amber-100 text-amber-900 border-amber-200 hover:bg-amber-100">
             Mid-Stay Clean
+          </Badge>
+          <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 hover:bg-emerald-100">
+            &lt;80% capacity
+          </Badge>
+          <Badge className="bg-amber-100 text-amber-900 border-amber-200 hover:bg-amber-100">
+            80–100%
+          </Badge>
+          <Badge className="bg-red-100 text-red-800 border-red-200 hover:bg-red-100">
+            Over capacity
           </Badge>
           {currentMonthKey && monthKey === currentMonthKey && (
             <span className="text-xs text-gray-500 self-center">Blue ring = today</span>

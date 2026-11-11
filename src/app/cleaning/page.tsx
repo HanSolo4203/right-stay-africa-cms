@@ -57,7 +57,14 @@ import {
   tasksForMonthPdf,
 } from '@/lib/cleaning-pdf';
 import { createClientComponentClient } from '@/lib/supabase';
-import type { CleanerPayoutSummary } from '@/lib/types';
+import type { CleanerPayoutSummary, CleaningDayCapacity } from '@/lib/types';
+import {
+  capacityBadgeClasses,
+  capacityTone,
+  formatBookedCapacity,
+  minutesToHoursLabel,
+  overflowHoursLabel,
+} from '@/lib/cleaning-capacity-ui';
 import {
   getCleaningStats,
   getCleaningTaskApartments,
@@ -148,6 +155,8 @@ function getMonthRange(): { start: string; end: string } {
 interface CleanerOption {
   id: string;
   name: string;
+  is_on_call?: boolean;
+  daily_capacity_minutes?: number;
 }
 
 async function copyTextToClipboard(text: string): Promise<boolean> {
@@ -215,6 +224,9 @@ function CleaningContent() {
   const [liveLinkUrl, setLiveLinkUrl] = useState('');
   const [liveLinkLabel, setLiveLinkLabel] = useState('');
   const [today, setToday] = useState<string | null>(null);
+  const [capacityByDate, setCapacityByDate] = useState<Record<string, CleaningDayCapacity>>({});
+  const [dayDetailDate, setDayDetailDate] = useState<string | null>(null);
+  const [assigningOnCallTaskId, setAssigningOnCallTaskId] = useState<string | null>(null);
 
   useEffect(() => {
     setToday(getTodayIsoDate());
@@ -229,7 +241,11 @@ function CleaningContent() {
       const supabase = createClientComponentClient();
       const range = getMonthDateRange(selectedMonth);
 
-      const [taskData, statsData, apartmentData, cleanersRes] = await Promise.all([
+      const capacityParams = new URLSearchParams({
+        from: range.start,
+        to: range.end,
+      });
+      const [taskData, statsData, apartmentData, cleanersRes, capacityRes] = await Promise.all([
         getCleaningTasksWithDetails(supabase, {
           fromDate: range.start,
           toDate: range.end,
@@ -241,6 +257,7 @@ function CleaningContent() {
         getCleaningStats(supabase),
         getCleaningTaskApartments(supabase),
         fetch('/api/cleaners'),
+        fetch(`/api/cleaning/capacity?${capacityParams}`),
       ]);
 
       const cleanersJson = await cleanersRes.json();
@@ -248,10 +265,20 @@ function CleaningContent() {
         ? cleanersJson.data
         : cleanersJson.data ?? [];
 
+      const capacityJson = await capacityRes.json();
+      const capacityDays: CleaningDayCapacity[] = capacityJson.success
+        ? capacityJson.data?.days ?? []
+        : capacityJson.data?.days ?? [];
+      const capacityMap: Record<string, CleaningDayCapacity> = {};
+      for (const day of capacityDays) {
+        capacityMap[day.date] = day;
+      }
+
       setTasks(taskData);
       setStats(statsData);
       setApartments(apartmentData);
       setCleaners(cleanerList);
+      setCapacityByDate(capacityMap);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load cleaning schedule';
       toast.error(message);
@@ -311,6 +338,56 @@ function CleaningContent() {
       setAssigningTaskId(null);
     }
   };
+
+
+  const handleAssignOnCall = async (taskId: string) => {
+    try {
+      setAssigningOnCallTaskId(taskId);
+      const response = await fetch('/api/cleaning/assign-on-call', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ task_id: taskId }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.error ?? 'Failed to assign on-call cleaner');
+      }
+      setTasks((prev) =>
+        prev.map((task) =>
+          task.id === taskId
+            ? {
+                ...task,
+                assigned_cleaner_id: result.data.cleaner_id,
+                cleaner_name: result.data.cleaner_name,
+                cleaner_payout:
+                  result.data.cleaner_payout != null
+                    ? Number(result.data.cleaner_payout)
+                    : null,
+                auto_assigned: false,
+                is_locked: true,
+              }
+            : task
+        )
+      );
+      toast.success(`Assigned ${result.data.cleaner_name} (on-call)`);
+      await refreshData();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to assign on-call');
+    } finally {
+      setAssigningOnCallTaskId(null);
+    }
+  };
+
+  const onCallCleaner = useMemo(
+    () => cleaners.find((c) => c.is_on_call),
+    [cleaners]
+  );
+
+  const dayDetailCapacity = dayDetailDate ? capacityByDate[dayDetailDate] : undefined;
+  const dayDetailTasks = useMemo(() => {
+    if (!dayDetailDate) return [];
+    return tasks.filter((t) => t.scheduled_date === dayDetailDate);
+  }, [dayDetailDate, tasks]);
 
   const handlePayoutOverride = async (taskId: string, payout: number) => {
     const task = tasks.find((t) => t.id === taskId);
@@ -735,7 +812,9 @@ function CleaningContent() {
               <CleaningCalendarMonth
                 monthKey={selectedMonth}
                 tasks={tasks}
+                capacityByDate={capacityByDate}
                 today={today ?? undefined}
+                onSelectDate={setDayDetailDate}
               />
             )
           ) : groupedByDate.length === 0 ? (
@@ -767,14 +846,50 @@ function CleaningContent() {
                           </Badge>
                         )}
                       </div>
-                      <span
+                      <div
                         className={cn(
-                          'text-sm',
+                          'flex items-center gap-2 text-sm',
                           isToday ? 'text-blue-100' : 'text-gray-600'
                         )}
                       >
-                        {dayTasks.length} task{dayTasks.length === 1 ? '' : 's'}
-                      </span>
+                        {capacityByDate[date] && (
+                          <>
+                            <span
+                              className={cn(
+                                'text-xs px-2 py-0.5 rounded border font-medium',
+                                isToday
+                                  ? 'bg-white/15 border-white/30 text-white'
+                                  : capacityBadgeClasses(capacityTone(capacityByDate[date]))
+                              )}
+                            >
+                              {formatBookedCapacity(capacityByDate[date])}
+                            </span>
+                            {capacityByDate[date].overflow_minutes > 0 && (
+                              <span
+                                className={cn(
+                                  'text-xs px-2 py-0.5 rounded border font-medium',
+                                  isToday
+                                    ? 'bg-red-500/30 border-red-200 text-white'
+                                    : 'bg-red-100 text-red-800 border-red-200'
+                                )}
+                              >
+                                Extra cleaner needed:{' '}
+                                {overflowHoursLabel(capacityByDate[date].overflow_minutes)}
+                              </span>
+                            )}
+                          </>
+                        )}
+                        <button
+                          type="button"
+                          className={cn(
+                            'underline-offset-2 hover:underline',
+                            isToday ? 'text-blue-50' : 'text-gray-600'
+                          )}
+                          onClick={() => setDayDetailDate(date)}
+                        >
+                          {dayTasks.length} task{dayTasks.length === 1 ? '' : 's'}
+                        </button>
+                      </div>
                     </div>
 
                     <Card className="rounded-t-none border-t-0">
@@ -1166,6 +1281,96 @@ function CleaningContent() {
               </div>
             )}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      
+      <Dialog open={Boolean(dayDetailDate)} onOpenChange={(open) => !open && setDayDetailDate(null)}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {dayDetailDate ? formatDate(dayDetailDate) : 'Day detail'}
+            </DialogTitle>
+          </DialogHeader>
+          {dayDetailCapacity ? (
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge className={cn('border', capacityBadgeClasses(capacityTone(dayDetailCapacity)))}>
+                  {formatBookedCapacity(dayDetailCapacity)}
+                </Badge>
+                {dayDetailCapacity.overflow_minutes > 0 && (
+                  <Badge className="bg-red-100 text-red-800 border-red-200 hover:bg-red-100 border">
+                    Extra cleaner needed: {overflowHoursLabel(dayDetailCapacity.overflow_minutes)}
+                  </Badge>
+                )}
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900 mb-2">Cleaner load</h4>
+                <div className="space-y-2">
+                  {dayDetailCapacity.cleaners.map((c) => (
+                    <div
+                      key={c.cleaner_id}
+                      className="flex items-center justify-between rounded-md border border-gray-200 px-3 py-2 text-sm"
+                    >
+                      <div>
+                        <span className="font-medium text-gray-900">{c.cleaner_name}</span>
+                        {c.is_on_call && (
+                          <Badge className="ml-2 bg-purple-100 text-purple-800 hover:bg-purple-100 text-[10px]">
+                            On-call
+                          </Badge>
+                        )}
+                      </div>
+                      <span className="text-gray-600">
+                        {minutesToHoursLabel(c.booked_minutes)} / {minutesToHoursLabel(c.capacity_minutes)} h
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900 mb-2">Tasks</h4>
+                <div className="space-y-2">
+                  {dayDetailTasks.map((task) => (
+                    <div
+                      key={task.id}
+                      className="rounded-md border border-gray-200 px-3 py-2 text-sm flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div>
+                        <div className="font-medium text-gray-900">
+                          {getPropertyDisplayName(task)} ·{' '}
+                          {task.task_type === 'checkout_clean' ? 'Checkout' : 'Mid-stay'}
+                          {task.duration_minutes != null
+                            ? ` · ${minutesToHoursLabel(task.duration_minutes)}h`
+                            : ''}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {task.cleaner_name ?? 'Unassigned'}
+                          {!task.assigned_cleaner_id && dayDetailCapacity.overloaded
+                            ? ' · overflow'
+                            : ''}
+                        </div>
+                      </div>
+                      {!task.assigned_cleaner_id && onCallCleaner && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={assigningOnCallTaskId === task.id}
+                          onClick={() => void handleAssignOnCall(task.id)}
+                        >
+                          Assign {onCallCleaner.name}
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                  {dayDetailTasks.length === 0 && (
+                    <p className="text-sm text-gray-500">No tasks for this day with current filters.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-gray-500">No capacity data for this day.</p>
+          )}
         </DialogContent>
       </Dialog>
 

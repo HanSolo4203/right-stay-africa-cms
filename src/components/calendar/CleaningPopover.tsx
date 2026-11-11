@@ -386,15 +386,29 @@ export function CleaningPopover({
   return (
     <>
       {createPortal(
-        <div
-          ref={panelRef}
-          data-cleaning-popover
-          className="fixed z-[100] w-72 rounded-lg border border-gray-200 bg-white p-3 shadow-xl"
-          style={{ left: position.left, top: position.top }}
-          onClick={(event) => event.stopPropagation()}
-        >
-          {form}
-        </div>,
+        <>
+          <button
+            type="button"
+            aria-label="Close rental details"
+            className="fixed inset-0 z-[99] cursor-default bg-transparent"
+            onClick={() => {
+              const nextDate = pendingDateRef.current;
+              if (nextDate && nextDate !== task.scheduled_date) {
+                onUpdate(task.id, { scheduled_date: nextDate });
+              }
+              onClose();
+            }}
+          />
+          <div
+            ref={panelRef}
+            data-cleaning-popover
+            className="fixed z-[100] w-72 rounded-lg border border-gray-200 bg-white p-3 shadow-xl"
+            style={{ left: position.left, top: position.top }}
+            onClick={(event) => event.stopPropagation()}
+          >
+            {form}
+          </div>
+        </>,
         document.body
       )}
       {deleteDialog}

@@ -2,16 +2,24 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { CleaningTaskType } from '@/lib/types';
 
 export const DEFAULT_MIDSTAY_MIN_NIGHTS = 5;
+export const DEFAULT_MIDSTAY_TARGET_GAP = 7;
+export const DEFAULT_MIDSTAY_MAX_GAP = 8;
+export const DEFAULT_MIDSTAY_FLEX_DAYS = 1;
+
+/** @deprecated Kept for older settings rows; prefer targetGap/maxGap. */
 export const DEFAULT_MIDSTAY_INTERVAL_NIGHTS = 5;
 
 export interface MidstaySettings {
   minNights: number;
-  intervalNights: number;
+  targetGap: number;
+  maxGap: number;
+  flexDays: number;
 }
 
 export interface GeneratedCleaningTask {
   task_type: CleaningTaskType;
   scheduled_date: string;
+  ideal_date: string;
 }
 
 export interface PrimaryCleanerAssignment {
@@ -23,6 +31,14 @@ export interface PrimaryCleanerAssignment {
 function toPositiveInt(value: unknown, fallback: number): number {
   const parsed = typeof value === 'number' ? value : Number(value);
   if (!Number.isFinite(parsed) || parsed < 1) {
+    return fallback;
+  }
+  return Math.floor(parsed);
+}
+
+function toNonNegativeInt(value: unknown, fallback: number): number {
+  const parsed = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0) {
     return fallback;
   }
   return Math.floor(parsed);
@@ -45,12 +61,62 @@ export function addDays(dateStr: string, days: number): string {
 
 export function normalizeMidstaySettings(
   minNights: unknown,
-  intervalNights: unknown
+  targetGap: unknown,
+  maxGap: unknown = DEFAULT_MIDSTAY_MAX_GAP,
+  flexDays: unknown = DEFAULT_MIDSTAY_FLEX_DAYS
 ): MidstaySettings {
-  return {
+  const normalized: MidstaySettings = {
     minNights: toPositiveInt(minNights, DEFAULT_MIDSTAY_MIN_NIGHTS),
-    intervalNights: toPositiveInt(intervalNights, DEFAULT_MIDSTAY_INTERVAL_NIGHTS),
+    targetGap: toPositiveInt(targetGap, DEFAULT_MIDSTAY_TARGET_GAP),
+    maxGap: toPositiveInt(maxGap, DEFAULT_MIDSTAY_MAX_GAP),
+    flexDays: toNonNegativeInt(flexDays, DEFAULT_MIDSTAY_FLEX_DAYS),
   };
+
+  if (normalized.maxGap < normalized.targetGap) {
+    normalized.maxGap = normalized.targetGap;
+  }
+
+  return normalized;
+}
+
+/**
+ * Evenly spaced mid-stay night offsets from check-in.
+ * Never places on check-in (0), checkout (nights), or the night before checkout (nights-1).
+ */
+export function planMidstayNights(
+  nights: number,
+  settings: MidstaySettings
+): number[] {
+  if (!Number.isFinite(nights) || nights <= settings.minNights) {
+    return [];
+  }
+
+  const count = Math.max(
+    1,
+    Math.round(nights / settings.targetGap) - 1,
+    Math.ceil(nights / settings.maxGap) - 1
+  );
+
+  const minOffset = 1;
+  const maxOffset = nights - 2;
+  if (maxOffset < minOffset) {
+    return [];
+  }
+
+  const offsets: number[] = [];
+  const seen = new Set<number>();
+
+  for (let k = 1; k <= count; k++) {
+    let offset = Math.round((k * nights) / (count + 1));
+    offset = Math.min(maxOffset, Math.max(minOffset, offset));
+    if (seen.has(offset)) {
+      continue;
+    }
+    seen.add(offset);
+    offsets.push(offset);
+  }
+
+  return offsets;
 }
 
 export async function getMidstaySettings(
@@ -59,16 +125,27 @@ export async function getMidstaySettings(
   const { data, error } = await supabase
     .from('app_settings')
     .select('key, value')
-    .in('key', ['midstay_min_nights', 'midstay_interval_nights']);
+    .in('key', [
+      'midstay_min_nights',
+      'midstay_target_gap',
+      'midstay_max_gap',
+      'midstay_flex_days',
+      'midstay_interval_nights',
+    ]);
 
   if (error) {
     throw new Error(error.message);
   }
 
   const byKey = new Map((data ?? []).map((row) => [row.key as string, row.value]));
+  const targetGap =
+    byKey.get('midstay_target_gap') ?? byKey.get('midstay_interval_nights');
+
   return normalizeMidstaySettings(
     byKey.get('midstay_min_nights'),
-    byKey.get('midstay_interval_nights')
+    targetGap,
+    byKey.get('midstay_max_gap'),
+    byKey.get('midstay_flex_days')
   );
 }
 
@@ -76,7 +153,12 @@ export async function saveMidstaySettings(
   supabase: SupabaseClient,
   settings: MidstaySettings
 ): Promise<MidstaySettings> {
-  const normalized = normalizeMidstaySettings(settings.minNights, settings.intervalNights);
+  const normalized = normalizeMidstaySettings(
+    settings.minNights,
+    settings.targetGap,
+    settings.maxGap,
+    settings.flexDays
+  );
   const updatedAt = new Date().toISOString();
 
   const { error } = await supabase.from('app_settings').upsert(
@@ -87,8 +169,18 @@ export async function saveMidstaySettings(
         updated_at: updatedAt,
       },
       {
-        key: 'midstay_interval_nights',
-        value: normalized.intervalNights,
+        key: 'midstay_target_gap',
+        value: normalized.targetGap,
+        updated_at: updatedAt,
+      },
+      {
+        key: 'midstay_max_gap',
+        value: normalized.maxGap,
+        updated_at: updatedAt,
+      },
+      {
+        key: 'midstay_flex_days',
+        value: normalized.flexDays,
         updated_at: updatedAt,
       },
     ],
@@ -106,27 +198,25 @@ export function buildTasksForBooking(
   booking: { check_in_date: string; check_out_date: string },
   settings: MidstaySettings
 ): GeneratedCleaningTask[] {
-  const tasks: GeneratedCleaningTask[] = [
-    { task_type: 'checkout_clean', scheduled_date: booking.check_out_date },
-  ];
+  const checkout: GeneratedCleaningTask = {
+    task_type: 'checkout_clean',
+    scheduled_date: booking.check_out_date,
+    ideal_date: booking.check_out_date,
+  };
 
   const nights = nightsBetween(booking.check_in_date, booking.check_out_date);
-  if (nights <= settings.minNights) {
-    return tasks;
-  }
+  const midStayOffsets = planMidstayNights(nights, settings);
 
-  for (
-    let offset = settings.intervalNights;
-    offset < nights;
-    offset += settings.intervalNights
-  ) {
-    tasks.push({
-      task_type: 'midstay_clean',
-      scheduled_date: addDays(booking.check_in_date, offset),
-    });
-  }
+  const midStays = midStayOffsets.map((offset) => {
+    const date = addDays(booking.check_in_date, offset);
+    return {
+      task_type: 'midstay_clean' as const,
+      scheduled_date: date,
+      ideal_date: date,
+    };
+  });
 
-  return tasks;
+  return [checkout, ...midStays];
 }
 
 export function payoutForTaskType(

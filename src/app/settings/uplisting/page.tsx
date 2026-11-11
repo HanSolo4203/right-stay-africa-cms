@@ -418,7 +418,7 @@ function UplistingSettingsContent() {
                 <Link href="/settings/cleaners" className="text-blue-600 hover:underline">
                   Cleaner Management → Schedule
                 </Link>
-                . Manual calendar edits are kept.
+                . Locked and completed tasks are kept on regenerate.
               </p>
             </div>
             <div className="flex flex-col sm:flex-row gap-2">

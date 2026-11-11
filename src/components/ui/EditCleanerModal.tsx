@@ -18,6 +18,9 @@ export default function EditCleanerModal({ isOpen, cleaner, onClose, onSuccess }
     name: '',
     phone: '',
     email: '',
+    daily_capacity_minutes: 450,
+    is_on_call: false,
+    is_active: true,
   });
   const [errors, setErrors] = useState<Partial<UpdateCleanerData>>({});
   const [isLoading, setIsLoading] = useState(false);
@@ -29,13 +32,23 @@ export default function EditCleanerModal({ isOpen, cleaner, onClose, onSuccess }
         name: cleaner.name,
         phone: cleaner.phone || '',
         email: cleaner.email || '',
+        daily_capacity_minutes: cleaner.daily_capacity_minutes ?? 450,
+        is_on_call: cleaner.is_on_call ?? false,
+        is_active: cleaner.is_active ?? true,
       });
     }
   }, [cleaner]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    const { name, value, type, checked } = e.target;
+    if (type === 'checkbox') {
+      setFormData(prev => ({ ...prev, [name]: checked }));
+    } else if (name === 'daily_capacity_minutes') {
+      const num = value === '' ? undefined : parseInt(value, 10);
+      setFormData(prev => ({ ...prev, daily_capacity_minutes: num }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
     
     // Clear error when user starts typing
     if (errors[name as keyof UpdateCleanerData]) {
@@ -194,6 +207,47 @@ export default function EditCleanerModal({ isOpen, cleaner, onClose, onSuccess }
             {errors.email && (
               <p className="mt-1 text-sm text-red-600">{errors.email}</p>
             )}
+          </div>
+
+          <div>
+            <label htmlFor="daily_capacity_minutes" className="block text-sm font-medium text-gray-700 mb-2">
+              Daily capacity (minutes)
+            </label>
+            <input
+              type="number"
+              id="daily_capacity_minutes"
+              name="daily_capacity_minutes"
+              min={30}
+              step={15}
+              value={formData.daily_capacity_minutes ?? 450}
+              onChange={handleInputChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              disabled={isLoading}
+            />
+            <p className="mt-1 text-xs text-gray-500">Default 450 = 7.5 hours.</p>
+          </div>
+
+          <div className="flex items-center justify-between gap-3">
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                name="is_on_call"
+                checked={Boolean(formData.is_on_call)}
+                onChange={handleInputChange}
+                disabled={isLoading}
+              />
+              On-call extra cleaner
+            </label>
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                name="is_active"
+                checked={formData.is_active !== false}
+                onChange={handleInputChange}
+                disabled={isLoading}
+              />
+              Active
+            </label>
           </div>
 
           <div className="flex space-x-3 pt-4">

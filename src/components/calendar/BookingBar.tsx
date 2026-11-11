@@ -48,6 +48,7 @@ function BookingBarComponent({
       <TooltipTrigger asChild>
         <button
           type="button"
+          data-booking-bar
           onClick={() => onSelect(booking)}
           aria-label={`${guestName}, ${formatDisplayDate(booking.check_in_date)} to ${formatDisplayDate(booking.check_out_date)}${cancelled ? ', cancelled' : ''}`}
           className={cn(

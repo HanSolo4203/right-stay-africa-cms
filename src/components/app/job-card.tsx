@@ -46,7 +46,7 @@ export function JobCard({
   return (
     <article
       className={cn(
-        'rounded-[12px] border border-border bg-card shadow-xs border-l-[3px] transition-transform active:scale-[0.98]',
+        'rounded-[20px] border-0 bg-card shadow-[var(--shadow-panel)] border-l-[3px] transition-transform active:scale-[0.98]',
         meta.borderClass,
         className
       )}

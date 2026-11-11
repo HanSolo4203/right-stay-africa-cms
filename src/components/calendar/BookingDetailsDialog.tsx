@@ -29,7 +29,12 @@ export function BookingDetailsDialog({
 }: BookingDetailsDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent
+        className="sm:max-w-lg max-h-[90vh] overflow-y-auto"
+        onPointerDownOutside={() => onOpenChange(false)}
+        onInteractOutside={() => onOpenChange(false)}
+        onEscapeKeyDown={() => onOpenChange(false)}
+      >
         {booking && (
           <>
             <DialogHeader>

@@ -22,6 +22,64 @@ import {
   type CleaningTaskMarker,
 } from './calendar-utils';
 
+interface PropertyLabelProps {
+  property: PropertyWithBookings;
+  propertyColCollapsed: boolean;
+  showOccupancy: boolean;
+  occupancy: number | null;
+}
+
+function PropertyLabelComponent({
+  property,
+  propertyColCollapsed,
+  showOccupancy,
+  occupancy,
+}: PropertyLabelProps) {
+  const propertyName = getPropertyDisplayName(property);
+  const unitNumber = getPropertyUnitNumber(property);
+
+  return (
+    <div
+      className="w-full border-b border-gray-200 bg-white px-2 sm:px-3 py-2 flex flex-col justify-center"
+      style={{ height: ROW_HEIGHT, minHeight: ROW_HEIGHT }}
+    >
+      {propertyColCollapsed ? (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <p className="text-xs font-semibold text-gray-900 truncate text-center">
+              {propertyName.slice(0, 1)}
+            </p>
+          </TooltipTrigger>
+          <TooltipContent side="right">{propertyName}</TooltipContent>
+        </Tooltip>
+      ) : (
+        <>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <p className="text-sm font-semibold text-gray-900 truncate leading-tight">
+                {propertyName}
+              </p>
+            </TooltipTrigger>
+            <TooltipContent side="right">{propertyName}</TooltipContent>
+          </Tooltip>
+          {unitNumber && (
+            <p className="text-xs text-gray-400 truncate leading-tight mt-0.5">
+              {unitNumber}
+            </p>
+          )}
+          {showOccupancy && occupancy != null && (
+            <p className="text-[10px] text-teal-700 font-medium mt-0.5 tabular-nums">
+              {occupancy}% occ.
+            </p>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+export const PropertyLabel = memo(PropertyLabelComponent);
+
 interface PropertyRowProps {
   property: PropertyWithBookings;
   propertyBookings: BookingWithDetails[];
@@ -31,10 +89,6 @@ interface PropertyRowProps {
   totalDays: number;
   todayIdx: number;
   dayWidth: number;
-  propertyColWidth: number;
-  propertyColCollapsed: boolean;
-  showOccupancy: boolean;
-  occupancy: number | null;
   activeCleaningTaskId: string | null;
   onSelectBooking: (booking: BookingWithDetails) => void;
   onAddClean: (propertyId: string, dayIdx: number) => void;
@@ -53,17 +107,12 @@ function PropertyRowComponent({
   totalDays,
   todayIdx,
   dayWidth,
-  propertyColWidth,
-  propertyColCollapsed,
-  showOccupancy,
-  occupancy,
   activeCleaningTaskId,
   onSelectBooking,
   onAddClean,
   onToggleCleaning,
 }: PropertyRowProps) {
   const propertyName = getPropertyDisplayName(property);
-  const unitNumber = getPropertyUnitNumber(property);
 
   const spans = useMemo(
     () =>
@@ -107,106 +156,64 @@ function PropertyRowComponent({
 
   return (
     <div
-      className="flex border-b border-gray-200"
-      style={{ minHeight: ROW_HEIGHT }}
+      className="relative border-b border-gray-200"
+      style={{
+        width: `calc(var(--day-width) * ${totalDays})`,
+        height: ROW_HEIGHT,
+        minHeight: ROW_HEIGHT,
+      }}
+      role="grid"
+      aria-label={`${propertyName} timeline`}
+      onClick={handleGridClick}
     >
-      <div
-        className="shrink-0 sticky left-0 z-40 border-r border-gray-200 bg-white px-2 sm:px-3 py-2 flex flex-col justify-center"
-        style={{ width: propertyColWidth }}
-      >
-        {propertyColCollapsed ? (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <p className="text-xs font-semibold text-gray-900 truncate text-center">
-                {propertyName.slice(0, 1)}
-              </p>
-            </TooltipTrigger>
-            <TooltipContent side="right">{propertyName}</TooltipContent>
-          </Tooltip>
-        ) : (
-          <>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <p className="text-sm font-semibold text-gray-900 truncate leading-tight">
-                  {propertyName}
-                </p>
-              </TooltipTrigger>
-              <TooltipContent side="right">{propertyName}</TooltipContent>
-            </Tooltip>
-            {unitNumber && (
-              <p className="text-xs text-gray-400 truncate leading-tight mt-0.5">
-                {unitNumber}
-              </p>
-            )}
-            {showOccupancy && occupancy != null && (
-              <p className="text-[10px] text-teal-700 font-medium mt-0.5 tabular-nums">
-                {occupancy}% occ.
-              </p>
-            )}
-          </>
-        )}
-      </div>
-
-      <div
-        role="grid"
-        aria-label={`${propertyName} timeline`}
-        className="relative shrink-0 cursor-pointer"
-        style={{
-          width: `calc(var(--day-width) * ${totalDays})`,
-          minHeight: ROW_HEIGHT,
-        }}
-        onClick={handleGridClick}
-      >
-        {/* Day column grid lines + today column */}
-        <div className="absolute inset-0 flex pointer-events-none">
-          {Array.from({ length: totalDays }, (_, idx) => (
-            <div
-              key={idx}
-              className="shrink-0 border-l border-gray-100 h-full"
-              style={{
-                width: 'var(--day-width)',
-                backgroundColor: idx === todayIdx ? TODAY_COLUMN_COLOR : undefined,
-              }}
-            />
-          ))}
-        </div>
-
-        {gapMarkers.map(({ dayIdx }) => (
+      <div className="absolute inset-0 flex pointer-events-none">
+        {Array.from({ length: totalDays }, (_, idx) => (
           <div
-            key={`gap-${property.id}-${dayIdx}`}
-            className="absolute top-[22px] z-[6] pointer-events-none"
+            key={idx}
+            className="shrink-0 border-l border-gray-100 h-full"
             style={{
-              left: `calc((${dayIdx} + 0.5) * var(--day-width))`,
-              transform: 'translate(-50%, -50%)',
+              width: 'var(--day-width)',
+              backgroundColor: idx === todayIdx ? TODAY_COLUMN_COLOR : undefined,
             }}
-          >
-            <span className="block w-2 h-0.5 rounded-full bg-[#f59e0b]" />
-          </div>
-        ))}
-
-        {spans.map(({ booking, startIdx, endIdx, clippedStart, clippedEnd }) => (
-          <BookingBar
-            key={booking.id}
-            booking={booking}
-            startIdx={startIdx}
-            endIdx={endIdx}
-            clippedStart={clippedStart}
-            clippedEnd={clippedEnd}
-            onSelect={onSelectBooking}
-          />
-        ))}
-
-        {Array.from(markersByDay.entries()).map(([dayIdx, markers]) => (
-          <DayCleaningGroup
-            key={`clean-${property.id}-${dayIdx}`}
-            dayIdx={dayIdx}
-            markers={markers}
-            dayWidth={dayWidth}
-            activeCleaningTaskId={activeCleaningTaskId}
-            onToggle={onToggleCleaning}
           />
         ))}
       </div>
+
+      {gapMarkers.map(({ dayIdx }) => (
+        <div
+          key={`gap-${property.id}-${dayIdx}`}
+          className="absolute top-[22px] z-[6] pointer-events-none"
+          style={{
+            left: `calc((${dayIdx} + 0.5) * var(--day-width))`,
+            transform: 'translate(-50%, -50%)',
+          }}
+        >
+          <span className="block w-2 h-0.5 rounded-full bg-[#f59e0b]" />
+        </div>
+      ))}
+
+      {spans.map(({ booking, startIdx, endIdx, clippedStart, clippedEnd }) => (
+        <BookingBar
+          key={booking.id}
+          booking={booking}
+          startIdx={startIdx}
+          endIdx={endIdx}
+          clippedStart={clippedStart}
+          clippedEnd={clippedEnd}
+          onSelect={onSelectBooking}
+        />
+      ))}
+
+      {Array.from(markersByDay.entries()).map(([dayIdx, markers]) => (
+        <DayCleaningGroup
+          key={`clean-${property.id}-${dayIdx}`}
+          dayIdx={dayIdx}
+          markers={markers}
+          dayWidth={dayWidth}
+          activeCleaningTaskId={activeCleaningTaskId}
+          onToggle={onToggleCleaning}
+        />
+      ))}
     </div>
   );
 }

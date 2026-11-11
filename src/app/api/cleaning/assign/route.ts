@@ -44,6 +44,7 @@ export async function POST(request: NextRequest) {
           assigned_cleaner_id: null,
           cleaner_payout: null,
           auto_assigned: false,
+          is_locked: true,
         })
         .eq('id', task_id)
         .select(
@@ -80,6 +81,7 @@ export async function POST(request: NextRequest) {
         assigned_cleaner_id: cleaner_id,
         cleaner_payout: payout,
         auto_assigned: false,
+        is_locked: true,
       })
       .eq('id', task_id)
       .select(

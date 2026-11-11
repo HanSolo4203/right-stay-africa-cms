@@ -21,14 +21,14 @@ export function StatTile({
   return (
     <div
       className={cn(
-        'rounded-[12px] border border-border bg-card p-4 shadow-xs',
+        'rounded-[20px] border-0 bg-card p-4 shadow-[var(--shadow-panel)]',
         className
       )}
     >
       <div className="flex items-start justify-between gap-3">
         <p className="text-xs font-medium text-muted-foreground">{label}</p>
         {Icon ? (
-          <span className="flex size-8 items-center justify-center rounded-full bg-accent text-accent-foreground">
+          <span className="flex size-8 items-center justify-center rounded-[10px] bg-accent text-primary">
             <Icon className="size-[18px]" strokeWidth={1.75} />
           </span>
         ) : null}

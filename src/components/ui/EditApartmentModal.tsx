@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { X, Building2, User, Mail, MapPin } from 'lucide-react';
-import { Apartment, UpdateApartmentData } from '@/lib/types';
+import { Apartment, ApartmentSizeType, UpdateApartmentData } from '@/lib/types';
 import toast from 'react-hot-toast';
 
 interface EditApartmentModalProps {
@@ -20,6 +20,9 @@ export default function EditApartmentModal({ isOpen, apartment, onClose, onSucce
     owner_email: '',
     address: '',
     cleaner_payout: undefined,
+    size_type: '1_bed',
+    checkout_minutes: null,
+    midstay_minutes: null,
   });
   const [errors, setErrors] = useState<Partial<UpdateApartmentData>>({});
   const [isLoading, setIsLoading] = useState(false);
@@ -33,15 +36,25 @@ export default function EditApartmentModal({ isOpen, apartment, onClose, onSucce
         owner_email: apartment.owner_email || '',
         address: apartment.address || '',
         cleaner_payout: apartment.cleaner_payout ?? undefined,
+        size_type: apartment.size_type || '1_bed',
+        checkout_minutes: apartment.checkout_minutes ?? null,
+        midstay_minutes: apartment.midstay_minutes ?? null,
       });
     }
   }, [apartment]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
     const { name, value } = e.target;
     if (name === 'cleaner_payout') {
       const num = value === '' ? undefined : parseFloat(value);
       setFormData(prev => ({ ...prev, [name]: num }));
+    } else if (name === 'checkout_minutes' || name === 'midstay_minutes') {
+      const num = value === '' ? null : parseInt(value, 10);
+      setFormData(prev => ({ ...prev, [name]: num }));
+    } else if (name === 'size_type') {
+      setFormData(prev => ({ ...prev, size_type: value as ApartmentSizeType }));
     } else {
       setFormData(prev => ({ ...prev, [name]: value }));
     }
@@ -219,6 +232,62 @@ export default function EditApartmentModal({ isOpen, apartment, onClose, onSucce
               <p className="mt-1 text-sm text-red-600">{errors.owner_email}</p>
             )}
           </div>
+
+          <div>
+            <label htmlFor="size_type" className="block text-sm font-medium text-gray-700 mb-2">
+              Size type
+            </label>
+            <select
+              id="size_type"
+              name="size_type"
+              value={formData.size_type || '1_bed'}
+              onChange={handleInputChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              disabled={isLoading}
+            >
+              <option value="1_bed">1 bedroom (150 / 90 min)</option>
+              <option value="2_bed_luxury">2 bed luxury (180 / 120 min)</option>
+              <option value="custom">Custom minutes</option>
+            </select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label htmlFor="checkout_minutes" className="block text-sm font-medium text-gray-700 mb-2">
+                Checkout minutes
+              </label>
+              <input
+                type="number"
+                id="checkout_minutes"
+                name="checkout_minutes"
+                min={1}
+                value={formData.checkout_minutes ?? ''}
+                onChange={handleInputChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Default"
+                disabled={isLoading}
+              />
+            </div>
+            <div>
+              <label htmlFor="midstay_minutes" className="block text-sm font-medium text-gray-700 mb-2">
+                Mid-stay minutes
+              </label>
+              <input
+                type="number"
+                id="midstay_minutes"
+                name="midstay_minutes"
+                min={1}
+                value={formData.midstay_minutes ?? ''}
+                onChange={handleInputChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Default"
+                disabled={isLoading}
+              />
+            </div>
+          </div>
+          <p className="text-xs text-gray-500 -mt-2">
+            Leave minutes blank to use the size-type defaults.
+          </p>
 
           <div>
             <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-2">

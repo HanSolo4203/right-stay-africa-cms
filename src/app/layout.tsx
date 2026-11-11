@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { GeistSans } from 'geist/font/sans';
+import { Rubik } from 'next/font/google';
 import { GeistMono } from 'geist/font/mono';
 import './globals.css';
 import { ThemeProvider } from '@/components/providers/theme-provider';
@@ -7,6 +7,12 @@ import { AppShell } from '@/components/layout/app-shell';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import DisableNumberInputScroll from '@/components/DisableNumberInputScroll';
+
+const rubik = Rubik({
+  subsets: ['latin'],
+  variable: '--font-rubik',
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
   title: 'Right Stay CMS',
@@ -33,8 +39,8 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 5,
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: 'oklch(0.99 0 0)' },
-    { media: '(prefers-color-scheme: dark)', color: 'oklch(0.15 0 0)' },
+    { media: '(prefers-color-scheme: light)', color: '#f7fafc' },
+    { media: '(prefers-color-scheme: dark)', color: '#0d1b24' },
   ],
 };
 
@@ -46,13 +52,13 @@ export default function RootLayout({
   return (
     <html
       lang="en-ZA"
-      className={`${GeistSans.variable} ${GeistMono.variable} h-full`}
+      className={`${rubik.variable} ${GeistMono.variable} h-full`}
       suppressHydrationWarning
     >
       <body className="min-h-full font-sans antialiased">
         <ThemeProvider
           attribute="class"
-          defaultTheme="system"
+          defaultTheme="light"
           enableSystem
           disableTransitionOnChange
         >

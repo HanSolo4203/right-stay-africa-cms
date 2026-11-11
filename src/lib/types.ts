@@ -19,6 +19,8 @@ export interface Guest {
   phone?: string;
 }
 
+export type ApartmentSizeType = '1_bed' | '2_bed_luxury' | 'custom';
+
 export interface Apartment {
   id: string;
   apartment_number: string;
@@ -31,6 +33,12 @@ export interface Apartment {
   cleaner_payout?: number;
   /** When false, hidden from calendar/scheduling; bookings & cleanings are retained */
   is_active: boolean;
+  /** Property size used for default cleaning durations */
+  size_type?: ApartmentSizeType;
+  /** Optional checkout duration override (minutes); null uses size_type default */
+  checkout_minutes?: number | null;
+  /** Optional mid-stay duration override (minutes); null uses size_type default */
+  midstay_minutes?: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -86,6 +94,12 @@ export interface Cleaner {
   name: string;
   phone?: string;
   email?: string;
+  /** Minutes of cleaning work this cleaner can take per day (default 450) */
+  daily_capacity_minutes?: number;
+  /** Extra on-call cleaner; not auto-assigned unless auto_use_on_call is enabled */
+  is_on_call?: boolean;
+  /** Inactive cleaners are excluded from capacity and auto-assignment */
+  is_active?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -170,6 +184,9 @@ export interface CreateApartmentData {
   address?: string;
   cleaner_payout?: number;
   is_active?: boolean;
+  size_type?: ApartmentSizeType;
+  checkout_minutes?: number | null;
+  midstay_minutes?: number | null;
 }
 
 export interface CreateRSALaundryAssetData {
@@ -196,6 +213,9 @@ export interface CreateCleanerData {
   name: string;
   phone?: string;
   email?: string;
+  daily_capacity_minutes?: number;
+  is_on_call?: boolean;
+  is_active?: boolean;
 }
 
 export interface UpdateCleanerData extends Partial<CreateCleanerData> {
@@ -655,12 +675,16 @@ export interface CleaningTask {
   apartment_id: string;
   task_type: CleaningTaskType;
   scheduled_date: string;
+  ideal_date?: string | null;
   status: CleaningTaskStatus;
   notes?: string | null;
   assigned_cleaner_id?: string | null;
   cleaner_payout?: number | null;
   auto_assigned?: boolean;
   is_manual?: boolean;
+  is_locked?: boolean;
+  /** Work duration in minutes for capacity load balancing */
+  duration_minutes?: number | null;
   completed_at?: string | null;
   created_at: string;
   updated_at: string;
@@ -670,6 +694,21 @@ export interface CleaningTask {
   check_in_date?: string;
   check_out_date?: string;
   booking_reference?: string;
+}
+
+export interface CleaningDayCapacity {
+  date: string;
+  capacity_minutes: number;
+  booked_minutes: number;
+  overflow_minutes: number;
+  overloaded: boolean;
+  cleaners: Array<{
+    cleaner_id: string;
+    cleaner_name: string;
+    capacity_minutes: number;
+    booked_minutes: number;
+    is_on_call: boolean;
+  }>;
 }
 
 export interface CleanerAssignment {

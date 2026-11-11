@@ -18,6 +18,14 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  DEFAULT_MIDSTAY_FLEX_DAYS,
+  DEFAULT_MIDSTAY_MAX_GAP,
+  DEFAULT_MIDSTAY_MIN_NIGHTS,
+  DEFAULT_MIDSTAY_TARGET_GAP,
+  normalizeMidstaySettings,
+  planMidstayNights,
+} from '@/lib/cleaning-schedule';
 import type { CleanerAssignment, CleanerPayoutRate } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import toast, { Toaster } from 'react-hot-toast';
@@ -31,6 +39,9 @@ interface ApartmentRow {
 interface CleanerRow {
   id: string;
   name: string;
+  daily_capacity_minutes?: number;
+  is_on_call?: boolean;
+  is_active?: boolean;
 }
 
 function getPropertyLabel(apt: ApartmentRow) {
@@ -46,9 +57,15 @@ function CleanerSettingsContent() {
   const [rates, setRates] = useState<CleanerPayoutRate[]>([]);
   const [savingAssignment, setSavingAssignment] = useState<string | null>(null);
   const [savingRate, setSavingRate] = useState<string | null>(null);
-  const [minNights, setMinNights] = useState('5');
-  const [intervalNights, setIntervalNights] = useState('5');
+  const [minNights, setMinNights] = useState(String(DEFAULT_MIDSTAY_MIN_NIGHTS));
+  const [targetGap, setTargetGap] = useState(String(DEFAULT_MIDSTAY_TARGET_GAP));
+  const [maxGap, setMaxGap] = useState(String(DEFAULT_MIDSTAY_MAX_GAP));
+  const [flexDays, setFlexDays] = useState(String(DEFAULT_MIDSTAY_FLEX_DAYS));
   const [savingSchedule, setSavingSchedule] = useState(false);
+  const [savingTeamId, setSavingTeamId] = useState<string | null>(null);
+  const [teamDraft, setTeamDraft] = useState<
+    Record<string, { capacity: string; onCall: boolean; active: boolean }>
+  >({});
 
   // Local edit state for assignments: apartmentId -> { cleanerId -> isAssigned, primaryCleanerId }
   const [assignmentDraft, setAssignmentDraft] = useState<
@@ -91,6 +108,16 @@ function CleanerSettingsContent() {
       setAssignments(assignList);
       setRates(rateList);
 
+      const nextTeam: Record<string, { capacity: string; onCall: boolean; active: boolean }> = {};
+      for (const c of cleanerList) {
+        nextTeam[c.id] = {
+          capacity: String(c.daily_capacity_minutes ?? 450),
+          onCall: Boolean(c.is_on_call),
+          active: c.is_active !== false,
+        };
+      }
+      setTeamDraft(nextTeam);
+
       const draft: Record<string, { assigned: Set<string>; primary: string | null }> = {};
       for (const apt of aptList) {
         const aptAssignments = assignList.filter((a) => a.apartment_id === apt.id);
@@ -112,7 +139,9 @@ function CleanerSettingsContent() {
 
       if (scheduleJson.success && scheduleJson.data) {
         setMinNights(String(scheduleJson.data.minNights));
-        setIntervalNights(String(scheduleJson.data.intervalNights));
+        setTargetGap(String(scheduleJson.data.targetGap));
+        setMaxGap(String(scheduleJson.data.maxGap));
+        setFlexDays(String(scheduleJson.data.flexDays));
       }
     } catch {
       toast.error('Failed to load cleaner settings');
@@ -275,11 +304,48 @@ function CleanerSettingsContent() {
     }
   };
 
+  const previewSettings = useMemo(
+    () =>
+      normalizeMidstaySettings(
+        parseInt(minNights, 10),
+        parseInt(targetGap, 10),
+        parseInt(maxGap, 10),
+        parseInt(flexDays, 10)
+      ),
+    [minNights, targetGap, maxGap, flexDays]
+  );
+
+  const schedulePreview = useMemo(() => {
+    const rows: { nights: number; count: number; offsets: number[] }[] = [];
+    for (let nights = 5; nights <= 31; nights++) {
+      const offsets = planMidstayNights(nights, previewSettings);
+      rows.push({ nights, count: offsets.length, offsets });
+    }
+    return rows;
+  }, [previewSettings]);
+
   const saveSchedule = async () => {
     const min = parseInt(minNights, 10);
-    const interval = parseInt(intervalNights, 10);
-    if (!Number.isFinite(min) || min < 1 || !Number.isFinite(interval) || interval < 1) {
-      toast.error('Both values must be whole numbers of at least 1');
+    const target = parseInt(targetGap, 10);
+    const max = parseInt(maxGap, 10);
+    const flex = parseInt(flexDays, 10);
+
+    if (
+      !Number.isFinite(min) ||
+      min < 1 ||
+      !Number.isFinite(target) ||
+      target < 1 ||
+      !Number.isFinite(max) ||
+      max < 1 ||
+      !Number.isFinite(flex) ||
+      flex < 0
+    ) {
+      toast.error('Minimum stay, target gap, and max gap must be ≥ 1; flex days ≥ 0');
+      return;
+    }
+
+    if (max < target) {
+      toast.error('Max gap must be greater than or equal to target gap');
       return;
     }
 
@@ -288,19 +354,70 @@ function CleanerSettingsContent() {
       const response = await fetch('/api/settings/cleaning-schedule', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ minNights: min, intervalNights: interval }),
+        body: JSON.stringify({
+          minNights: min,
+          targetGap: target,
+          maxGap: max,
+          flexDays: flex,
+        }),
       });
       const result = await response.json();
       if (!response.ok || !result.success) {
         throw new Error(result.error ?? 'Failed to save schedule');
       }
       setMinNights(String(result.data.minNights));
-      setIntervalNights(String(result.data.intervalNights));
+      setTargetGap(String(result.data.targetGap));
+      setMaxGap(String(result.data.maxGap));
+      setFlexDays(String(result.data.flexDays));
       toast.success('Cleaning schedule saved');
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to save schedule');
     } finally {
       setSavingSchedule(false);
+    }
+  };
+
+
+  const saveTeamMember = async (cleanerId: string) => {
+    const draft = teamDraft[cleanerId];
+    if (!draft) return;
+    const capacity = Number(draft.capacity);
+    if (!Number.isFinite(capacity) || capacity < 30) {
+      toast.error('Daily capacity must be at least 30 minutes');
+      return;
+    }
+    try {
+      setSavingTeamId(cleanerId);
+      const response = await fetch(`/api/cleaners/${cleanerId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          daily_capacity_minutes: Math.floor(capacity),
+          is_on_call: draft.onCall,
+          is_active: draft.active,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.error ?? 'Failed to save cleaner capacity');
+      }
+      setCleaners((prev) =>
+        prev.map((c) =>
+          c.id === cleanerId
+            ? {
+                ...c,
+                daily_capacity_minutes: Math.floor(capacity),
+                is_on_call: draft.onCall,
+                is_active: draft.active,
+              }
+            : c
+        )
+      );
+      toast.success('Team capacity saved');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to save');
+    } finally {
+      setSavingTeamId(null);
     }
   };
 
@@ -346,6 +463,10 @@ function CleanerSettingsContent() {
             <TabsTrigger value="schedule" className="gap-2">
               <CalendarDays className="w-4 h-4" />
               Schedule
+            </TabsTrigger>
+            <TabsTrigger value="team" className="gap-2">
+              <Users className="w-4 h-4" />
+              Team
             </TabsTrigger>
           </TabsList>
 
@@ -559,50 +680,87 @@ function CleanerSettingsContent() {
               <CardHeader>
                 <CardTitle className="text-base">Mid-stay cleaning rules</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-6 max-w-xl">
+              <CardContent className="space-y-6 max-w-3xl">
                 <p className="text-sm text-gray-600">
-                  Checkout cleans are always created on the check-out date. Mid-stay cleans are
-                  added when a stay is longer than the threshold, then repeated every interval
-                  until checkout (never on check-in or checkout day).
+                  Checkout cleans are always on the check-out date. Mid-stay cleans are placed
+                  evenly through longer stays (about one per target gap), never on check-in,
+                  checkout, or the night before checkout. Max gap guarantees guests never go
+                  longer without a clean. Flex days are reserved for future load balancing.
                 </p>
-                <div className="space-y-2">
-                  <label htmlFor="min-nights" className="text-sm font-medium text-gray-700">
-                    Create mid-stay cleans when a stay is longer than
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      id="min-nights"
-                      type="number"
-                      min="1"
-                      step="1"
-                      value={minNights}
-                      onChange={(e) => setMinNights(e.target.value)}
-                      className="w-24"
-                    />
-                    <span className="text-sm text-gray-600">nights</span>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <label htmlFor="min-nights" className="text-sm font-medium text-gray-700">
+                      Minimum stay
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        id="min-nights"
+                        type="number"
+                        min="1"
+                        step="1"
+                        value={minNights}
+                        onChange={(e) => setMinNights(e.target.value)}
+                        className="w-24"
+                      />
+                      <span className="text-sm text-gray-600">nights (≤ this → no mid-stay)</span>
+                    </div>
                   </div>
-                </div>
-                <div className="space-y-2">
-                  <label htmlFor="interval-nights" className="text-sm font-medium text-gray-700">
-                    Then every
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      id="interval-nights"
-                      type="number"
-                      min="1"
-                      step="1"
-                      value={intervalNights}
-                      onChange={(e) => setIntervalNights(e.target.value)}
-                      className="w-24"
-                    />
-                    <span className="text-sm text-gray-600">nights until checkout</span>
+                  <div className="space-y-2">
+                    <label htmlFor="target-gap" className="text-sm font-medium text-gray-700">
+                      Target gap
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        id="target-gap"
+                        type="number"
+                        min="1"
+                        step="1"
+                        value={targetGap}
+                        onChange={(e) => setTargetGap(e.target.value)}
+                        className="w-24"
+                      />
+                      <span className="text-sm text-gray-600">nights (~one clean per week)</span>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label htmlFor="max-gap" className="text-sm font-medium text-gray-700">
+                      Max gap
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        id="max-gap"
+                        type="number"
+                        min="1"
+                        step="1"
+                        value={maxGap}
+                        onChange={(e) => setMaxGap(e.target.value)}
+                        className="w-24"
+                      />
+                      <span className="text-sm text-gray-600">nights (hard ceiling)</span>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label htmlFor="flex-days" className="text-sm font-medium text-gray-700">
+                      Flex days
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        id="flex-days"
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={flexDays}
+                        onChange={(e) => setFlexDays(e.target.value)}
+                        className="w-24"
+                      />
+                      <span className="text-sm text-gray-600">± days for balancing</span>
+                    </div>
                   </div>
                 </div>
                 <p className="text-xs text-gray-500">
-                  Example: with 5 and 5, a 16-night stay gets mid-stays on days 5, 10 and 15, plus
-                  a checkout clean on day 16. Existing tasks do not change until a booking updates
-                  or you run Generate Cleaning Tasks. Manual calendar edits are kept.
+                  Defaults 5 / 7 / 8 / 1: a 7-night stay gets one mid-stay on night 4 (not night 5)
+                  plus checkout on night 7. Locked or completed tasks are kept when regenerating;
+                  only future pending unlocked tasks are replaced.
                 </p>
                 <div className="flex justify-end">
                   <Button onClick={saveSchedule} disabled={savingSchedule || loading}>
@@ -610,8 +768,135 @@ function CleanerSettingsContent() {
                     {savingSchedule ? 'Saving...' : 'Save schedule'}
                   </Button>
                 </div>
+
+                <div className="space-y-2">
+                  <h3 className="text-sm font-medium text-gray-900">Live preview</h3>
+                  <p className="text-xs text-gray-500">
+                    Stay length → mid-stay count and night offsets from check-in. Updates as you
+                    edit the values above (save to persist).
+                  </p>
+                  <div className="overflow-x-auto rounded-md border border-gray-200">
+                    <table className="min-w-full text-sm">
+                      <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
+                        <tr>
+                          <th className="px-3 py-2 font-medium">Stay nights</th>
+                          <th className="px-3 py-2 font-medium">Mid-stays</th>
+                          <th className="px-3 py-2 font-medium">Night offsets</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {schedulePreview.map((row) => (
+                          <tr key={row.nights} className="border-t border-gray-100">
+                            <td className="px-3 py-1.5 tabular-nums text-gray-900">{row.nights}</td>
+                            <td className="px-3 py-1.5 tabular-nums text-gray-900">{row.count}</td>
+                            <td className="px-3 py-1.5 text-gray-600">
+                              {row.offsets.length === 0 ? '—' : row.offsets.join(', ')}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="team">
+            {loading ? (
+              <Card>
+                <CardContent className="py-12 text-center text-gray-500">Loading...</CardContent>
+              </Card>
+            ) : cleaners.length === 0 ? (
+              <Card>
+                <CardContent className="py-12 text-center text-gray-500">
+                  No cleaners found. Add cleaners in Settings → General first.
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Daily capacity & on-call</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <p className="text-sm text-gray-600">
+                      Regular cleaners count toward team capacity (default 450 min / 7.5h).
+                      The on-call person is never auto-assigned unless auto_use_on_call is enabled.
+                    </p>
+                    {cleaners.map((cleaner) => {
+                      const draft = teamDraft[cleaner.id] ?? {
+                        capacity: '450',
+                        onCall: false,
+                        active: true,
+                      };
+                      return (
+                        <div
+                          key={cleaner.id}
+                          className="flex flex-col gap-3 rounded-lg border border-gray-200 p-4 sm:flex-row sm:items-end sm:justify-between"
+                        >
+                          <div className="space-y-3 flex-1">
+                            <div className="font-medium text-gray-900">{cleaner.name}</div>
+                            <div className="grid gap-3 sm:grid-cols-3">
+                              <div>
+                                <label className="block text-xs font-medium text-gray-600 mb-1">
+                                  Daily capacity (minutes)
+                                </label>
+                                <Input
+                                  type="number"
+                                  min={30}
+                                  step={15}
+                                  value={draft.capacity}
+                                  onChange={(e) =>
+                                    setTeamDraft((prev) => ({
+                                      ...prev,
+                                      [cleaner.id]: { ...draft, capacity: e.target.value },
+                                    }))
+                                  }
+                                />
+                              </div>
+                              <label className="flex items-center gap-2 text-sm text-gray-700 mt-6">
+                                <input
+                                  type="checkbox"
+                                  checked={draft.onCall}
+                                  onChange={(e) =>
+                                    setTeamDraft((prev) => ({
+                                      ...prev,
+                                      [cleaner.id]: { ...draft, onCall: e.target.checked },
+                                    }))
+                                  }
+                                />
+                                On-call
+                              </label>
+                              <label className="flex items-center gap-2 text-sm text-gray-700 mt-6">
+                                <input
+                                  type="checkbox"
+                                  checked={draft.active}
+                                  onChange={(e) =>
+                                    setTeamDraft((prev) => ({
+                                      ...prev,
+                                      [cleaner.id]: { ...draft, active: e.target.checked },
+                                    }))
+                                  }
+                                />
+                                Active
+                              </label>
+                            </div>
+                          </div>
+                          <Button
+                            onClick={() => void saveTeamMember(cleaner.id)}
+                            disabled={savingTeamId === cleaner.id}
+                          >
+                            <Save className="w-4 h-4 mr-2" />
+                            {savingTeamId === cleaner.id ? 'Saving…' : 'Save'}
+                          </Button>
+                        </div>
+                      );
+                    })}
+                  </CardContent>
+                </Card>
+              </div>
+            )}
           </TabsContent>
         </Tabs>
       </div>

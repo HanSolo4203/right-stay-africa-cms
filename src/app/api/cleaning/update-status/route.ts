@@ -29,10 +29,13 @@ export async function POST(request: NextRequest) {
     const updatePayload: {
       status: string;
       completed_at: string | null;
+      is_locked: boolean;
       cleaner_payout?: number;
     } = {
       status,
       completed_at: status === 'completed' ? new Date().toISOString() : null,
+      // Manual status edits lock the task; completed always stays locked.
+      is_locked: true,
     };
 
     if (cleaner_payout !== undefined) {

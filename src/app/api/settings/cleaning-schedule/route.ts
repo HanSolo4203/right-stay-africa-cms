@@ -16,7 +16,9 @@ export const dynamic = 'force-dynamic';
 
 const updateSchema = z.object({
   minNights: z.number().int().min(1).max(365),
-  intervalNights: z.number().int().min(1).max(365),
+  targetGap: z.number().int().min(1).max(365),
+  maxGap: z.number().int().min(1).max(365),
+  flexDays: z.number().int().min(0).max(14),
 });
 
 export async function GET() {
@@ -37,6 +39,10 @@ export async function PUT(request: NextRequest) {
 
     if (!parsed.success) {
       return validationErrorResponse(parsed.error.flatten());
+    }
+
+    if (parsed.data.maxGap < parsed.data.targetGap) {
+      return errorResponse('Max gap must be greater than or equal to target gap', 400);
     }
 
     const supabase = createServiceRoleClient();

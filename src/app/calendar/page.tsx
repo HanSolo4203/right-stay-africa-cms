@@ -7,8 +7,6 @@ import CalendarView from '@/components/ui/CalendarView';
 import { UplistingSyncStatus } from '@/components/uplisting/UplistingSyncStatus';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useMediaQuery } from '@/hooks/use-media-query';
-import { cn } from '@/lib/utils';
-
 type CalendarMode = 'timeline' | 'month' | 'agenda';
 
 function CalendarPageContent() {
@@ -17,7 +15,7 @@ function CalendarPageContent() {
   const [mode, setMode] = useState<CalendarMode>('timeline');
 
   return (
-    <div className="mx-auto flex min-h-[70dvh] max-w-[1600px] flex-col gap-4">
+    <div className="mx-auto flex min-h-[70dvh] min-w-0 max-w-[1600px] flex-col gap-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <Tabs
           value={mode}
@@ -40,12 +38,7 @@ function CalendarPageContent() {
         <UplistingSyncStatus compact className="sm:max-w-md sm:ml-auto" />
       </div>
 
-      <div
-        className={cn(
-          'min-h-0 flex-1 overflow-hidden rounded-[12px] border border-border bg-card',
-          mode === 'timeline' && 'overflow-x-auto'
-        )}
-      >
+      <div className="min-h-0 min-w-0 flex-1 overflow-hidden rounded-[12px] border border-border bg-card">
         {mode === 'timeline' ? (
           <MultiCalendar />
         ) : (
