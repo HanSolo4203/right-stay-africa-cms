@@ -27,6 +27,32 @@ export const dynamic = 'force-dynamic';
 
 const DEBUG = () => process.env.UPLISTING_WEBHOOK_DEBUG === 'true';
 
+/** Serialize per-booking webhook work so create/update/remove cannot race. */
+const bookingQueues = new Map<string, Promise<void>>();
+
+async function withBookingLock(
+  bookingId: string,
+  task: () => Promise<void>
+): Promise<void> {
+  const previous = bookingQueues.get(bookingId) ?? Promise.resolve();
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const chained = previous.catch(() => undefined).then(() => gate);
+  bookingQueues.set(bookingId, chained);
+
+  await previous.catch(() => undefined);
+  try {
+    await task();
+  } finally {
+    release();
+    if (bookingQueues.get(bookingId) === chained) {
+      bookingQueues.delete(bookingId);
+    }
+  }
+}
+
 function safeEqualStrings(a: string, b: string): boolean {
   const left = Buffer.from(a);
   const right = Buffer.from(b);
@@ -383,42 +409,44 @@ export async function POST(request: NextRequest) {
 
   // Ack quickly; process after the response (Next.js 15 after()).
   after(async () => {
-    try {
-      const partial = parsePartialBookingPayload(rawBookingPayload);
-      const booking = await enrichBooking(rawBookingPayload, partial);
+    await withBookingLock(bookingIdEarly, async () => {
+      try {
+        const partial = parsePartialBookingPayload(rawBookingPayload);
+        const booking = await enrichBooking(rawBookingPayload, partial);
 
-      if (!booking?.id) {
-        logger.error(
-          `[uplisting-webhook] could not resolve booking for event ${eventType} booking=${bookingIdEarly}`
+        if (!booking?.id) {
+          logger.error(
+            `[uplisting-webhook] could not resolve booking for event ${eventType} booking=${bookingIdEarly}`
+          );
+          return;
+        }
+
+        // Upserts need a property mapping; cancellations only need booking id.
+        if (
+          eventType !== 'booking_removed' &&
+          !isCancelledBooking(booking) &&
+          !booking.property_id
+        ) {
+          logger.error(
+            `[uplisting-webhook] missing property_id for ${eventType} booking ${booking.id}`
+          );
+          return;
+        }
+
+        console.log(
+          `[uplisting-webhook] accepted ${eventType} booking=${booking.id} property=${booking.property_id} guest=${booking.guest_name} auth=${authMethod}`
         );
-        return;
-      }
 
-      // Upserts need a property mapping; cancellations only need booking id.
-      if (
-        eventType !== 'booking_removed' &&
-        !isCancelledBooking(booking) &&
-        !booking.property_id
-      ) {
+        const rawPayload = toRawPayload(rawBookingPayload);
+        await processBookingEvent(eventType, booking, rawPayload);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Unknown error';
         logger.error(
-          `[uplisting-webhook] missing property_id for ${eventType} booking ${booking.id}`
+          `[uplisting-webhook] processing failed for ${eventType} booking ${bookingIdEarly}:`,
+          message
         );
-        return;
       }
-
-      console.log(
-        `[uplisting-webhook] accepted ${eventType} booking=${booking.id} property=${booking.property_id} guest=${booking.guest_name} auth=${authMethod}`
-      );
-
-      const rawPayload = toRawPayload(rawBookingPayload);
-      await processBookingEvent(eventType, booking, rawPayload);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unknown error';
-      logger.error(
-        `[uplisting-webhook] processing failed for ${eventType} booking ${bookingIdEarly}:`,
-        message
-      );
-    }
+    });
   });
 
   return NextResponse.json({ ok: true });

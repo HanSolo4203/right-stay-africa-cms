@@ -265,3 +265,40 @@ export function toRawPayload(value: unknown): Record<string, unknown> {
   }
   return { value };
 }
+
+/** Uplisting Connect event time (ISO8601) used for out-of-order delivery. */
+export function extractWebhookTimestamp(payload: unknown): string | null {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    return null;
+  }
+  const record = payload as Record<string, unknown>;
+  const candidates = [record.timestamp, record.event_timestamp, record.booked_at];
+  for (const candidate of candidates) {
+    if (typeof candidate === 'string' && candidate.trim() !== '') {
+      const ms = Date.parse(candidate);
+      if (Number.isFinite(ms)) {
+        return candidate.trim();
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * True when the incoming webhook is older than the last applied payload.
+ * Uplisting retries can arrive after a newer event succeeded.
+ */
+export function isStaleWebhookPayload(
+  existingRawPayload: unknown,
+  incomingRawPayload: Record<string, unknown>
+): boolean {
+  const incomingTs = extractWebhookTimestamp(incomingRawPayload);
+  if (!incomingTs) {
+    return false;
+  }
+  const existingTs = extractWebhookTimestamp(existingRawPayload);
+  if (!existingTs) {
+    return false;
+  }
+  return Date.parse(incomingTs) < Date.parse(existingTs);
+}

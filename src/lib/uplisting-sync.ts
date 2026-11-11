@@ -5,6 +5,7 @@ import {
   type UplistingBooking,
   type UplistingListing,
 } from '@/lib/uplisting';
+import { isStaleWebhookPayload } from '@/lib/uplisting-webhook';
 
 type ServiceClient = ReturnType<typeof createServiceClient>;
 
@@ -404,9 +405,22 @@ export async function upsertUplistingBooking(
   const uplistingBookingId = String(booking.id);
   const { data: existing } = await supabase
     .from('bookings')
-    .select('id, booking_status, check_in_date, check_out_date, booking_reference')
+    .select(
+      'id, booking_status, check_in_date, check_out_date, booking_reference, raw_payload'
+    )
     .eq('uplisting_booking_id', uplistingBookingId)
     .maybeSingle();
+
+  if (
+    options.source === 'uplisting_webhook' &&
+    existing &&
+    isStaleWebhookPayload(existing.raw_payload, options.rawPayload)
+  ) {
+    console.log(
+      `[uplisting-sync] skipping stale webhook upsert booking=${uplistingBookingId}`
+    );
+    return { ok: true, eventType: undefined };
+  }
 
   const guestId = await upsertGuest(supabase, booking);
   const channelId = await findOrCreateChannelId(supabase, booking.channel);
@@ -493,6 +507,21 @@ export async function cancelUplistingBooking(
   rawPayload: Record<string, unknown>,
   source: UplistingBookingSource = 'uplisting_webhook'
 ): Promise<{ ok: boolean; cancelled: boolean; error?: string }> {
+  if (source === 'uplisting_webhook') {
+    const { data: existing } = await supabase
+      .from('bookings')
+      .select('id, raw_payload')
+      .eq('uplisting_booking_id', uplistingBookingId)
+      .maybeSingle();
+
+    if (existing && isStaleWebhookPayload(existing.raw_payload, rawPayload)) {
+      console.log(
+        `[uplisting-sync] skipping stale webhook cancel booking=${uplistingBookingId}`
+      );
+      return { ok: true, cancelled: false };
+    }
+  }
+
   const { data, error } = await supabase
     .from('bookings')
     .update({
@@ -699,10 +728,6 @@ export async function syncBookingsForListing(uplistingId: string): Promise<{
   cancelled: number;
   errors: string[];
 }> {
-  console.log(
-    `[uplisting-sync] syncBookingsForListing: fetching bookings for listing ${uplistingId}`
-  );
-
   const supabase = createServiceClient();
 
   const { data: apartment, error: apartmentError } = await supabase
@@ -719,12 +744,18 @@ export async function syncBookingsForListing(uplistingId: string): Promise<{
     throw new Error(`No apartment linked with uplisting_id=${uplistingId}`);
   }
 
+  // Disabled properties are excluded from booking-date pulls.
+  // Existing booking rows are left untouched in the database.
   if (apartment.is_active === false) {
     console.log(
-      `[uplisting-sync] syncBookingsForListing: skipping disabled apartment for uplisting_id=${uplistingId}`
+      `[uplisting-sync] syncBookingsForListing: skipping disabled apartment for uplisting_id=${uplistingId} (keeping existing bookings)`
     );
     return { synced: 0, skipped: 0, cancelled: 0, errors: [] };
   }
+
+  console.log(
+    `[uplisting-sync] syncBookingsForListing: fetching bookings for listing ${uplistingId}`
+  );
 
   const apartmentByUplistingId = new Map<string, string>([
     [String(uplistingId), apartment.id],
@@ -783,6 +814,8 @@ export async function syncBookings(): Promise<{
 
   const supabase = createServiceClient();
 
+  // Only active apartments: disabled ones are not queried for new booking dates.
+  // Their existing booking records remain in the database.
   const { data: apartments, error: apartmentsError } = await supabase
     .from('apartments')
     .select('id, uplisting_id')
